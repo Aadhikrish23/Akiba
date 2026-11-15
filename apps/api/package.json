@@ -1,0 +1,24 @@
+{
+  "name": "@akiba/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Akiba API server (Express). Placeholder app; routes arrive in T2.",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@akiba/shared": "workspace:*",
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "@akiba/config": "workspace:*",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  }
+}

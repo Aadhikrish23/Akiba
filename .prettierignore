@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+# Authored documentation and research notes are not reformatted by tooling.
+docs
+research

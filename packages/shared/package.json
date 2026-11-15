@@ -1,0 +1,27 @@
+{
+  "name": "@akiba/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Types, enums and constants shared by every Akiba app (Zod DTOs arrive in T7).",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@akiba/config": "workspace:*",
+    "typescript": "~6.0.3",
+    "vitest": "^5.1.0"
+  }
+}
