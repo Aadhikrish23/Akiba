@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Akiba — Shelf direction mockup</title>
+<style>
+  /* ───────── Tokens ───────── */
+  :root {
+    /* raw values */
+    --paper-l: oklch(96.5% 0.012 85);
+    --paper-d: oklch(19% 0.012 60);
+    --raised-l: oklch(99% 0.006 85);
+    --raised-d: oklch(23.5% 0.014 60);
+    --ink-l: oklch(22% 0.015 60);
+    --ink-d: oklch(93% 0.012 85);
+    --mute-l: oklch(48% 0.02 70);
+    --mute-d: oklch(70% 0.02 80);
+    --rule-l: oklch(88% 0.015 80);
+    --rule-d: oklch(31% 0.015 60);
+    --accent-l: oklch(55% 0.19 33);   /* vermilion */
+    --accent-d: oklch(68% 0.17 38);
+    --onaccent-l: oklch(98% 0.01 85);
+    --onaccent-d: oklch(18% 0.02 40);
+
+    /* resolved (fallback first, then light-dark()) */
+    --paper: var(--paper-l);  --raised: var(--raised-l); --ink: var(--ink-l);
+    --mute: var(--mute-l);    --rule: var(--rule-l);
+    --accent: var(--accent-l); --onaccent: var(--onaccent-l);
+    @media (prefers-color-scheme: dark) {
+      --paper: var(--paper-d);  --raised: var(--raised-d); --ink: var(--ink-d);
+      --mute: var(--mute-d);    --rule: var(--rule-d);
+      --accent: var(--accent-d); --onaccent: var(--onaccent-d);
+    }
+    @supports (color: light-dark(white, black)) {
+      --paper: light-dark(var(--paper-l), var(--paper-d));
+      --raised: light-dark(var(--raised-l), var(--raised-d));
+      --ink: light-dark(var(--ink-l), var(--ink-d));
+      --mute: light-dark(var(--mute-l), var(--mute-d));
+      --rule: light-dark(var(--rule-l), var(--rule-d));
+      --accent: light-dark(var(--accent-l), var(--accent-d));
+      --onaccent: light-dark(var(--onaccent-l), var(--onaccent-d));
+    }
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, "Helvetica Neue", "Segoe UI", system-ui, sans-serif;
+    --gutter: clamp(16px, 4vw, 40px);
+    color-scheme: light dark;
+    accent-color: var(--accent);
+    scrollbar-color: var(--mute) var(--paper);
+    scrollbar-width: thin;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font: 400 0.9375rem/1.5 var(--sans);
+    font-variant-numeric: tabular-nums;
+  }
+  h1, h2, h3, p { margin: 0; }
+  a { color: inherit; }
+  ::selection { background: var(--accent); color: var(--onaccent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  /* ───────── Shell ───────── */
+  .shell { display: grid; grid-template-columns: 1fr; min-height: 100dvh; }
+  @media (min-width: 880px) { .shell { grid-template-columns: 200px 1fr; } }
+
+  .rail {
+    display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;
+    padding: 14px var(--gutter); border-bottom: 1px solid var(--rule);
+  }
+  @media (min-width: 880px) {
+    .rail {
+      flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 2rem;
+      border-bottom: 0; border-right: 1px solid var(--rule);
+      padding: 28px 24px; position: sticky; top: 0; height: 100dvh;
+    }
+  }
+  .brand { display: flex; align-items: baseline; gap: .5rem; text-decoration: none; }
+  .brand b { font: 600 1.5rem/1 var(--serif); letter-spacing: -.01em; }
+  .brand span { color: var(--accent); font: 500 1.05rem/1 var(--serif); }
+  .rail nav { display: flex; gap: .25rem 1rem; flex-wrap: wrap; }
+  @media (min-width: 880px) { .rail nav { flex-direction: column; gap: .15rem; } }
+  .rail nav a {
+    text-decoration: none; padding: 6px 0; color: var(--mute);
+    border-bottom: 2px solid transparent;
+  }
+  .rail nav a:hover { color: var(--ink); }
+  .rail nav a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+  @media (min-width: 880px) {
+    .rail nav a { border-bottom: 0; padding: 7px 0 7px 12px; border-left: 2px solid transparent; }
+    .rail nav a[aria-current="page"] { border-left-color: var(--accent); }
+  }
+  .rail .search { flex: 1 1 100%; }
+  @media (min-width: 880px) { .rail .search { margin: 0; order: 3; flex: none; } }
+  .search input {
+    width: 100%; min-width: 0; padding: 8px 10px; font: inherit; color: inherit;
+    background: transparent; border: 1px solid var(--rule); border-radius: 2px;
+  }
+  .search input::placeholder { color: var(--mute); }
+
+  main { padding: clamp(20px, 4vw, 44px) var(--gutter) 72px; min-width: 0; }
+  section + section { margin-top: clamp(40px, 6vw, 72px); }
+
+  .eyebrow {
+    font: 600 .6875rem/1 var(--sans); letter-spacing: .14em; text-transform: uppercase;
+    color: var(--mute);
+  }
+  .sec-head { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 18px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .sec-head h2 { font: 500 clamp(1.4rem, 2.6vw, 1.9rem)/1.1 var(--serif); letter-spacing: -.01em; }
+  .sec-head a { color: var(--mute); font-size: .8125rem; }
+
+  /* ───────── Poster (typographic placeholder for cover art) ───────── */
+  .poster {
+    position: relative; aspect-ratio: 2 / 3; display: grid; align-content: space-between;
+    padding: 12px; overflow: hidden; background: var(--c, #555); color: var(--t, #fff);
+    border-radius: 2px;
+  }
+  .poster small { font: 600 .625rem/1 var(--sans); letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+  .poster em { font: italic 600 clamp(1.1rem, 2.4cqi + .4rem, 1.7rem)/1.02 var(--serif); font-style: italic; text-wrap: balance; }
+  .bar { position: absolute; inset: auto 0 0 0; height: 4px; background: color-mix(in oklab, black 30%, transparent); }
+  .bar i { display: block; height: 100%; width: var(--p, 0%); background: var(--accent); }
+
+  /* ───────── Card (article, stretched title link) ───────── */
+  .card { container-type: inline-size; position: relative; display: grid; gap: 10px; align-content: start; }
+  .card h3 { font: 600 .9375rem/1.25 var(--sans); }
+  .card .meta { color: var(--mute); font-size: .8125rem; }
+  .card a.card-link { text-decoration: none; }
+  .card a.card-link::after { content: ""; position: absolute; inset: 0; }
+  .card a.card-link:focus-visible { outline: none; }
+  .card:has(a.card-link:focus-visible) .poster { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .card:has(a.card-link:hover) h3 { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; text-decoration-thickness: 2px; }
+  .card a:not(.card-link), .card button { position: relative; z-index: 1; }
+
+  .plus {
+    font: 600 .8125rem/1 var(--sans); padding: 8px 12px; cursor: pointer;
+    background: transparent; color: var(--ink); border: 1px solid var(--ink); border-radius: 2px;
+  }
+  .plus:hover { background: var(--ink); color: var(--paper); }
+  .plus:active { transform: translateY(1px); }
+
+  .airing {
+    display: inline-flex; align-items: center; gap: 6px; color: var(--accent);
+    font: 600 .6875rem/1 var(--sans); letter-spacing: .1em; text-transform: uppercase;
+  }
+  .airing::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ───────── Continue watching (hero row) ───────── */
+  .continue { display: grid; gap: clamp(16px, 2.5vw, 28px); grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+  .continue .card { grid-template-columns: 96px 1fr; align-items: stretch; gap: 14px; }
+  .continue .card .body { display: grid; align-content: space-between; gap: 10px; padding-block: 2px; }
+  .continue .ep { font: 500 1.35rem/1.1 var(--serif); }
+  .continue .ep span { color: var(--mute); font-size: .9rem; }
+
+  /* ───────── Poster rail (this season) ───────── */
+  .strip {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(138px, 17%);
+    gap: 16px; overflow-x: auto; padding-bottom: 14px; scroll-snap-type: x proximity;
+  }
+  .strip > * { scroll-snap-align: start; }
+
+  /* ───────── Library: grid / list toggle (no JS) ───────── */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+  .seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 2px; }
+  .seg label { position: relative; }
+  .seg input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+  .seg span { display: block; padding: 7px 14px; color: var(--mute); font-size: .8125rem; font-weight: 600; }
+  .seg label:has(input:checked) span { background: var(--ink); color: var(--paper); }
+  .seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tabs { display: flex; gap: 4px 18px; flex-wrap: wrap; }
+  .tabs a { text-decoration: none; color: var(--mute); padding: 4px 0; border-bottom: 2px solid transparent; font-weight: 500; }
+  .tabs a[aria-current] { color: var(--ink); border-bottom-color: var(--accent); }
+  .tabs sup { font-size: .7rem; margin-left: 3px; color: var(--mute); }
+
+  .library { display: grid; gap: 22px 16px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .grid-controls { display: contents; }
+
+  /* list mode driven by the checked radio */
+  .lib-wrap:has(#v-list:checked) .library { grid-template-columns: 1fr; gap: 0; border-top: 1px solid var(--rule); }
+  .lib-wrap:has(#v-list:checked) .library .card {
+    grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 4px 16px;
+    padding: 10px 0; border-bottom: 1px solid var(--rule);
+  }
+  .lib-wrap:has(#v-list:checked) .poster { padding: 0; }
+  .lib-wrap:has(#v-list:checked) .poster small,
+  .lib-wrap:has(#v-list:checked) .poster em { display: none; }
+  .lib-wrap:has(#v-list:checked) .bar { display: none; }
+  .row-extra { display: none; }
+  .lib-wrap:has(#v-list:checked) .row-extra {
+    display: grid; align-items: center; gap: 14px;
+    grid-template-columns: 96px 7ch 3ch 3.25rem; /* fixed slots keep rows aligned when +1 is absent */
+  }
+  .lib-wrap:has(#v-list:checked) .card:hover { background: color-mix(in oklab, var(--ink) 4%, transparent); }
+  .meter { width: 96px; height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: var(--p, 0%); background: var(--accent); }
+  .count { min-width: 5.5ch; text-align: right; font-weight: 600; }
+  .score { min-width: 3ch; text-align: right; color: var(--mute); }
+  @media (max-width: 560px) {
+    .lib-wrap:has(#v-list:checked) .row-extra { grid-template-columns: 7ch 3.25rem; }
+    .lib-wrap:has(#v-list:checked) .row-extra .meter,
+    .lib-wrap:has(#v-list:checked) .row-extra .score { display: none; }
+  }
+
+  .grid-only-meta { display: block; }
+  .lib-wrap:has(#v-list:checked) .grid-only-meta { display: none; }
+
+  .note {
+    margin-top: 56px; padding: 14px 16px; border: 1px dashed var(--rule); color: var(--mute);
+    font-size: .8125rem; max-width: 62ch;
+  }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="rail">
+    <a class="brand" href="#" aria-label="Akiba home"><b>Akiba</b><span>秋葉</span></a>
+    <nav aria-label="Primary">
+      <a href="#home" aria-current="page">Home</a>
+      <a href="#discover">Discover</a>
+      <a href="#library">Library</a>
+      <a href="#history">History</a>
+    </nav>
+    <form class="search" role="search" onsubmit="return false">
+      <label class="visually-hidden" for="q">Search anime</label>
+      <input id="q" type="search" placeholder="Search anime">
+    </form>
+  </header>
+
+  <main>
+    <!-- HOME ─────────────────────────────── -->
+    <section id="home" aria-labelledby="h-continue">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Saturday · Autumn 2026</p>
+          <h2 id="h-continue">Continue watching</h2>
+        </div>
+        <a href="#library">All watching (6)</a>
+      </div>
+
+      <div class="continue">
+        <article class="card" style="--c:oklch(38% 0.07 255);--t:oklch(96% 0.01 255)">
+          <div class="poster"><small>TV · 28 eps</small><em>Frieren: Beyond Journey’s End</em><div class="bar"><i style="--p:57%"></i></div></div>
+          <div class="body">
+            <div>
+              <h3><a class="card-link" href="#">Frieren: Beyond Journey’s End</a></h3>
+              <p class="meta">Madhouse · Fantasy</p>
+            </div>
+            <p class="ep">16 <span>/ 28</span></p>
+            <div><button class="plus" type="button" data-step>+1 episode</button></div>
+          </div>
+        </article>
+
+        <article class="card" style="--c:oklch(78% 0.1 85);--t:oklch(22% 0.03 70)">
+          <div class="poster"><small>TV · 12 eps</small><em>Bocchi the Rock!</em><div class="bar"><i style="--p:75%"></i></div></div>
+          <div class="body">
+            <div>
+              <h3><a class="card-link" href="#">Bocchi the Rock!</a></h3>
+              <p class="meta"><span class="airing">Airing</span> &nbsp;Next: Sun 23:30</p>
+            </div>
+            <p class="ep">9 <span>/ 12</span></p>
+            <div><button class="plus" type="button" data-step>+1 episode</button></div>
+          </div>
+        </article>
+
+        <article class="card" style="--c:oklch(30% 0.03 160);--t:oklch(95% 0.02 150)">
+          <div class="poster"><small>TV · 74 eps</small><em>Monster</em><div class="bar"><i style="--p:23%"></i></div></div>
+          <div class="body">
+            <div>
+              <h3><a class="card-link" href="#">Monster</a></h3>
+              <p class="meta">Madhouse · Thriller</p>
+            </div>
+            <p class="ep">17 <span>/ 74</span></p>
+            <div><button class="plus" type="button" data-step>+1 episode</button></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="discover" aria-labelledby="h-season">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Discover</p>
+          <h2 id="h-season">This season</h2>
+        </div>
+        <a href="#">Full chart</a>
+      </div>
+      <div class="strip">
+        <article class="card" style="--c:oklch(58% 0.15 30);--t:oklch(98% 0.01 30)"><div class="poster"><small>Airing</small><em>Kaiju No. 8</em></div><div><h3><a class="card-link" href="#">Kaiju No. 8</a></h3><p class="meta">Production I.G · Action</p></div></article>
+        <article class="card" style="--c:oklch(88% 0.05 95);--t:oklch(25% 0.03 90)"><div class="poster"><small>Airing</small><em>Dungeon Meshi</em></div><div><h3><a class="card-link" href="#">Dungeon Meshi</a></h3><p class="meta">Trigger · Fantasy</p></div></article>
+        <article class="card" style="--c:oklch(42% 0.09 190);--t:oklch(96% 0.02 190)"><div class="poster"><small>Airing</small><em>Mushishi</em></div><div><h3><a class="card-link" href="#">Mushishi</a></h3><p class="meta">Artland · Slice of life</p></div></article>
+        <article class="card" style="--c:oklch(33% 0.06 300);--t:oklch(95% 0.02 300)"><div class="poster"><small>New</small><em>Ghost in the Shell</em></div><div><h3><a class="card-link" href="#">Ghost in the Shell</a></h3><p class="meta">Production I.G · Sci-fi</p></div></article>
+        <article class="card" style="--c:oklch(70% 0.12 60);--t:oklch(22% 0.03 60)"><div class="poster"><small>Airing</small><em>Spy × Family</em></div><div><h3><a class="card-link" href="#">Spy × Family</a></h3><p class="meta">Wit · CloverWorks</p></div></article>
+        <article class="card" style="--c:oklch(45% 0.12 150);--t:oklch(96% 0.02 150)"><div class="poster"><small>Movie</small><em>Vinland Saga</em></div><div><h3><a class="card-link" href="#">Vinland Saga</a></h3><p class="meta">MAPPA · Historical</p></div></article>
+      </div>
+    </section>
+
+    <!-- LIBRARY ─────────────────────────────── -->
+    <section id="library" aria-labelledby="h-lib">
+      <div class="sec-head">
+        <div>
+          <p class="eyebrow">Collect</p>
+          <h2 id="h-lib">Library</h2>
+        </div>
+        <a href="#">Export</a>
+      </div>
+
+      <div class="lib-wrap">
+        <div class="toolbar">
+          <nav class="tabs" aria-label="Status">
+            <a href="#" aria-current="true">Watching<sup>6</sup></a>
+            <a href="#">Completed<sup>148</sup></a>
+            <a href="#">Planned<sup>52</sup></a>
+            <a href="#">Dropped<sup>7</sup></a>
+          </nav>
+          <fieldset class="seg" style="border:0;padding:0;margin:0">
+            <legend class="visually-hidden">Layout</legend>
+            <div class="seg" role="radiogroup">
+              <label><input type="radio" name="view" id="v-grid" checked><span>Posters</span></label>
+              <label><input type="radio" name="view" id="v-list"><span>List</span></label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="library">
+          <article class="card" style="--c:oklch(38% 0.07 255);--t:oklch(96% 0.01 255)">
+            <div class="poster"><small>TV</small><em>Frieren</em><div class="bar"><i style="--p:57%"></i></div></div>
+            <div><h3><a class="card-link" href="#">Frieren: Beyond Journey’s End</a></h3><p class="meta grid-only-meta">16 / 28</p></div>
+            <div class="row-extra"><span class="meter"><i style="--p:57%"></i></span><span class="count">16 / 28</span><span class="score">9</span><button class="plus" type="button" data-step>+1</button></div>
+          </article>
+          <article class="card" style="--c:oklch(78% 0.1 85);--t:oklch(22% 0.03 70)">
+            <div class="poster"><small>TV</small><em>Bocchi the Rock!</em><div class="bar"><i style="--p:75%"></i></div></div>
+            <div><h3><a class="card-link" href="#">Bocchi the Rock!</a></h3><p class="meta grid-only-meta">9 / 12</p></div>
+            <div class="row-extra"><span class="meter"><i style="--p:75%"></i></span><span class="count">9 / 12</span><span class="score">10</span><button class="plus" type="button" data-step>+1</button></div>
+          </article>
+          <article class="card" style="--c:oklch(30% 0.03 160);--t:oklch(95% 0.02 150)">
+            <div class="poster"><small>TV</small><em>Monster</em><div class="bar"><i style="--p:23%"></i></div></div>
+            <div><h3><a class="card-link" href="#">Monster</a></h3><p class="meta grid-only-meta">17 / 74</p></div>
+            <div class="row-extra"><span class="meter"><i style="--p:23%"></i></span><span class="count">17 / 74</span><span class="score">—</span><button class="plus" type="button" data-step>+1</button></div>
+          </article>
+          <article class="card" style="--c:oklch(55% 0.13 25);--t:oklch(98% 0.01 25)">
+            <div class="poster"><small>TV</small><em>Fullmetal Alchemist: Brotherhood</em><div class="bar"><i style="--p:100%"></i></div></div>
+            <div><h3><a class="card-link" href="#">Fullmetal Alchemist: Brotherhood</a></h3><p class="meta grid-only-meta">Completed · 10</p></div>
+            <div class="row-extra"><span class="meter"><i style="--p:100%"></i></span><span class="count">64 / 64</span><span class="score">10</span></div>
+          </article>
+          <article class="card" style="--c:oklch(60% 0.12 240);--t:oklch(98% 0.01 240)">
+            <div class="poster"><small>TV</small><em>Haikyu!!</em><div class="bar"><i style="--p:40%"></i></div></div>
+            <div><h3><a class="card-link" href="#">Haikyu!!</a></h3><p class="meta grid-only-meta">10 / 25</p></div>
+            <div class="row-extra"><span class="meter"><i style="--p:40%"></i></span><span class="count">10 / 25</span><span class="score">8</span><button class="plus" type="button" data-step>+1</button></div>
+          </article>
+          <article class="card" style="--c:oklch(26% 0.02 60);--t:oklch(92% 0.03 85)">
+            <div class="poster"><small>TV</small><em>Cowboy Bebop</em><div class="bar"><i style="--p:100%"></i></div></div>
+            <div><h3><a class="card-link" href="#">Cowboy Bebop</a></h3><p class="meta grid-only-meta">Completed · 10</p></div>
+            <div class="row-extra"><span class="meter"><i style="--p:100%"></i></span><span class="count">26 / 26</span><span class="score">10</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <p class="note" id="history">
+      Mockup only. Posters are typographic placeholders where real cover art will go.
+      Theme follows your system (try switching light/dark). Toggle <b>Posters / List</b> and press <b>+1</b> to see
+      the interaction model. No tracking, no gradients, no card shadows.
+    </p>
+  </main>
+</div>
+
+<script>
+  // Demo only: +1 episode bumps the visible counter
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-step]'); if (!b) return;
+    const card = b.closest('.card');
+    card.querySelectorAll('.ep, .count, .grid-only-meta').forEach((el) => {
+      const node = [...el.childNodes].find((n) => n.nodeType === 3 && /\d+/.test(n.textContent)) || el.firstChild;
+      const m = (node.textContent || '').match(/(\d+)(\s*\/\s*(\d+))?/);
+      if (!m) return;
+      const total = m[3] ? +m[3] : Infinity;
+      const next = Math.min(+m[1] + 1, total);
+      node.textContent = node.textContent.replace(/^\s*\d+/, (s) => s.replace(/\d+/, next));
+      const pct = isFinite(total) ? (next / total) * 100 + '%' : null;
+      if (pct) card.querySelectorAll('.bar i, .meter i').forEach((i) => i.style.setProperty('--p', pct));
+    });
+  });
+</script>
+</body>
+</html>
