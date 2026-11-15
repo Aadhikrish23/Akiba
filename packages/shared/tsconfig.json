@@ -1,0 +1,7 @@
+{
+  "extends": "@akiba/config/tsconfig/library.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "vitest.config.ts"]
+}

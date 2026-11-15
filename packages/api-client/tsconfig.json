@@ -1,0 +1,8 @@
+{
+  "extends": "@akiba/config/tsconfig/library.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2023", "DOM"]
+  },
+  "include": ["src", "vitest.config.ts"]
+}

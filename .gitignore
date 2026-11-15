@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+coverage/
+
+# env files (never commit secrets); keep the example
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+
+# tooling / OS / editors
+.eslintcache
+.vite/
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
