@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  changePasswordRequestSchema,
   CLIENT_HEADER_PATTERN,
+  forgotPasswordRequestSchema,
   loginRequestSchema,
   newPasswordSchema,
   refreshRequestSchema,
   refreshTokenSchema,
   registerRequestSchema,
+  resetPasswordRequestSchema,
+  verifyEmailRequestSchema,
 } from './auth.js';
 
 describe('auth DTOs', () => {
@@ -63,5 +67,43 @@ describe('auth DTOs', () => {
     for (const bad of ['', 'mobile/', 'tv/1', 'web/1 2', 'Mobile/1', 'mobile/1\n']) {
       expect(CLIENT_HEADER_PATTERN.test(bad)).toBe(false);
     }
+  });
+
+  it('FR-AUTH-005/006: one-time-token bodies are strict and do not describe the token format', () => {
+    expect(verifyEmailRequestSchema.safeParse({ token: 'anything at all' }).success).toBe(true);
+    expect(verifyEmailRequestSchema.safeParse({ token: '' }).success).toBe(false);
+    expect(verifyEmailRequestSchema.safeParse({ token: 'x'.repeat(513) }).success).toBe(false);
+    expect(verifyEmailRequestSchema.safeParse({ token: 'x', userId: 'y' }).success).toBe(false);
+    expect(forgotPasswordRequestSchema.parse({ email: ' ada@example.test ' })).toEqual({
+      email: 'ada@example.test',
+    });
+    expect(forgotPasswordRequestSchema.safeParse({ email: 'nope' }).success).toBe(false);
+  });
+
+  it('S-AUTH-2: reset and change apply the new-password policy; the current password is not policed', () => {
+    const token = 'x'.repeat(43);
+    expect(
+      resetPasswordRequestSchema.safeParse({ token, newPassword: 'long enough pw' }).success,
+    ).toBe(true);
+    expect(resetPasswordRequestSchema.safeParse({ token, newPassword: 'short' }).success).toBe(
+      false,
+    );
+    expect(
+      changePasswordRequestSchema.safeParse({
+        currentPassword: 'old',
+        newPassword: 'long enough pw',
+      }).success,
+    ).toBe(true);
+    expect(
+      changePasswordRequestSchema.safeParse({ currentPassword: '', newPassword: 'long enough pw' })
+        .success,
+    ).toBe(false);
+    expect(
+      changePasswordRequestSchema.safeParse({
+        currentPassword: 'old',
+        newPassword: 'long enough pw',
+        userId: 'someone-else',
+      }).success,
+    ).toBe(false);
   });
 });

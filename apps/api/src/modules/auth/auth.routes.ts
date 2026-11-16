@@ -1,15 +1,22 @@
 import {
+  changePasswordRequestSchema,
+  forgotPasswordRequestSchema,
   loginRequestSchema,
   logoutRequestSchema,
   refreshRequestSchema,
   registerRequestSchema,
+  resetPasswordRequestSchema,
+  verifyEmailRequestSchema,
+  type AcceptedResponse,
   type LoginResponse,
   type MeResponse,
   type RefreshResponse,
   type RegisterResponse,
+  type ResetPasswordResponse,
+  type VerifyEmailResponse,
 } from '@akiba/shared';
 import { Router, type Request, type RequestHandler } from 'express';
-import { unauthenticated } from '../../lib/errors.js';
+import { emailNotVerified, unauthenticated } from '../../lib/errors.js';
 import { getAuth } from '../../middleware/auth.js';
 import { getValidated, validate } from '../../middleware/validate.js';
 import type { AuthService, ClientInfo, Session } from './auth.service.js';
@@ -116,7 +123,74 @@ export function createAuthRouter(options: AuthRoutesOptions): Router {
     res.status(204).end();
   });
 
+  // ── Email verification and password reset (T5; FR-AUTH-005/006, S-AUTH-10/11) ──
+
+  /** The one body for "this may or may not have led to an email". */
+  const accepted: AcceptedResponse = { status: 'accepted' };
+
+  // Public: the link may be opened in a browser that is not signed in.
+  const verifySchemas = { body: verifyEmailRequestSchema };
+  router.post('/verify-email', guard, validate(verifySchemas), async (_req, res) => {
+    await service.verifyEmail(getValidated(res, verifySchemas).body.token);
+    const body: VerifyEmailResponse = { status: 'verified' };
+    res.status(200).json(body);
+  });
+
+  // Authenticated: the link goes to the caller's own address, never to one named in the request.
+  router.post('/verify-email/resend', guard, ...options.authenticated, (_req, res) => {
+    res.status(202).json(accepted);
+    service.resendVerification(getAuth(res).userId);
+  });
+
+  // Always 202 with the same body. The response is sent BEFORE the account is looked up, so
+  // neither its content nor its timing depends on whether the address has an account.
+  const forgotSchemas = { body: forgotPasswordRequestSchema };
+  router.post('/password/forgot', guard, validate(forgotSchemas), (_req, res) => {
+    const { email } = getValidated(res, forgotSchemas).body;
+    res.status(202).json(accepted);
+    service.requestPasswordReset(email);
+  });
+
+  const resetSchemas = { body: resetPasswordRequestSchema };
+  router.post('/password/reset', guard, validate(resetSchemas), async (req, res) => {
+    await service.resetPassword(getValidated(res, resetSchemas).body);
+    // Every session of the account is over, including the one this browser may hold.
+    if (transportOf(req) === 'cookie') clearRefreshCookie(res, { secure: cookieSecure });
+    const body: ResetPasswordResponse = { status: 'password_reset' };
+    res.status(200).json(body);
+  });
+
+  const changeSchemas = { body: changePasswordRequestSchema };
+  router.post(
+    '/password/change',
+    guard,
+    ...options.authenticated,
+    validate(changeSchemas),
+    async (_req, res) => {
+      await service.changePassword(getAuth(res), getValidated(res, changeSchemas).body);
+      res.status(204).end();
+    },
+  );
+
   return router;
+}
+
+/**
+ * Gate for features that need a verified email address (Q-04: share links, T17). Mount AFTER the
+ * `authenticated` chain. Reads the state from the database on every request, so verifying takes
+ * effect at once and no token has to be reissued.
+ */
+export function requireVerifiedEmail(service: AuthService): RequestHandler {
+  return (_req, res, next) => {
+    service
+      .getUser(getAuth(res).userId)
+      .then((user) => {
+        if (user === null) next(unauthenticated());
+        else if (!user.emailVerified) next(emailNotVerified());
+        else next();
+      })
+      .catch(next);
+  };
 }
 
 /** `GET /v1/me`: the authenticated user's identity (T4 scope; the account tasks extend it). */

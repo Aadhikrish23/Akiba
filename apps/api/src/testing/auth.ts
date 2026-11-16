@@ -8,6 +8,7 @@ import { MemoryRateLimitStore } from '../middleware/rateLimit.js';
 import { generateSigningJwk } from '../modules/auth/accessTokens.js';
 import type { BreachedPasswordChecker } from '../modules/auth/breachedPasswords.js';
 import { createAuthModule, type AuthModule } from '../modules/auth/index.js';
+import { MemoryEmailSender } from '../modules/email/index.js';
 import { Argon2idHasher, type PasswordHasher } from '../modules/auth/password.js';
 import { LogSink, testConfig } from './harness.js';
 
@@ -71,6 +72,10 @@ export interface AuthTestApp {
   readonly logs: LogSink;
   readonly clock: TestClock;
   readonly hasher: RecordingHasher;
+  /** Every email the app produced. Wait for {@link AuthTestApp.settle} before reading it. */
+  readonly emails: MemoryEmailSender;
+  /** Resolves when the work the app does after responding (email, forgot-password) is done. */
+  readonly settle: () => Promise<void>;
   /** The throwaway signing key of this app (private part included), for forging test tokens. */
   readonly signingJwk: Ed25519Jwk;
 }
@@ -109,7 +114,9 @@ export async function buildAuthTestApp(options: AuthTestAppOptions): Promise<Aut
     }),
   );
   const rateLimitStore = new MemoryRateLimitStore();
+  const emails = new MemoryEmailSender();
   const auth = await createAuthModule({
+    emailSender: emails,
     config,
     db: options.db,
     logger,
@@ -121,7 +128,19 @@ export async function buildAuthTestApp(options: AuthTestAppOptions): Promise<Aut
       : { breachedPasswords: options.breachedPasswords }),
   });
   const app = createApp({ config, logger, rateLimitStore, v1Router: auth.router });
-  return { app, auth, config, logs, clock, hasher, signingJwk };
+  return {
+    app,
+    auth,
+    config,
+    logs,
+    clock,
+    hasher,
+    signingJwk,
+    emails,
+    settle: async () => {
+      await auth.background.idle();
+    },
+  };
 }
 
 export interface Credentials {

@@ -159,6 +159,43 @@ export const invalidRefreshToken = (): HttpError =>
     detail: 'The session has ended. Sign in again.',
   });
 
+/**
+ * A one-time token from an emailed link did not work. One response for every cause (unknown,
+ * malformed, wrong purpose, expired, already used, account gone), so a caller learns nothing
+ * about which tokens exist or existed (S-AUTH-10).
+ */
+export const invalidOneTimeToken = (): HttpError =>
+  new HttpError({
+    status: 400,
+    code: 'INVALID_TOKEN',
+    slug: 'invalid-token',
+    title: 'Invalid or expired link',
+    detail: 'This link is invalid, has expired or was already used. Request a new one.',
+  });
+
+/**
+ * The current password given to confirm a sensitive change was wrong (S-AUTH-11). 403, not 401:
+ * the access token is fine, so a client must not treat this as "signed out".
+ */
+export const reauthenticationFailed = (): HttpError =>
+  new HttpError({
+    status: 403,
+    code: 'REAUTHENTICATION_FAILED',
+    slug: 'reauthentication-failed',
+    title: 'Current password incorrect',
+    detail: 'The current password is incorrect.',
+  });
+
+/** The feature needs a verified email address (Q-04) and the caller's is not verified. */
+export const emailNotVerified = (): HttpError =>
+  new HttpError({
+    status: 403,
+    code: 'EMAIL_NOT_VERIFIED',
+    slug: 'email-not-verified',
+    title: 'Email not verified',
+    detail: 'Confirm your email address to use this feature.',
+  });
+
 /** A browser request to an auth endpoint failed the CSRF checks (S-AUTH-7). */
 export const csrfRejected = (): HttpError =>
   new HttpError({

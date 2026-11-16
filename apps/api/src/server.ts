@@ -7,6 +7,9 @@ import { createShutdown } from './lib/shutdown.js';
 import { MemoryRateLimitStore } from './middleware/rateLimit.js';
 import { createAuthModule } from './modules/auth/index.js';
 
+/** How long shutdown waits for emails that are still on their way out. */
+const BACKGROUND_DRAIN_MS = 5_000;
+
 function loadConfigOrExit(): AppConfig {
   try {
     return loadEnv();
@@ -65,7 +68,21 @@ const shutdown = createShutdown({
   server,
   logger,
   timeoutMs: config.shutdownTimeoutMs,
-  ...(db === undefined ? {} : { onClose: () => db.close() }),
+  ...(db === undefined
+    ? {}
+    : {
+        onClose: async () => {
+          // Let emails that are on their way out finish before the pool goes away.
+          // Bounded: a provider that never answers must not keep the process alive.
+          if (auth !== undefined && !(await auth.background.idle(BACKGROUND_DRAIN_MS))) {
+            logger.warn(
+              { pending: auth.background.pending },
+              'background work abandoned at shutdown',
+            );
+          }
+          await db.close();
+        },
+      }),
 });
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { refreshTokenSchema } from '@akiba/shared';
-import type { DbClient } from '../../db/index.js';
+import type { DbClient, DbTransaction } from '../../db/index.js';
 
 /**
  * Refresh tokens (doc 09 S-AUTH-6).
@@ -164,10 +164,24 @@ export class RefreshTokenStore {
     });
   }
 
-  /** Revoke every family of one user (logout everywhere). The user ID comes from a verified token. */
-  async revokeAllForUser(userId: string): Promise<void> {
-    await this.#db.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
+  /**
+   * Revoke every family of one user (logout everywhere). The user ID comes from a verified
+   * token or a consumed one-time token, never from input. `executor` lets a caller do it inside
+   * its own transaction (password reset); `exceptFamilyId` keeps one session alive (the one that
+   * just changed the password).
+   */
+  async revokeAllForUser(
+    userId: string,
+    options: { executor?: DbClient | DbTransaction; exceptFamilyId?: string } = {},
+  ): Promise<void> {
+    await (options.executor ?? this.#db).refreshToken.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        ...(options.exceptFamilyId === undefined
+          ? {}
+          : { familyId: { not: options.exceptFamilyId } }),
+      },
       data: { revokedAt: this.#now() },
     });
   }

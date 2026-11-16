@@ -22,8 +22,10 @@
 | `POST /auth/refresh` | Rotates refresh token; returns new access token |
 | `POST /auth/logout` | Revokes current refresh token family |
 | `POST /auth/logout-all` | Revokes all families for the user |
-| `POST /auth/verify-email` | `{token}` |
-| `POST /auth/password/forgot` · `/reset` | Always 202 on forgot (no user enumeration) |
+| `POST /auth/verify-email` | `{token}` → 200 `{status:"verified"}`; any unusable token → 400 `INVALID_TOKEN` |
+| `POST /auth/verify-email/resend` | Authenticated; sends a new link to the caller's own address → always 202 `{status:"accepted"}` |
+| `POST /auth/password/forgot` · `/reset` | Forgot `{email}`: always 202 `{status:"accepted"}` (no user enumeration). Reset `{token,newPassword}` → 200 `{status:"password_reset"}`, all sessions revoked; any unusable token → 400 `INVALID_TOKEN` |
+| `POST /auth/password/change` | Authenticated; `{currentPassword,newPassword}` → 204, other sessions revoked; wrong current password → 403 `REAUTHENTICATION_FAILED` |
 | `POST /auth/oauth/link` · `DELETE /auth/oauth/:provider` | Link/unlink provider (authenticated) |
 
 ## 3. Discover (authenticated)

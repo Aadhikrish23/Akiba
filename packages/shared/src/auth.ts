@@ -117,3 +117,41 @@ export type RefreshResponse = z.infer<typeof refreshResponseSchema>;
 /** `GET /me` (T4: identity only; profile and settings arrive with the account tasks). */
 export const meResponseSchema = authUserSchema;
 export type MeResponse = AuthUser;
+
+/**
+ * A one-time token from an emailed link (verify email, reset password). Deliberately loose: a
+ * token of the wrong shape gets the same "invalid or expired" answer as a wrong one, not a
+ * validation error that describes the real format.
+ */
+export const oneTimeTokenSchema = z.string().min(1, 'is required').max(512, 'is too long');
+
+export const verifyEmailRequestSchema = z.strictObject({ token: oneTimeTokenSchema });
+export type VerifyEmailRequest = z.infer<typeof verifyEmailRequestSchema>;
+
+export const verifyEmailResponseSchema = z.object({ status: z.literal('verified') });
+export type VerifyEmailResponse = z.infer<typeof verifyEmailResponseSchema>;
+
+export const forgotPasswordRequestSchema = z.strictObject({ email: emailSchema });
+export type ForgotPasswordRequest = z.infer<typeof forgotPasswordRequestSchema>;
+
+/**
+ * The answer to every request that may or may not lead to an email (forgot password, resend
+ * verification). It is the same whatever happened, so it says nothing about the account.
+ */
+export const acceptedResponseSchema = z.object({ status: z.literal('accepted') });
+export type AcceptedResponse = z.infer<typeof acceptedResponseSchema>;
+
+export const resetPasswordRequestSchema = z.strictObject({
+  token: oneTimeTokenSchema,
+  newPassword: newPasswordSchema,
+});
+export type ResetPasswordRequest = z.infer<typeof resetPasswordRequestSchema>;
+
+export const resetPasswordResponseSchema = z.object({ status: z.literal('password_reset') });
+export type ResetPasswordResponse = z.infer<typeof resetPasswordResponseSchema>;
+
+export const changePasswordRequestSchema = z.strictObject({
+  currentPassword: presentedPasswordSchema,
+  newPassword: newPasswordSchema,
+});
+export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
