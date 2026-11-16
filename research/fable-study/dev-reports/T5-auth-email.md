@@ -205,4 +205,14 @@ First full `pnpm test` after writing the production code failed with 5 tests, al
 
 ## 9. Commits and CI
 
-Filled in after the push; see the end of this file.
+Final local gate on the exact tree that was pushed (after regrouping the WIP commits; the tree was byte-identical to the WIP tree): `pnpm lint` 0, `pnpm typecheck` 0, `pnpm db:migrate` 0, `pnpm db:check` 0, `pnpm test` 0 (API 19 files / 388 tests; shared 15; config 9; ui-tokens 5; api-client 5; web 2), `pnpm build` 0. Local production-mode smoke on that build: 27 checks, 36 requests, all four instances logged a clean shutdown, 0 links/tokens/addresses in their logs.
+
+| Commit | Content |
+|---|---|
+| `506e112` | `one_time_token.sent_to` migration, schema, doc 06 |
+| `a4839e9` | email module, config, `BackgroundTasks` |
+| `2de4ec6` | auth service, routes, token store, DTOs, tests, doc 07 |
+| `84b68a9` | smoke file, workflow, README |
+| `c92edb4` | this report, carry-forward, sprint status |
+
+One push, no red run. On head `c92edb4`: **CI run 18 success** (actions run 43937338307), **Smoke run 13 success** (actions run 43937338293), both read through the GitHub API. A later docs-only commit adds this section; its runs are reported in the final message to the coordinator, not here.
