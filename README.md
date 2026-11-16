@@ -131,18 +131,23 @@ export DATABASE_URL=postgresql://akiba:local-only@127.0.0.1:55432/akiba_dev?sche
 read-only except for `20-auth.sh`, which registers one throwaway account per run (a unique
 `@smoke.akiba.invalid` address, left behind) and needs `SMOKE_WEB_ORIGIN` to be an origin on the
 API's `CORS_ORIGINS` list; it sends 9 requests to `/v1/auth/*`, so it can run once a minute against
-the default auth limit. Two checks need their own instance, so no default is
-weakened on the instance under test: the rate-limit check (a low limit) and the readiness check
-(a `DATABASE_URL` naming a database that does not exist, to prove `/ready` turns 503):
+the default auth limit. Three checks need their own instance, so no default is
+weakened on the instance under test: the rate-limit check (a low limit), the readiness check
+(a `DATABASE_URL` naming a database that does not exist, to prove `/ready` turns 503) and
+`30-auth-email.sh` (its own `/v1/auth` budget: 9 more requests; it registers a second throwaway
+account). `30-auth-email.sh` proves that forgot-password always answers 202 and that a wrong
+one-time token gets the generic 400; it cannot follow a real link, because the API never logs
+one, so the link flows are covered by the integration tests:
 
 ```sh
 PORT=3001 API_RATE_LIMIT_MAX=5 node apps/api/dist/server.js &
 PORT=3002 DATABASE_URL=postgresql://akiba:change-me@localhost:5432/akiba_missing node apps/api/dist/server.js &
+PORT=3003 node apps/api/dist/server.js &
 SMOKE_BASE_URL=http://127.0.0.1:3000 SMOKE_RATELIMIT_URL=http://127.0.0.1:3001 SMOKE_RATELIMIT_MAX=5 \
-  SMOKE_DBDOWN_URL=http://127.0.0.1:3002 scripts/smoke.sh
+  SMOKE_DBDOWN_URL=http://127.0.0.1:3002 SMOKE_AUTH_EMAIL_URL=http://127.0.0.1:3003 scripts/smoke.sh
 ```
 
-`SMOKE_SKIP_RATELIMIT=1`, `SMOKE_SKIP_DBDOWN=1` and `SMOKE_SKIP_AUTH=1` skip those files explicitly (for example
+`SMOKE_SKIP_RATELIMIT=1`, `SMOKE_SKIP_DBDOWN=1`, `SMOKE_SKIP_AUTH=1` and `SMOKE_SKIP_AUTH_EMAIL=1` skip those files explicitly (for example
 against a deployed API).
 
 Add checks for a new feature as a new `smoke.d` file with a free number (session-ending checks such

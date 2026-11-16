@@ -70,6 +70,9 @@ jobs:
             echo "LOG_DIR=$RUNNER_TEMP/smoke-logs"
             # The origin the smoke "browser" requests come from (CORS and CSRF allow-list).
             echo "CORS_ORIGINS=https://smoke.akiba.invalid"
+            # Emailed links would point here. Required in production mode; nothing is delivered
+            # (EMAIL_PROVIDER defaults to console).
+            echo "WEB_BASE_URL=https://smoke.akiba.invalid"
           } >>"$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/smoke-logs"
 
@@ -117,6 +120,15 @@ jobs:
           nohup node apps/api/dist/server.js >"$LOG_DIR/api-db-down.log" 2>&1 &
           echo $! >"$LOG_DIR/api-db-down.pid"
 
+      - name: Start API instance for the auth email checks
+        # Same database and default limits. A separate process has its own per-IP /v1/auth budget
+        # (10 per minute), which 20-auth.sh nearly uses up on the instance under test.
+        env:
+          PORT: '3003'
+        run: |
+          nohup node apps/api/dist/server.js >"$LOG_DIR/api-auth-email.log" 2>&1 &
+          echo $! >"$LOG_DIR/api-auth-email.pid"
+
       - name: Run smoke tests
         env:
           SMOKE_BASE_URL: http://127.0.0.1:3000
@@ -125,13 +137,33 @@ jobs:
           SMOKE_DBDOWN_URL: http://127.0.0.1:3002
           SMOKE_RATELIMIT_URL: http://127.0.0.1:3001
           SMOKE_RATELIMIT_MAX: '5'
+          SMOKE_AUTH_EMAIL_URL: http://127.0.0.1:3003
         run: scripts/smoke.sh
+
+      - name: Check that no one-time link or token reached the API logs
+        # The smoke run made the API produce verification and reset emails (debug log level,
+        # production mode). The log must show that they were produced and nothing of their
+        # content (doc 09 S-AUTH-10, §7).
+        run: |
+          logs="$(cat "$LOG_DIR"/*.log)"
+          grep -Fq '"event":"email_not_delivered"' <<<"$logs" || {
+            echo "::error::expected the API to log that emails were produced; the check below would prove nothing"
+            exit 1
+          }
+          status=0
+          for needle in 'token=' 'verify-email#' 'reset-password#' '@smoke.akiba.invalid'; do
+            if grep -Fq -- "$needle" <<<"$logs"; then
+              echo "::error::the API logs contain '$needle'"
+              status=1
+            fi
+          done
+          exit "$status"
 
       - name: Stop API instances gracefully
         if: always()
         run: |
           status=0
-          for name in api api-low-limit api-db-down; do
+          for name in api api-low-limit api-db-down api-auth-email; do
             pid_file="$LOG_DIR/$name.pid"
             [ -f "$pid_file" ] || continue
             pid="$(cat "$pid_file")"
