@@ -1,20 +1,44 @@
 import { createApp } from './app.js';
+import { EnvError, loadEnv, type AppConfig } from './config/env.js';
+import { createTcpDbCheck, dbNotConfigured } from './lib/dbCheck.js';
+import { createLogger } from './lib/logger.js';
+import { createShutdown } from './lib/shutdown.js';
 
-const DEFAULT_PORT = 3000;
-
-function resolvePort(raw: string | undefined): number {
-  if (raw === undefined || raw === '') {
-    return DEFAULT_PORT;
+function loadConfigOrExit(): AppConfig {
+  try {
+    return loadEnv();
+  } catch (error) {
+    // The logger needs config to exist, so a boot failure is written to stderr directly.
+    console.error(error instanceof EnvError ? error.message : error);
+    process.exit(1);
   }
-  const port = Number(raw);
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    throw new Error(`PORT must be an integer between 0 and 65535, received "${raw}"`);
-  }
-  return port;
 }
 
-const port = resolvePort(process.env.PORT);
+const config = loadConfigOrExit();
+const logger = createLogger({ level: config.logLevel });
 
-createApp().listen(port, () => {
-  console.log(`api listening on port ${port}`);
+const app = createApp({
+  config,
+  logger,
+  checkDb:
+    config.databaseUrl === undefined ? dbNotConfigured : createTcpDbCheck(config.databaseUrl),
 });
+
+const server = app.listen(config.port, () => {
+  logger.info({ port: config.port, nodeEnv: config.nodeEnv }, 'api listening');
+});
+
+server.on('error', (error) => {
+  logger.fatal({ err: error }, 'server failed to start');
+  process.exit(1);
+});
+
+const shutdown = createShutdown({ server, logger, timeoutMs: config.shutdownTimeoutMs });
+
+for (const signal of ['SIGTERM', 'SIGINT'] as const) {
+  process.on(signal, () => {
+    void shutdown(signal).then((exitCode) => {
+      process.exit(exitCode);
+    });
+  });
+}
