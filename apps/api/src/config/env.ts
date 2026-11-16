@@ -145,6 +145,97 @@ const claimName = (fallback: string) =>
       .default(fallback),
   );
 
+/** Client IDs as providers issue them (Google `….apps.googleusercontent.com`, Apple bundle or Services IDs). */
+const CLIENT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$/;
+
+const clientIds = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .default('')
+    .transform((raw) =>
+      raw
+        .split(',')
+        .map((id) => id.trim())
+        .filter((id) => id !== ''),
+    )
+    .refine((ids) => ids.every((id) => CLIENT_ID.test(id)), {
+      error:
+        'must be a comma-separated list of client IDs (letters, digits, dots, hyphens, underscores)',
+    })
+    .refine((ids) => new Set(ids).size === ids.length, { error: 'must not repeat a client ID' }),
+);
+
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+/**
+ * A redirect URI this API may send a browser to after a provider sign-in: absolute, https (plain
+ * http only for loopback hosts), no credentials, no fragment.
+ */
+function isRedirectUri(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.username !== '' || url.password !== '' || url.hash !== '' || value.includes('#')) {
+      return false;
+    }
+    if (url.protocol === 'https:') return true;
+    return url.protocol === 'http:' && LOOPBACK_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+const redirectUris = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .transform((raw) =>
+      raw
+        .split(',')
+        .map((uri) => uri.trim())
+        .filter((uri) => uri !== ''),
+    )
+    .refine((uris) => uris.every(isRedirectUri), {
+      error:
+        'must be a comma-separated list of absolute https:// URLs (http:// only for localhost), without fragment or credentials',
+    })
+    .optional(),
+);
+
+/** Apple team and key identifiers: ten upper-case letters or digits. */
+const appleId = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .regex(/^[A-Z0-9]{10}$/, 'must be 10 upper-case letters or digits')
+    .optional(),
+);
+
+/**
+ * Apple's `.p8` signing key (PKCS#8 PEM). Line breaks may be written as `\n` so the value fits
+ * on one line. The message never quotes the value: it is a private key.
+ */
+const pkcs8Pem = z.preprocess(
+  emptyToUndefined,
+  z
+    .string()
+    .transform((raw, context) => {
+      const pem = raw.replace(/\\n/g, '\n').trim();
+      if (
+        !/^-----BEGIN PRIVATE KEY-----\n[A-Za-z0-9+/=\n]+\n-----END PRIVATE KEY-----$/.test(pem)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            'must be a PKCS#8 private key in PEM form (the .p8 file from Apple; line breaks may be written as \\n)',
+        });
+        return z.NEVER;
+      }
+      return pem;
+    })
+    .optional(),
+);
+
 const envSchema = z
   .object({
     NODE_ENV: z.preprocess(
@@ -234,8 +325,58 @@ const envSchema = z
         })
         .optional(),
     ),
+    // OAuth sign-in (doc 09 S-AUTH-9). All optional: a provider without client IDs is switched off.
+    GOOGLE_CLIENT_IDS: clientIds,
+    GOOGLE_CLIENT_SECRET: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .regex(/^[\x21-\x7e]{8,512}$/, 'must be 8 to 512 printable ASCII characters without spaces')
+        .optional(),
+    ),
+    APPLE_CLIENT_IDS: clientIds,
+    APPLE_TEAM_ID: appleId,
+    APPLE_KEY_ID: appleId,
+    APPLE_PRIVATE_KEY: pkcs8Pem,
+    OAUTH_REDIRECT_URIS: redirectUris,
   })
   .superRefine((env, context) => {
+    if (env.GOOGLE_CLIENT_SECRET !== undefined && env.GOOGLE_CLIENT_IDS.length === 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['GOOGLE_CLIENT_SECRET'],
+        message:
+          'needs GOOGLE_CLIENT_IDS (the first entry is the web client the secret belongs to)',
+      });
+    }
+    const appleKeyParts = [env.APPLE_TEAM_ID, env.APPLE_KEY_ID, env.APPLE_PRIVATE_KEY];
+    const appleKeySet = appleKeyParts.filter((part) => part !== undefined).length;
+    if (appleKeySet !== 0 && appleKeySet !== appleKeyParts.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['APPLE_PRIVATE_KEY'],
+        message:
+          'APPLE_TEAM_ID, APPLE_KEY_ID and APPLE_PRIVATE_KEY must be set together or not at all',
+      });
+    }
+    if (appleKeySet !== 0 && env.APPLE_CLIENT_IDS.length === 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['APPLE_CLIENT_IDS'],
+        message:
+          'is required when the Apple key is set (the first entry is the Services ID for the web flow)',
+      });
+    }
+    if (
+      env.NODE_ENV === 'production' &&
+      env.OAUTH_REDIRECT_URIS?.some((uri) => !uri.startsWith('https://')) === true
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['OAUTH_REDIRECT_URIS'],
+        message: 'must contain only https:// URLs when NODE_ENV=production',
+      });
+    }
     if (env.NODE_ENV === 'production' && env.AUTH_JWT_PRIVATE_JWK === undefined) {
       context.addIssue({
         code: 'custom',
@@ -300,6 +441,34 @@ export interface EmailConfig {
   readonly webBaseUrl: string;
 }
 
+/** Path of the web app page that finishes a provider sign-in (implemented by the web shell). */
+export const WEB_OAUTH_CALLBACK_PATH = '/oauth/callback';
+
+export interface OAuthConfig {
+  readonly google: {
+    /**
+     * Every Google client ID whose ID tokens are accepted (web, Android, iOS). Empty: Google
+     * sign-in is off. The FIRST entry is the web client used for the authorization-code flow.
+     */
+    readonly clientIds: readonly string[];
+    /** Secret of the first client ID. Without it only the ID-token path works. */
+    readonly clientSecret: string | undefined;
+  };
+  readonly apple: {
+    /**
+     * Every Apple client ID accepted (app bundle IDs, Services IDs). Empty: Apple sign-in is
+     * off. The FIRST entry is the Services ID used for the authorization-code flow.
+     */
+    readonly clientIds: readonly string[];
+    /** Key that signs the client secret for Apple's token endpoint. Without it: ID-token path only. */
+    readonly webKey:
+      | { readonly teamId: string; readonly keyId: string; readonly privateKeyPem: string }
+      | undefined;
+  };
+  /** Exact redirect URIs the web flow may use. */
+  readonly redirectUris: readonly string[];
+}
+
 export type NodeEnv = 'development' | 'test' | 'production';
 
 export interface AuthConfig {
@@ -321,6 +490,7 @@ export interface AuthConfig {
   readonly cookieSecure: boolean;
   /** Also ask the Have I Been Pwned range API about new passwords (off by default). */
   readonly hibpEnabled: boolean;
+  readonly oauth: OAuthConfig;
 }
 
 /** Typed, validated runtime configuration. Built once at boot and passed down explicitly. */
@@ -360,6 +530,7 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
     );
   }
   const env = result.data;
+  const webBaseUrl = env.WEB_BASE_URL ?? DEV_WEB_BASE_URL;
   return {
     nodeEnv: env.NODE_ENV,
     port: env.PORT,
@@ -383,11 +554,28 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
       argon2: { memoryKib: env.AUTH_ARGON2_MEMORY_KIB, timeCost: env.AUTH_ARGON2_TIME_COST },
       cookieSecure: env.AUTH_COOKIE_SECURE,
       hibpEnabled: env.AUTH_HIBP_ENABLED,
+      oauth: {
+        google: { clientIds: env.GOOGLE_CLIENT_IDS, clientSecret: env.GOOGLE_CLIENT_SECRET },
+        apple: {
+          clientIds: env.APPLE_CLIENT_IDS,
+          webKey:
+            env.APPLE_TEAM_ID !== undefined &&
+            env.APPLE_KEY_ID !== undefined &&
+            env.APPLE_PRIVATE_KEY !== undefined
+              ? {
+                  teamId: env.APPLE_TEAM_ID,
+                  keyId: env.APPLE_KEY_ID,
+                  privateKeyPem: env.APPLE_PRIVATE_KEY,
+                }
+              : undefined,
+        },
+        redirectUris: env.OAUTH_REDIRECT_URIS ?? [`${webBaseUrl}${WEB_OAUTH_CALLBACK_PATH}`],
+      },
     },
     email: {
       provider: env.EMAIL_PROVIDER,
       devPrintLinks: env.EMAIL_DEV_PRINT_LINKS,
-      webBaseUrl: env.WEB_BASE_URL ?? DEV_WEB_BASE_URL,
+      webBaseUrl,
     },
     trustProxyHops: env.TRUST_PROXY_HOPS,
     shutdownTimeoutMs: env.SHUTDOWN_TIMEOUT_MS,

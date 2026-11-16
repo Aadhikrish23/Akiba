@@ -2,7 +2,12 @@ import type { Logger } from '../../lib/logger.js';
 
 /** What a message is for. Logged instead of its content. */
 export type EmailKind =
-  'verify_email' | 'reset_password' | 'registration_attempt' | 'password_changed' | 'email_changed';
+  | 'verify_email'
+  | 'reset_password'
+  | 'registration_attempt'
+  | 'password_changed'
+  | 'email_changed'
+  | 'sign_in_method_changed';
 
 /**
  * One outgoing email. `text` and `html` may contain a one-time link, so a message is as secret

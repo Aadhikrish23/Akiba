@@ -9,6 +9,8 @@ import { generateSigningJwk } from '../modules/auth/accessTokens.js';
 import type { BreachedPasswordChecker } from '../modules/auth/breachedPasswords.js';
 import { createAuthModule, type AuthModule } from '../modules/auth/index.js';
 import { MemoryEmailSender } from '../modules/email/index.js';
+import type { OAuthCodeExchanger } from '../modules/auth/oauth/codeExchanger.js';
+import type { OidcVerifier } from '../modules/auth/oauth/oidcVerifier.js';
 import { Argon2idHasher, type PasswordHasher } from '../modules/auth/password.js';
 import { LogSink, testConfig } from './harness.js';
 
@@ -85,6 +87,9 @@ export interface AuthTestAppOptions {
   readonly env?: Record<string, string>;
   readonly clock?: TestClock;
   readonly breachedPasswords?: BreachedPasswordChecker;
+  /** Stand-ins for the provider-facing parts of OAuth sign-in (see `testing/oauth.ts`). */
+  readonly oidcVerifier?: OidcVerifier;
+  readonly oauthCodeExchanger?: OAuthCodeExchanger;
 }
 
 /**
@@ -126,6 +131,10 @@ export async function buildAuthTestApp(options: AuthTestAppOptions): Promise<Aut
     ...(options.breachedPasswords === undefined
       ? {}
       : { breachedPasswords: options.breachedPasswords }),
+    ...(options.oidcVerifier === undefined ? {} : { oidcVerifier: options.oidcVerifier }),
+    ...(options.oauthCodeExchanger === undefined
+      ? {}
+      : { oauthCodeExchanger: options.oauthCodeExchanger }),
   });
   const app = createApp({ config, logger, rateLimitStore, v1Router: auth.router });
   return {

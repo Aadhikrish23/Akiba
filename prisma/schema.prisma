@@ -190,8 +190,28 @@ model OAuthAccount {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerUserId])
-  @@index([userId])
+  /// At most one identity per provider per user: `DELETE /auth/oauth/:provider` names it by provider.
+  @@unique([userId, provider])
   @@map("oauth_account")
+}
+
+/// One started web sign-in (authorization code + PKCE, doc 09 S-AUTH-9). Short-lived, single use.
+model OAuthState {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// SHA-256 of the `state` value given to the browser; the raw value is never stored.
+  stateHash     String        @unique @map("state_hash")
+  provider      OAuthProvider
+  /// Sent to the provider in the authorization request; the ID token must carry it back.
+  nonce         String
+  /// PKCE S256 challenge. The verifier stays in the browser that started the flow.
+  codeChallenge String        @map("code_challenge")
+  redirectUri   String        @map("redirect_uri")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt     DateTime      @map("expires_at") @db.Timestamptz(3)
+  usedAt        DateTime?     @map("used_at") @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("oauth_state")
 }
 
 model RefreshToken {

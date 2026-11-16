@@ -155,3 +155,121 @@ export const changePasswordRequestSchema = z.strictObject({
   newPassword: newPasswordSchema,
 });
 export type ChangePasswordRequest = z.infer<typeof changePasswordRequestSchema>;
+
+// ── OAuth sign-in: Google and Apple (doc 07 §2, doc 09 S-AUTH-9) ──
+
+export const OAUTH_PROVIDERS = ['google', 'apple'] as const;
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+export const oauthProviderSchema = z.enum(OAUTH_PROVIDERS, {
+  error: `must be one of: ${OAUTH_PROVIDERS.join(', ')}`,
+});
+
+/** Path parameter of the per-provider routes. */
+export const oauthProviderParamsSchema = z.strictObject({ provider: oauthProviderSchema });
+
+/**
+ * An ID token as a provider issued it. Deliberately loose: a token of the wrong shape gets the
+ * same generic "sign-in failed" answer as a forged one.
+ */
+export const oauthIdTokenSchema = z.string().min(1, 'is required').max(8192, 'is too long');
+
+/**
+ * The nonce the client made for this sign-in and gave to the provider (raw, or as its SHA-256
+ * in hex, which is what Apple's native API expects). At least 128 bits of randomness.
+ */
+export const oauthNonceSchema = z
+  .string()
+  .min(22, 'must be at least 22 characters of random data')
+  .max(256, 'is too long');
+
+export const oauthAuthorizationCodeSchema = z
+  .string()
+  .min(1, 'is required')
+  .max(2048, 'is too long');
+
+/** PKCE code verifier (RFC 7636 §4.1). */
+export const pkceCodeVerifierSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9._~-]{43,128}$/, 'is not a PKCE code verifier');
+
+/** PKCE S256 code challenge: base64url of a SHA-256 digest (RFC 7636 §4.2). */
+export const pkceCodeChallengeSchema = z
+  .string()
+  .regex(/^[A-Za-z0-9_-]{43}$/, 'is not a PKCE S256 code challenge');
+
+/** Loose on purpose: every unusable `state` gets the same generic answer. */
+export const oauthStateSchema = z.string().min(1, 'is required').max(512, 'is too long');
+
+export const oauthRedirectUriSchema = z
+  .string()
+  .max(2048, 'is too long')
+  .pipe(z.url('must be an absolute URL'));
+
+/** Mobile/native: the app obtained an ID token from the provider's SDK. */
+const idTokenCredential = { idToken: oauthIdTokenSchema, nonce: oauthNonceSchema };
+/** Web: the browser came back from the provider with an authorization code. */
+const codeCredential = {
+  code: oauthAuthorizationCodeSchema,
+  codeVerifier: pkceCodeVerifierSchema,
+  redirectUri: oauthRedirectUriSchema,
+  /** The `state` returned by `POST /auth/oauth/:provider/start`. */
+  state: oauthStateSchema,
+};
+
+/**
+ * Body of `POST /auth/oauth/google` and `/apple`: EITHER `{idToken, nonce}` OR
+ * `{code, codeVerifier, redirectUri, state}`. Mixing the two is refused.
+ */
+export const oauthSignInRequestSchema = z.union(
+  [z.strictObject(idTokenCredential), z.strictObject(codeCredential)],
+  { error: 'must be either {idToken, nonce} or {code, codeVerifier, redirectUri, state}' },
+);
+export type OAuthSignInRequest = z.infer<typeof oauthSignInRequestSchema>;
+
+/** The answer to a successful OAuth sign-in is the same as to a password login. */
+export const oauthSignInResponseSchema = loginResponseSchema;
+export type OAuthSignInResponse = LoginResponse;
+
+/** Body of `POST /auth/oauth/:provider/start` (web flow). */
+export const oauthStartRequestSchema = z.strictObject({
+  redirectUri: oauthRedirectUriSchema,
+  codeChallenge: pkceCodeChallengeSchema,
+});
+export type OAuthStartRequest = z.infer<typeof oauthStartRequestSchema>;
+
+export const oauthStartResponseSchema = z.object({
+  /** Where to send the browser. Carries `state`, `nonce` and the PKCE challenge. */
+  authorizationUrl: z.url(),
+  /** Send it back, with the code and the PKCE verifier, to finish. Single use. */
+  state: z.string(),
+  /** Seconds until `state` stops working. */
+  expiresIn: z.number().int().positive(),
+});
+export type OAuthStartResponse = z.infer<typeof oauthStartResponseSchema>;
+
+/**
+ * Body of `POST /auth/oauth/link`. `currentPassword` is required when the account has a
+ * password (re-authentication, doc 09 S-AUTH-11); accounts without one need a recent sign-in.
+ */
+const linkExtras = {
+  provider: oauthProviderSchema,
+  currentPassword: presentedPasswordSchema.optional(),
+};
+export const oauthLinkRequestSchema = z.union(
+  [
+    z.strictObject({ ...linkExtras, ...idTokenCredential }),
+    z.strictObject({ ...linkExtras, ...codeCredential }),
+  ],
+  {
+    error:
+      'must be {provider, idToken, nonce} or {provider, code, codeVerifier, redirectUri, state}, optionally with currentPassword',
+  },
+);
+export type OAuthLinkRequest = z.infer<typeof oauthLinkRequestSchema>;
+
+/** The ways an account can sign in (answer of `GET /auth/oauth`, link and unlink). */
+export const signInMethodsResponseSchema = z.object({
+  hasPassword: z.boolean(),
+  providers: z.array(oauthProviderSchema),
+});
+export type SignInMethodsResponse = z.infer<typeof signInMethodsResponseSchema>;

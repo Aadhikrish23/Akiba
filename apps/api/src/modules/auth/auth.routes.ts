@@ -20,6 +20,8 @@ import { emailNotVerified, unauthenticated } from '../../lib/errors.js';
 import { getAuth } from '../../middleware/auth.js';
 import { getValidated, validate } from '../../middleware/validate.js';
 import type { AuthService, ClientInfo, Session } from './auth.service.js';
+import { addOAuthRoutes } from './oauth/oauth.routes.js';
+import type { OAuthService } from './oauth/oauth.service.js';
 import {
   clearRefreshCookie,
   csrfGuard,
@@ -31,6 +33,8 @@ import {
 
 export interface AuthRoutesOptions {
   readonly service: AuthService;
+  /** Google and Apple sign-in, link and unlink (T6). */
+  readonly oauth: OAuthService;
   /** Per-IP limiter shared by every `/auth` route (doc 07 §1: 10/min). */
   readonly ipLimiter: RequestHandler;
   /** `requireAuth` followed by the per-user limiters. */
@@ -171,6 +175,15 @@ export function createAuthRouter(options: AuthRoutesOptions): Router {
       res.status(204).end();
     },
   );
+
+  // ── OAuth sign-in, link and unlink (T6; FR-AUTH-002/007, S-AUTH-9) ──
+  addOAuthRoutes(router, {
+    service: options.oauth,
+    guard,
+    authenticated: options.authenticated,
+    deliver,
+    clientInfo,
+  });
 
   return router;
 }

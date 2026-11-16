@@ -5,6 +5,10 @@ import {
   forgotPasswordRequestSchema,
   loginRequestSchema,
   newPasswordSchema,
+  oauthLinkRequestSchema,
+  oauthProviderParamsSchema,
+  oauthSignInRequestSchema,
+  oauthStartRequestSchema,
   refreshRequestSchema,
   refreshTokenSchema,
   registerRequestSchema,
@@ -105,5 +109,63 @@ describe('auth DTOs', () => {
         userId: 'someone-else',
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('OAuth DTOs (T6)', () => {
+  const nonce = 'n'.repeat(22);
+  const idToken = { idToken: 'a.b.c', nonce };
+  const code = {
+    code: 'code-from-provider',
+    codeVerifier: 'v'.repeat(43),
+    redirectUri: 'https://app.example.test/oauth/callback',
+    state: 's'.repeat(43),
+  };
+
+  it('FR-AUTH-002: sign-in accepts {idToken, nonce} or {code, codeVerifier, redirectUri, state}', () => {
+    expect(oauthSignInRequestSchema.safeParse(idToken).success).toBe(true);
+    expect(oauthSignInRequestSchema.safeParse(code).success).toBe(true);
+  });
+
+  it('FR-AUTH-002: sign-in refuses a mix of both forms, missing parts and unknown fields', () => {
+    for (const body of [
+      {},
+      { ...idToken, ...code },
+      { idToken: 'a.b.c' },
+      { ...idToken, code: 'x' },
+      { ...idToken, userId: 'someone' },
+      { ...code, state: undefined },
+      { ...code, codeVerifier: 'short' },
+      { ...code, redirectUri: '/relative' },
+      { ...idToken, nonce: 'too-short' },
+    ]) {
+      expect(oauthSignInRequestSchema.safeParse(body).success).toBe(false);
+    }
+  });
+
+  it('S-AUTH-9: start needs an absolute redirect URI and an S256 challenge of 43 characters', () => {
+    const start = { redirectUri: code.redirectUri, codeChallenge: 'c'.repeat(43) };
+    expect(oauthStartRequestSchema.safeParse(start).success).toBe(true);
+    expect(
+      oauthStartRequestSchema.safeParse({ ...start, codeChallenge: 'c'.repeat(42) }).success,
+    ).toBe(false);
+    expect(
+      oauthStartRequestSchema.safeParse({ ...start, codeChallenge: `${'c'.repeat(42)}=` }).success,
+    ).toBe(false);
+    expect(oauthStartRequestSchema.safeParse({ ...start, state: 'x' }).success).toBe(false);
+  });
+
+  it('FR-AUTH-007: link names the provider and may carry the current password; provider params are an enum', () => {
+    expect(oauthLinkRequestSchema.safeParse({ provider: 'google', ...idToken }).success).toBe(true);
+    expect(
+      oauthLinkRequestSchema.safeParse({ provider: 'apple', ...code, currentPassword: 'pw' })
+        .success,
+    ).toBe(true);
+    expect(oauthLinkRequestSchema.safeParse(idToken).success).toBe(false);
+    expect(oauthLinkRequestSchema.safeParse({ provider: 'github', ...idToken }).success).toBe(
+      false,
+    );
+    expect(oauthProviderParamsSchema.safeParse({ provider: 'apple' }).success).toBe(true);
+    expect(oauthProviderParamsSchema.safeParse({ provider: 'link' }).success).toBe(false);
   });
 });

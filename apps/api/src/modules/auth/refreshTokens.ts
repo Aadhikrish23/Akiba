@@ -207,6 +207,20 @@ export class RefreshTokenStore {
     return live !== null;
   }
 
+  /**
+   * When the session (family) began, i.e. when its user last proved who they are: a family's
+   * absolute deadline is fixed at sign-in, so the start follows from it. `null` if there is no
+   * such session.
+   */
+  async sessionStartedAt(userId: string, familyId: string): Promise<Date | null> {
+    const row = await this.#db.refreshToken.findFirst({
+      where: { userId, familyId },
+      select: { familyExpiresAt: true },
+    });
+    if (row === null) return null;
+    return new Date(row.familyExpiresAt.getTime() - this.#lifetimes.absoluteMs);
+  }
+
   #idleDeadline(now: Date, familyExpiresAt: Date): Date {
     return new Date(Math.min(now.getTime() + this.#lifetimes.idleMs, familyExpiresAt.getTime()));
   }

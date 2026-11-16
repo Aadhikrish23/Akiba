@@ -95,6 +95,11 @@ export interface EmailTemplates {
   passwordChanged(recipient: Recipient): EmailMessage;
   /** Sent to the OLD address when the email changes (S-AUTH-11). Not used before the settings task. */
   emailChanged(recipient: Recipient): EmailMessage;
+  /** A sign-in provider was linked to or unlinked from the account (S-AUTH-11 in spirit). */
+  signInMethodChanged(
+    recipient: Recipient,
+    change: { readonly provider: 'google' | 'apple'; readonly action: 'linked' | 'unlinked' },
+  ): EmailMessage;
 }
 
 export function createEmailTemplates(options: TemplateOptions): EmailTemplates {
@@ -151,5 +156,26 @@ export function createEmailTemplates(options: TemplateOptions): EmailTemplates {
           'If you did not change it, someone else may have access to your account. Contact support.',
         ],
       }),
+
+    signInMethodChanged: (recipient, change) => {
+      const provider = change.provider === 'google' ? 'Google' : 'Apple';
+      return build('sign_in_method_changed', recipient, {
+        subject:
+          change.action === 'linked'
+            ? `${provider} sign-in was added to your ${APP_NAME} account`
+            : `${provider} sign-in was removed from your ${APP_NAME} account`,
+        paragraphs:
+          change.action === 'linked'
+            ? [
+                `Sign-in with ${provider} was just added to your ${APP_NAME} account. If you did this, you do not need to do anything.`,
+                `If you did not, someone else may have access to your account. Reset your password now, then remove the ${provider} sign-in in your settings: ${link(WEB_PATHS.forgotPassword)}`,
+                `If the account has a password that you did not set yourself, reset it as well.`,
+              ]
+            : [
+                `Sign-in with ${provider} was just removed from your ${APP_NAME} account. If you did this, you do not need to do anything.`,
+                `If you did not, someone else may have access to your account. Reset your password now: ${link(WEB_PATHS.forgotPassword)}`,
+              ],
+      });
+    },
   };
 }

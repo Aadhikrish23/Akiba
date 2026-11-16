@@ -22,11 +22,16 @@ import {
   type BreachedPasswordChecker,
 } from './breachedPasswords.js';
 import { MemoryLoginThrottle, type LoginThrottle } from './loginThrottle.js';
+import { HttpOAuthCodeExchanger, type OAuthCodeExchanger } from './oauth/codeExchanger.js';
+import { createOAuthService, type OAuthService } from './oauth/oauth.service.js';
+import { JwksOidcVerifier, type OidcVerifier } from './oauth/oidcVerifier.js';
+import { OAuthStateStore } from './oauth/stateStore.js';
 import { OneTimeTokenStore } from './oneTimeTokens.js';
 import { Argon2idHasher, createDummyHash, type PasswordHasher } from './password.js';
 import { RefreshTokenStore } from './refreshTokens.js';
 
 export type { AuthService } from './auth.service.js';
+export type { OAuthService } from './oauth/oauth.service.js';
 
 export interface AuthModuleOptions {
   readonly config: AppConfig;
@@ -47,10 +52,18 @@ export interface AuthModuleOptions {
    * limiters', so it defaults to a store of its own rather than `rateLimitStore`.
    */
   readonly emailBudgetStore?: RateLimitStore;
+  /**
+   * Checks provider ID tokens. Defaults to verification against Google's and Apple's published
+   * keys; tests pass a fake so nothing calls a provider.
+   */
+  readonly oidcVerifier?: OidcVerifier;
+  /** Swaps authorization codes for ID tokens. Defaults to the providers' token endpoints. */
+  readonly oauthCodeExchanger?: OAuthCodeExchanger;
 }
 
 export interface AuthModule {
   readonly service: AuthService;
+  readonly oauth: OAuthService;
   /** Mount under `/v1`: `/auth/*` and `/me`. */
   readonly router: Router;
   /**
@@ -114,29 +127,58 @@ export async function createAuthModule(options: AuthModuleOptions): Promise<Auth
     },
   });
 
+  const emailSender = options.emailSender ?? createEmailSender(config, logger);
+  const emailTemplates = createEmailTemplates({ webBaseUrl: config.email.webBaseUrl });
+  // Made before the first request, so even the very first login for an unknown address does
+  // exactly one verification, like any other (S-AUTH-3). Also proves at boot that hashing works.
+  const dummyHash = await createDummyHash(hasher);
+  const accessTokens = new JwtAccessTokenService({
+    keys,
+    issuer: config.auth.jwt.issuer,
+    audience: config.auth.jwt.audience,
+    lifetimeSeconds: AUTH_LIFETIMES.accessTokenSeconds,
+    now,
+  });
+  const loginThrottle = options.loginThrottle ?? new MemoryLoginThrottle();
+
   const service = createAuthService({
     db,
     logger,
     now,
     background,
     oneTimeTokens: new OneTimeTokenStore({ db, now }),
-    emailSender: options.emailSender ?? createEmailSender(config, logger),
-    emailTemplates: createEmailTemplates({ webBaseUrl: config.email.webBaseUrl }),
+    emailSender,
+    emailTemplates,
     emailBudgetStore: options.emailBudgetStore ?? new MemoryRateLimitStore(),
     hasher,
-    // Made before the first request, so even the very first login for an unknown address does
-    // exactly one verification, like any other (S-AUTH-3). Also proves at boot that hashing works.
-    dummyHash: await createDummyHash(hasher),
+    dummyHash,
     breachedPasswords,
-    accessTokens: new JwtAccessTokenService({
-      keys,
-      issuer: config.auth.jwt.issuer,
-      audience: config.auth.jwt.audience,
-      lifetimeSeconds: AUTH_LIFETIMES.accessTokenSeconds,
-      now,
-    }),
+    accessTokens,
     refreshTokens,
-    loginThrottle: options.loginThrottle ?? new MemoryLoginThrottle(),
+    loginThrottle,
+  });
+
+  // Providers without client IDs are switched off: their routes answer 501 and nothing here
+  // contacts them. Constructing the verifier and the exchanger makes no network request.
+  const oauthConfig = config.auth.oauth;
+  const oauth = createOAuthService({
+    db,
+    logger,
+    now,
+    background,
+    config: oauthConfig,
+    webBaseUrl: config.email.webBaseUrl,
+    verifier: options.oidcVerifier ?? new JwksOidcVerifier({ now }),
+    exchanger:
+      options.oauthCodeExchanger ?? new HttpOAuthCodeExchanger({ config: oauthConfig, now }),
+    states: new OAuthStateStore({ db, now }),
+    accessTokens,
+    refreshTokens,
+    hasher,
+    dummyHash,
+    loginThrottle,
+    emailSender,
+    emailTemplates,
   });
 
   const authenticated: readonly RequestHandler[] = [
@@ -155,6 +197,7 @@ export async function createAuthModule(options: AuthModuleOptions): Promise<Auth
     '/auth',
     createAuthRouter({
       service,
+      oauth,
       authenticated,
       allowedOrigins: config.corsOrigins,
       cookieSecure: config.auth.cookieSecure,
@@ -172,6 +215,7 @@ export async function createAuthModule(options: AuthModuleOptions): Promise<Auth
 
   return {
     service,
+    oauth,
     router,
     authenticated,
     verifiedEmail: requireVerifiedEmail(service),

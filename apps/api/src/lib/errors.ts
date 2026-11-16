@@ -206,6 +206,121 @@ export const csrfRejected = (): HttpError =>
     detail: 'The request did not come from an allowed client.',
   });
 
+// ── OAuth sign-in (T6; doc 09 S-AUTH-9) ──
+
+/** This deployment has no client IDs (or, for the web flow, no client secret) for the provider. */
+export const oauthProviderNotConfigured = (flow: 'sign-in' | 'web flow'): HttpError =>
+  new HttpError({
+    status: 501,
+    code: 'OAUTH_PROVIDER_NOT_CONFIGURED',
+    slug: 'oauth-provider-not-configured',
+    title: 'Sign-in provider not available',
+    detail:
+      flow === 'sign-in'
+        ? 'Sign-in with this provider is not set up on this server.'
+        : 'Browser sign-in with this provider is not set up on this server.',
+  });
+
+/** The provider could not be reached (signing keys or token endpoint). Nothing was decided. */
+export const oauthProviderUnavailable = (cause?: unknown): HttpError =>
+  new HttpError({
+    status: 503,
+    code: 'OAUTH_PROVIDER_UNAVAILABLE',
+    slug: 'oauth-provider-unavailable',
+    title: 'Sign-in provider unavailable',
+    detail: 'The sign-in provider could not be reached. Try again shortly.',
+    headers: { 'Retry-After': '30' },
+    cause,
+  });
+
+/**
+ * The provider's proof was not accepted. One response for every cause (forged, expired, wrong
+ * audience, issuer or nonce, refused code, account in deletion), so a caller learns nothing
+ * about which check failed.
+ */
+export const oauthSignInFailed = (): HttpError =>
+  new HttpError({
+    status: 401,
+    code: 'OAUTH_SIGN_IN_FAILED',
+    slug: 'oauth-sign-in-failed',
+    title: 'Sign-in failed',
+    detail: 'Sign-in with the provider could not be completed. Start again.',
+  });
+
+/** `state` is missing, unknown, expired, already used or does not belong to this request. */
+export const invalidOAuthState = (): HttpError =>
+  new HttpError({
+    status: 400,
+    code: 'INVALID_OAUTH_STATE',
+    slug: 'invalid-oauth-state',
+    title: 'Sign-in attempt expired',
+    detail: 'This sign-in attempt is invalid, has expired or was already used. Start again.',
+  });
+
+/** The provider did not vouch for an email address, so no account is created or matched. */
+export const oauthEmailNotVerified = (): HttpError =>
+  new HttpError({
+    status: 403,
+    code: 'OAUTH_EMAIL_NOT_VERIFIED',
+    slug: 'oauth-email-not-verified',
+    title: 'Email address not confirmed by the provider',
+    detail:
+      'The sign-in provider did not confirm an email address for this account. Confirm it with the provider and try again.',
+  });
+
+/**
+ * An account with the provider's (verified) address exists, but nobody has ever proved control
+ * of that address to Akiba. It is neither linked nor signed in to (Q-04, pre-registration).
+ */
+export const accountEmailUnverified = (): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'ACCOUNT_EMAIL_UNVERIFIED',
+    slug: 'account-email-unverified',
+    title: 'Account email not confirmed',
+    detail:
+      'An account with this email address exists, but the address was never confirmed. Reset its password to take control of it, then sign in with the provider again.',
+  });
+
+export const oauthIdentityInUse = (): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'OAUTH_IDENTITY_IN_USE',
+    slug: 'oauth-identity-in-use',
+    title: 'Provider account already in use',
+    detail: 'This provider account is already linked to a different user.',
+  });
+
+export const oauthProviderAlreadyLinked = (): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'OAUTH_PROVIDER_ALREADY_LINKED',
+    slug: 'oauth-provider-already-linked',
+    title: 'Provider already linked',
+    detail: 'This user is already linked to a different account of this provider. Unlink it first.',
+  });
+
+/** Unlinking would leave the account with no way to sign in (FR-AUTH-007). */
+export const lastSignInMethod = (): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'LAST_SIGN_IN_METHOD',
+    slug: 'last-sign-in-method',
+    title: 'Last sign-in method',
+    detail:
+      'This is the only way to sign in to the account. Set a password or link another provider first.',
+  });
+
+/** A sensitive change on an account without a password needs a fresh sign-in (S-AUTH-11). */
+export const reauthenticationRequired = (): HttpError =>
+  new HttpError({
+    status: 403,
+    code: 'REAUTHENTICATION_REQUIRED',
+    slug: 'reauthentication-required',
+    title: 'Sign in again',
+    detail: 'Sign in again, then repeat this change within a few minutes.',
+  });
+
 export const notReady = (checks: Readonly<Record<string, string>>): HttpError =>
   new HttpError({
     status: 503,
