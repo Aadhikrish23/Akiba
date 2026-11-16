@@ -57,3 +57,10 @@ Entries are written by the coordinator. Format per task:
 - Self-reported: 75 API tests; local curl/smoke against a prod-mode build with a throwaway Postgres 16 passed. Full report: `dev-reports/T2-api-skeleton.md` (13 additions beyond task text, 6 open questions).
 - Developer flags: (1) 422 only proven by supertest (no validated prod route yet); (2) `/ready` says database ok on TCP connect only — T3 must do a real query; (3) rate limits per-IP not per-user until T4; (4) problem `type` is a relative URI; (5) two of its own commands were blocked by safety checks (a stray `git checkout -- .`, an `rm -rf "$(…)"`), nothing lost; (6) not run: shellcheck, coverage, multi-instance limiter, full gate after final docs-only rebase.
 - Observation (coordinator): scope fence respected per report (no Prisma/auth/domain); the developer produced a long list of additions — a pattern also seen in T1 (additions beyond task text, disclosed). Not independently verified.
+
+## T3 — prisma-schema (2026-11-16) — no review/test stage
+- Developer: Fable. Commits `13e490a` `531f850` `c62716c` `f24deee` `8fafa1b`; CI + Smoke green on `8fafa1b` (and `f24deee`). Full report: `dev-reports/T3-prisma-schema.md`.
+- Self-reported: 179 API tests on real Postgres 16; `/ready` returned 503 when Postgres stopped and 200 after restart; smoke 9 checks.
+- **Self-reported error:** commit `c62716c` was red on CI and Smoke — the developer piped the lint gate through `tail` (hid a failure) and pushed invalid `smoke.yml` YAML; fixed forward in `f24deee`. (Evidence for the study: error disclosed by the developer itself, recovered by fix-forward; the cause was a verification-method mistake, not a spec one.)
+- Developer decisions/notes carried to `docs/sprints/carry-forward.md` (soft-remove tombstone, override-vs-progress, purge trigger setting, Prisma 7.10.1 pin, requirement-ID mismatch it noticed in the brief, doc gaps). The developer noticed my brief's requirement IDs (FR-REM-007 / FR-NOTE-002) did not match the SRS and followed the SRS — a coordinator error caught by the developer.
+- Not verified (self-reported): seed facts from memory; non-superuser DB role; PG 15; concurrency.
