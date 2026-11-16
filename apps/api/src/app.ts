@@ -23,7 +23,7 @@ export interface AppDependencies {
   readonly checkDb?: DbCheck;
   /** Counter store for the rate limiters. Defaults to a fresh in-memory store. */
   readonly rateLimitStore?: RateLimitStore;
-  /** Routes served under `/v1` (doc 07). None exist yet; feature modules add theirs from T4 on. */
+  /** Routes served under `/v1` (doc 07): the auth module's router, later joined by the others. */
   readonly v1Router?: Router;
 }
 

@@ -172,13 +172,14 @@ describe('FR-ACCT-002 account purge may delete events (documented exception)', (
 
   it('FR-ACCT-002 purge also removes tokens, OAuth links, notifications and the share link', async () => {
     await testDb.sql.query(
-      `INSERT INTO refresh_token (user_id, family_id, token_hash, expires_at)
-       VALUES ($1, gen_random_uuid(), 'h1', now() + interval '1 day')`,
+      `INSERT INTO refresh_token (user_id, family_id, token_hash, expires_at, family_expires_at)
+       VALUES ($1, gen_random_uuid(), 'h1', now() + interval '1 day', now() + interval '30 days')`,
       [userId],
     );
     await testDb.sql.query(
-      `INSERT INTO refresh_token (user_id, family_id, token_hash, expires_at, replaced_by_id)
-       SELECT user_id, family_id, 'h0', expires_at, id FROM refresh_token`,
+      `INSERT INTO refresh_token
+         (user_id, family_id, token_hash, expires_at, family_expires_at, replaced_by_id)
+       SELECT user_id, family_id, 'h0', expires_at, family_expires_at, id FROM refresh_token`,
     );
     await testDb.sql.query(
       `INSERT INTO one_time_token (user_id, purpose, token_hash, expires_at)

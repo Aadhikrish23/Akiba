@@ -4,6 +4,8 @@ import { createDb } from './db/index.js';
 import { createDbCheck, dbNotConfigured } from './lib/dbCheck.js';
 import { createLogger } from './lib/logger.js';
 import { createShutdown } from './lib/shutdown.js';
+import { MemoryRateLimitStore } from './middleware/rateLimit.js';
+import { createAuthModule } from './modules/auth/index.js';
 
 function loadConfigOrExit(): AppConfig {
   try {
@@ -30,10 +32,24 @@ const db =
         },
       });
 
+// One store for every limiter (per-IP in the app, per-IP and per-user in the auth module).
+const rateLimitStore = new MemoryRateLimitStore();
+
+// The auth module needs the database; without one (development only) `/v1` has no routes.
+const auth =
+  db === undefined
+    ? undefined
+    : await createAuthModule({ config, db: db.client, logger, rateLimitStore });
+if (auth === undefined) {
+  logger.warn('DATABASE_URL is not set: the /v1 routes are not available');
+}
+
 const app = createApp({
   config,
   logger,
+  rateLimitStore,
   checkDb: db === undefined ? dbNotConfigured : createDbCheck(db),
+  ...(auth === undefined ? {} : { v1Router: auth.router }),
 });
 
 const server = app.listen(config.port, () => {

@@ -6,7 +6,7 @@ import { HttpError } from './lib/errors.js';
 import type { RateLimitStore } from './middleware/rateLimit.js';
 import { createRateLimiter, MemoryRateLimitStore } from './middleware/rateLimit.js';
 import { getValidated, validate } from './middleware/validate.js';
-import { buildTestApp } from './testing/harness.js';
+import { buildTestApp, TEST_SIGNING_JWK } from './testing/harness.js';
 
 const PROBLEM_JSON = /^application\/problem\+json/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -252,7 +252,11 @@ describe('problem details (RFC 9457, doc 07 §1)', () => {
   it('unexpected error → 500 problem+json; production hides message and stack, logs keep them', async () => {
     const { app, logs } = buildTestApp({
       v1Router: fixtureRouter(),
-      env: { NODE_ENV: 'production', DATABASE_URL: 'postgresql://u:p@localhost:5432/db' },
+      env: {
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
+        AUTH_JWT_PRIVATE_JWK: JSON.stringify(TEST_SIGNING_JWK),
+      },
     });
     const response = await request(app).get('/v1/boom');
     expect(response.status).toBe(500);

@@ -125,6 +125,50 @@ export const rateLimited = (retryAfterSeconds: number): HttpError =>
     headers: { 'Retry-After': String(retryAfterSeconds) },
   });
 
+/**
+ * No valid access token. One response for every cause (missing, malformed, forged, expired,
+ * revoked session), so a caller learns nothing about why.
+ */
+export const unauthenticated = (): HttpError =>
+  new HttpError({
+    status: 401,
+    code: 'UNAUTHENTICATED',
+    slug: 'unauthenticated',
+    title: 'Authentication required',
+    detail: 'A valid access token is required.',
+    headers: { 'WWW-Authenticate': 'Bearer' },
+  });
+
+/** Wrong email or password. Identical for an unknown email and a wrong password (S-AUTH-3). */
+export const invalidCredentials = (): HttpError =>
+  new HttpError({
+    status: 401,
+    code: 'INVALID_CREDENTIALS',
+    slug: 'invalid-credentials',
+    title: 'Invalid credentials',
+    detail: 'The email or password is incorrect.',
+  });
+
+/** The refresh token is missing, unknown, expired, revoked or reused. One response for all. */
+export const invalidRefreshToken = (): HttpError =>
+  new HttpError({
+    status: 401,
+    code: 'INVALID_REFRESH_TOKEN',
+    slug: 'invalid-refresh-token',
+    title: 'Invalid refresh token',
+    detail: 'The session has ended. Sign in again.',
+  });
+
+/** A browser request to an auth endpoint failed the CSRF checks (S-AUTH-7). */
+export const csrfRejected = (): HttpError =>
+  new HttpError({
+    status: 403,
+    code: 'CSRF_REJECTED',
+    slug: 'csrf-rejected',
+    title: 'Request refused',
+    detail: 'The request did not come from an allowed client.',
+  });
+
 export const notReady = (checks: Readonly<Record<string, string>>): HttpError =>
   new HttpError({
     status: 503,

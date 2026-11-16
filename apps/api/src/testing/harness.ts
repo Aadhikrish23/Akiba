@@ -46,3 +46,16 @@ export function buildTestApp(
   const app = createApp({ config: testConfig(env), logger, ...dependencies });
   return { app, logs, logger };
 }
+
+/**
+ * THROWAWAY Ed25519 key for tests that need a syntactically valid signing key in the
+ * environment (for example to load a production-mode config). It is the published test vector
+ * of RFC 8037 appendix A.1, so it is public knowledge and protects nothing.
+ */
+export const TEST_SIGNING_JWK = {
+  kty: 'OKP',
+  crv: 'Ed25519',
+  x: '11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo',
+  d: 'nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A',
+  kid: 'rfc8037-test-vector',
+} as const;
