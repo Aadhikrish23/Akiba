@@ -7,13 +7,14 @@ Anime discovery and personal library management. Product and engineering documen
 
 ```
 apps/
-  api/            Express server (placeholder until T2)
+  api/            Express server: config, logging, errors, validation, rate limiting, health
   web/            React + Vite + Tailwind (placeholder until T10)
 packages/
   shared/         Types, enums and constants shared by every app
   api-client/     Typed client for the API
   ui-tokens/      Design tokens for web and React Native
   config/         Shared tsconfig, ESLint and Prettier presets
+scripts/          smoke.sh + smoke.d/ (HTTP smoke tests against a running API)
 docs/             Product, architecture and test documentation
 ```
 
@@ -43,9 +44,47 @@ pnpm --filter @akiba/web dev          # Vite dev server
 pnpm --filter @akiba/api build && pnpm --filter @akiba/api start   # listens on $PORT (default 3000)
 ```
 
+## API
+
+`apps/api` validates its environment at boot and exits with a list of problems if anything is
+invalid; [`apps/api/.env.example`](apps/api/.env.example) documents every variable.
+
+```sh
+pnpm build
+cp apps/api/.env.example apps/api/.env            # then edit; .env is git-ignored
+cd apps/api && node --env-file=.env dist/server.js
+curl -i localhost:3000/health                     # liveness, no dependencies
+curl -i localhost:3000/ready                      # readiness (database check)
+```
+
+Errors are RFC 9457 `application/problem+json` documents with a `requestId` that matches the
+`X-Request-Id` response header and the log lines for that request. `/ready` currently checks only
+that the database host accepts a TCP connection; a real query replaces it with the Prisma schema
+(T3).
+
+### Smoke tests
+
+`scripts/smoke.sh` runs every `scripts/smoke.d/NN-name.sh` in order against a running API. It is
+read-only and safe against a real database. The rate-limit check needs a second instance started
+with a low limit, so no default is weakened:
+
+```sh
+PORT=3001 API_RATE_LIMIT_MAX=5 node apps/api/dist/server.js &
+SMOKE_BASE_URL=http://127.0.0.1:3000 SMOKE_RATELIMIT_URL=http://127.0.0.1:3001 SMOKE_RATELIMIT_MAX=5 \
+  scripts/smoke.sh
+```
+
+Add checks for a new feature as a new `smoke.d` file with a free number (session-ending checks such
+as logout go in a `99-` file) and state in it how many rate-limited requests it sends.
+
 ## Continuous integration
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on every pull request and on pushes to
 the base branch: install (`--frozen-lockfile`, cached) → lint → typecheck → test → build. The job
 starts a `postgres:16` service container and passes `DATABASE_URL` to the test step. No test uses
 the database yet; it is wired up for the integration tests that arrive with the Prisma schema (T3).
+
+[`.github/workflows/smoke.yml`](.github/workflows/smoke.yml) runs after every push to the base
+branch (and on manual dispatch): it builds the API, starts it with `NODE_ENV=production` against a
+`postgres:16` service, runs `scripts/smoke.sh`, checks that both instances shut down cleanly on
+`SIGTERM`, and uploads the API logs if anything fails.

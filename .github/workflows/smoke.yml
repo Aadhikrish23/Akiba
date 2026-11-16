@@ -1,0 +1,146 @@
+name: Smoke
+
+# Post-merge check: build the API, run it the way production does (NODE_ENV=production, real
+# Postgres) and exercise it over HTTP with scripts/smoke.sh.
+on:
+  push:
+    branches:
+      - ccr-0014c7e1-32mc28
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: API smoke (production mode)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          # Throwaway credentials for the ephemeral CI container only; not a secret.
+          POSTGRES_USER: akiba
+          POSTGRES_PASSWORD: akiba_ci_only
+          POSTGRES_DB: akiba_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U akiba -d akiba_smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      CI: 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Configure the API environment
+        # Set after install/build on purpose: NODE_ENV=production would make pnpm skip the
+        # devDependencies the build needs.
+        run: |
+          {
+            echo "NODE_ENV=production"
+            echo "LOG_LEVEL=debug"
+            echo "DATABASE_URL=postgresql://akiba:akiba_ci_only@localhost:5432/akiba_smoke?schema=public"
+            echo "LOG_DIR=$RUNNER_TEMP/smoke-logs"
+          } >>"$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/smoke-logs"
+
+      - name: Start API (production mode)
+        # API_RATE_LIMIT_MAX is raised here ONLY so that growing smoke suites never trip the
+        # limiter on the instance under test. Each smoke.d file states how many counted requests
+        # it sends (currently 3 in total). The application default (600/min) is unchanged.
+        env:
+          PORT: '3000'
+          API_RATE_LIMIT_MAX: '2000'
+        run: |
+          nohup node apps/api/dist/server.js >"$LOG_DIR/api.log" 2>&1 &
+          echo $! >"$LOG_DIR/api.pid"
+
+      - name: Start low-limit API instance (rate-limit check only)
+        env:
+          PORT: '3001'
+          API_RATE_LIMIT_MAX: '5'
+        run: |
+          nohup node apps/api/dist/server.js >"$LOG_DIR/api-low-limit.log" 2>&1 &
+          echo $! >"$LOG_DIR/api-low-limit.pid"
+
+      - name: Run smoke tests
+        env:
+          SMOKE_BASE_URL: http://127.0.0.1:3000
+          SMOKE_EXPECT_DB: ok
+          SMOKE_RATELIMIT_URL: http://127.0.0.1:3001
+          SMOKE_RATELIMIT_MAX: '5'
+        run: scripts/smoke.sh
+
+      - name: Stop API instances gracefully
+        if: always()
+        run: |
+          status=0
+          for name in api api-low-limit; do
+            pid_file="$LOG_DIR/$name.pid"
+            [ -f "$pid_file" ] || continue
+            pid="$(cat "$pid_file")"
+            if ! kill -TERM "$pid" 2>/dev/null; then
+              echo "::error::$name (pid $pid) was not running at the end of the job"
+              status=1
+              continue
+            fi
+            for _ in $(seq 1 20); do
+              kill -0 "$pid" 2>/dev/null || break
+              sleep 0.5
+            done
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "::error::$name did not exit within 10s of SIGTERM"
+              status=1
+            fi
+            log="$(cat "$LOG_DIR/$name.log")"
+            if ! grep -Fq '"msg":"shutdown complete"' <<<"$log"; then
+              echo "::error::$name did not log a clean shutdown"
+              status=1
+            fi
+          done
+          exit "$status"
+
+      - name: Print API logs
+        if: failure()
+        run: |
+          for log in "$LOG_DIR"/*.log; do
+            echo "::group::$log"
+            cat "$log"
+            echo "::endgroup::"
+          done
+
+      - name: Upload API logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs
+          path: ${{ runner.temp }}/smoke-logs/*.log
+          if-no-files-found: warn
+          retention-days: 7
