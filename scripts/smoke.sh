@@ -3,8 +3,9 @@
 #
 #   SMOKE_BASE_URL=http://127.0.0.1:3000 scripts/smoke.sh
 #
-# Safe against a real database in production mode: checks must be read-only or clean up after
-# themselves. Each later task adds its own smoke.d file with a free number; checks that end a
+# Safe against a real database in production mode: checks must be read-only, clean up after
+# themselves, or say plainly at the top of their file what they leave behind and offer a
+# SMOKE_SKIP_* switch (20-auth.sh registers one throwaway account per run). Each later task adds its own smoke.d file with a free number; checks that end a
 # session (logout, token replay) belong in a 99- file so they run last.
 #
 # Environment:

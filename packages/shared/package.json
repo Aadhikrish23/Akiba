@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Types, enums and constants shared by every Akiba app (Zod DTOs arrive in T7).",
+  "description": "Types, enums and constants shared by every Akiba app (auth DTOs from T4; T7 extends them).",
   "sideEffects": false,
   "exports": {
     ".": {

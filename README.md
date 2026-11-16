@@ -65,6 +65,33 @@ Errors are RFC 9457 `application/problem+json` documents with a `requestId` that
 through the database module and answers 503 when that fails (server down, wrong credentials,
 missing database); `/health` never touches the database.
 
+### Authentication
+
+Implemented in `apps/api/src/modules/auth` to [docs/09-security-privacy.md](docs/09-security-privacy.md) §2;
+the request/response schemas are in `packages/shared/src/auth.ts`.
+
+| Endpoint                   | Notes                                                                                                                                                       |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /v1/auth/register`   | `{email,password,displayName}` → 201 `{status:"verification_pending"}`, the same whether or not the address already has an account                          |
+| `POST /v1/auth/login`      | `{email,password}` → `{accessToken,tokenType,expiresIn,user}`; refresh token in an HttpOnly cookie (browsers) or in the body (`X-Client: mobile/<version>`) |
+| `POST /v1/auth/refresh`    | rotates the refresh token; replaying a used one ends the whole session                                                                                      |
+| `POST /v1/auth/logout`     | ends the session the refresh token belongs to; always 204                                                                                                   |
+| `POST /v1/auth/logout-all` | needs the access token; ends every session of the user                                                                                                      |
+| `GET /v1/me`               | needs the access token; `{id,email,displayName,emailVerified}`                                                                                              |
+
+- **Signing key.** Access tokens are EdDSA JWTs. `pnpm auth:gen-key` prints a new key as an
+  `AUTH_JWT_PRIVATE_JWK=...` line; it is required in production. Without it, development and test
+  generate a key per process. To rotate, set a new key and move the public half of the old one to
+  `AUTH_JWT_PREVIOUS_PUBLIC_JWK` for at least 15 minutes.
+- **Browser clients** must send `X-Client: web/<version>` (or `desktop/<version>`) and come from an
+  origin listed in `CORS_ORIGINS`; `/auth/refresh` and `/auth/logout` are refused otherwise. The
+  cookie is `SameSite=Lax`, so the web app and the API must be on the same site.
+- **Concurrent refreshes** with the same token are treated as a replay and end the session. A
+  client must make sure only one refresh is in flight (across tabs as well).
+- **Limits.** `/v1/auth/*` allows 10 requests per minute per IP; repeated failed logins for one
+  address back off exponentially (capped at 15 minutes, never a permanent lock); authenticated
+  routes are additionally limited per user.
+
 ## Database
 
 PostgreSQL 16, managed by Prisma migrations. The schema is [`prisma/schema.prisma`](prisma/schema.prisma);
@@ -101,7 +128,10 @@ export DATABASE_URL=postgresql://akiba:local-only@127.0.0.1:55432/akiba_dev?sche
 ### Smoke tests
 
 `scripts/smoke.sh` runs every `scripts/smoke.d/NN-name.sh` in order against a running API. It is
-read-only and safe against a real database. Two checks need their own instance, so no default is
+read-only except for `20-auth.sh`, which registers one throwaway account per run (a unique
+`@smoke.akiba.invalid` address, left behind) and needs `SMOKE_WEB_ORIGIN` to be an origin on the
+API's `CORS_ORIGINS` list; it sends 9 requests to `/v1/auth/*`, so it can run once a minute against
+the default auth limit. Two checks need their own instance, so no default is
 weakened on the instance under test: the rate-limit check (a low limit) and the readiness check
 (a `DATABASE_URL` naming a database that does not exist, to prove `/ready` turns 503):
 
@@ -112,7 +142,7 @@ SMOKE_BASE_URL=http://127.0.0.1:3000 SMOKE_RATELIMIT_URL=http://127.0.0.1:3001 S
   SMOKE_DBDOWN_URL=http://127.0.0.1:3002 scripts/smoke.sh
 ```
 
-`SMOKE_SKIP_RATELIMIT=1` and `SMOKE_SKIP_DBDOWN=1` skip those two files explicitly (for example
+`SMOKE_SKIP_RATELIMIT=1`, `SMOKE_SKIP_DBDOWN=1` and `SMOKE_SKIP_AUTH=1` skip those files explicitly (for example
 against a deployed API).
 
 Add checks for a new feature as a new `smoke.d` file with a free number (session-ending checks such

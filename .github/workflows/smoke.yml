@@ -68,8 +68,18 @@ jobs:
             echo "LOG_LEVEL=debug"
             echo "DATABASE_URL=postgresql://akiba:akiba_ci_only@localhost:5432/akiba_smoke?schema=public"
             echo "LOG_DIR=$RUNNER_TEMP/smoke-logs"
+            # The origin the smoke "browser" requests come from (CORS and CSRF allow-list).
+            echo "CORS_ORIGINS=https://smoke.akiba.invalid"
           } >>"$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/smoke-logs"
+
+      - name: Generate a throwaway signing key
+        # Production mode refuses to start without AUTH_JWT_PRIVATE_JWK. This key exists only
+        # for this job; it is masked in the logs all the same.
+        run: |
+          key="$(node scripts/gen-jwt-key.mjs --raw)"
+          echo "::add-mask::$key"
+          echo "AUTH_JWT_PRIVATE_JWK=$key" >>"$GITHUB_ENV"
 
       - name: Apply migrations
         # What a deploy does before starting the new version.
@@ -81,7 +91,8 @@ jobs:
       - name: Start API (production mode)
         # API_RATE_LIMIT_MAX is raised here ONLY so that growing smoke suites never trip the
         # limiter on the instance under test. Each smoke.d file states how many counted requests
-        # it sends (currently 3 in total). The application default (600/min) is unchanged.
+        # it sends. The application default (600/min) is unchanged, and the per-IP auth limit
+        # (API_RATE_LIMIT_AUTH_MAX, 10/min) is deliberately NOT raised: 20-auth.sh stays within it.
         env:
           PORT: '3000'
           API_RATE_LIMIT_MAX: '2000'
@@ -110,6 +121,7 @@ jobs:
         env:
           SMOKE_BASE_URL: http://127.0.0.1:3000
           SMOKE_EXPECT_DB: ok
+          SMOKE_WEB_ORIGIN: https://smoke.akiba.invalid
           SMOKE_DBDOWN_URL: http://127.0.0.1:3002
           SMOKE_RATELIMIT_URL: http://127.0.0.1:3001
           SMOKE_RATELIMIT_MAX: '5'

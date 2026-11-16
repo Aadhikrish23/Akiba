@@ -1,7 +1,9 @@
+import { execFileSync } from 'node:child_process';
 import { createHmac, createPrivateKey, createPublicKey, sign } from 'node:crypto';
-import { importJWK, SignJWT } from 'jose';
+import { fileURLToPath } from 'node:url';
+import { calculateJwkThumbprint, importJWK, SignJWT } from 'jose';
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { Ed25519Jwk } from '../../config/env.js';
+import { loadEnv, type Ed25519Jwk } from '../../config/env.js';
 import {
   generateSigningJwk,
   JwtAccessTokenService,
@@ -290,5 +292,51 @@ describe('JwtAccessTokenService (S-AUTH-5, FR-AUTH-003)', () => {
     });
     expect(generated.ephemeral).toBe(true);
     expect(generated.verification.has(generated.signing.kid)).toBe(true);
+  });
+});
+
+describe('scripts/gen-jwt-key.mjs (`pnpm auth:gen-key`)', () => {
+  const script = fileURLToPath(new URL('../../../../../scripts/gen-jwt-key.mjs', import.meta.url));
+  const run = (...args: string[]): string =>
+    execFileSync(process.execPath, [script, ...args], { encoding: 'utf8' });
+
+  it('S-AUTH-5: --raw prints a private JWK the API accepts, with the RFC 7638 thumbprint as kid', async () => {
+    const raw = run('--raw').trim();
+    const config = loadEnv({ AUTH_JWT_PRIVATE_JWK: raw });
+    const jwk = config.auth.jwt.privateJwk;
+    expect(jwk).toBeDefined();
+    if (jwk === undefined) return;
+    expect(jwk.kid).toBe(
+      await calculateJwkThumbprint({ kty: 'OKP', crv: 'Ed25519', x: jwk.x }, 'sha256'),
+    );
+    // The key really signs and verifies.
+    const keys = await loadAccessTokenKeys({ privateJwk: jwk, previousPublicJwk: undefined });
+    const service = new JwtAccessTokenService({
+      keys,
+      issuer: ISSUER,
+      audience: AUDIENCE,
+      lifetimeSeconds: 900,
+      now: () => new Date(START),
+    });
+    const { token } = await service.issue({ userId: USER, sessionId: SESSION });
+    expect(await service.verify(token)).toEqual({ userId: USER, sessionId: SESSION });
+    expect(run('--raw').trim()).not.toBe(raw);
+  });
+
+  it('S-AUTH-5: the default output is an env line plus a public half that fits the rotation slot', () => {
+    const output = run();
+    const privateLine = /^AUTH_JWT_PRIVATE_JWK='(.+)'$/m.exec(output)?.[1];
+    const publicLine = /^# (\{.+\})$/m.exec(output)?.[1];
+    expect(privateLine).toBeDefined();
+    expect(publicLine).toBeDefined();
+    expect(publicLine).not.toContain('"d"');
+    const other = run('--raw').trim();
+    const config = loadEnv({
+      AUTH_JWT_PRIVATE_JWK: other,
+      AUTH_JWT_PREVIOUS_PUBLIC_JWK: publicLine ?? '',
+    });
+    expect(config.auth.jwt.previousPublicJwk?.kid).toBe(
+      (JSON.parse(privateLine ?? '{}') as { kid: string }).kid,
+    );
   });
 });
