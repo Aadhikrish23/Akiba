@@ -44,3 +44,10 @@ Entries are written by the coordinator. Format per task:
 - **Coordinator notes:**
   - Process observation: the developer worked directly in `/home/user/Akiba` and left the shared working tree on its task branch; coordinator had to switch back to the base branch before pulling. Future dev prompts should say "use a git worktree, leave the main tree on the base branch".
   - Coordinator deviation from skill: coordinator bookkeeping (this log, sprint status) is docs-only and is committed directly to the base branch rather than via PR; flagged to the user.
+
+## Process change (2026-11-16, product owner)
+- Reason/context: T2 developer was interrupted by a usage limit (resumed once, then stopped by the owner who asked to hold). The owner then chose to **skip reviewer, tester and merge stages** and have Fable developer agents complete all dev tasks first; module-wise analysis comes afterwards. Scope chosen: **whole MVP, M1–M6**.
+- New workflow: one Fable developer per task, sequential; commits go straight to the base branch (no PRs); developers write/run their own tests and check CI on their push; full reports in `dev-reports/`; coordinator keeps this log.
+- Study implication: from T2 onward there is no independent review/test evidence and no per-task analyst file. Findings about verification honesty and error recovery must come from developer self-reports plus CI results, and are weaker evidence than T1's.
+- Risk noted: auth tasks T4–T6 (hand-rolled auth) land without independent review; flagged for priority analysis.
+- Plan for M2–M6 tasks T12–T29: `docs/sprints/mvp-plan.md`.
