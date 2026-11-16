@@ -20,6 +20,21 @@ Open items and decisions passed from finished tasks to later ones. Developers: r
 - `date` columns cannot hold partial source dates (AniList can return year/month only) — handle in adapters (**T8**) by normalising.
 - `/ready` now does a real `SELECT 1`; smoke checks it.
 
+## From T4 (auth-core) — full detail in research/fable-study/dev-reports/T4-auth-core.md
+- **Protecting routes:** every authenticated route uses the `authenticated` chain from `createAuthModule` (access token + live-session check + per-user limits) and reads the caller with `getAuth(res)`. Never take a user ID from input. Add IDOR tests per endpoint.
+- **Register never reveals whether an address exists** (always 201, no tokens). **T5** must send the verification email, and the "you already have an account" email on the `register_existing` path.
+- **T5:** password reset must call `AuthService.logoutAll(userId)`; new passwords go through `newPasswordSchema` + `BreachedPasswordChecker`; put new auth routes behind the `/v1/auth` limiter and CSRF guard.
+- **Q-04 (owner):** unverified accounts can currently log in. Until that is decided, an attacker can pre-register someone else's address. **T6 must never link an OAuth identity to a password account whose email is unverified.**
+- **T6:** create sessions with `RefreshTokenStore.startFamily` + `AccessTokenService.issue`; same transport rules (cookie for web, body for `X-Client: mobile/…`).
+- **Clients (T7/T10):** send `X-Client: web/<ver>` on every request; access token in memory only; **only one refresh in flight, across tabs too** (a second request with the same refresh token is treated as theft and ends the session); web app and API must be same-site (`SameSite=Lax` cookie); 401 `INVALID_REFRESH_TOKEN` means signed out.
+- **Schema:** `refresh_token.family_expires_at` was added (absolute 30-day deadline; `expires_at` is the 14-day idle deadline). Raw inserts into `refresh_token` need both.
+- **Environment:** production refuses to start without `AUTH_JWT_PRIVATE_JWK` (`pnpm auth:gen-key`). Any workflow that boots the API in production mode must set it.
+- **Smoke:** `20-auth.sh` sends 9 of the 10 allowed `/v1/auth` requests per minute per IP and leaves one `@smoke.akiba.invalid` account per run; needs `SMOKE_WEB_ORIGIN` on the API's `CORS_ORIGINS`. Later auth smoke checks need their own budget or instance.
+- **T11 / before launch:** the breached-password list is 180 entries written from memory (replace it, or verify and enable `AUTH_HIBP_ENABLED`); run `pnpm audit`; tune argon2 on real hardware; decide on a pepper before the first real user; login throttle and rate-limit counters are per process (shared store needed for more than one instance); add a cleanup job for expired/revoked `refresh_token` rows; **independent review of the auth module has not happened**.
+- **T17:** accounts with `deleted_at` set cannot log in, refresh or use access tokens, so restore-within-grace needs its own way in.
+- Local Postgres for tests must use password auth (not `trust`): two T3 tests assert that a wrong password is refused.
+- Lesson: run the whole suite before pushing a migration; `dcfa584` broke a raw-SQL test and left one red CI run.
+
 ## Standing rules
 - No PRs, no merges, no reviewer/tester agents; commit and push directly to `ccr-0014c7e1-32mc28`, then check CI + Smoke and fix forward.
 - Never pipe a gate (lint/typecheck/test) through `tail`/`head` in a way that hides its exit code (T3 lesson) — check exit codes.
