@@ -35,6 +35,17 @@ Open items and decisions passed from finished tasks to later ones. Developers: r
 - Local Postgres for tests must use password auth (not `trust`): two T3 tests assert that a wrong password is refused.
 - Lesson: run the whole suite before pushing a migration; `dcfa584` broke a raw-SQL test and left one red CI run.
 
+## From T5 (auth-email) — full detail in research/fable-study/dev-reports/T5-auth-email.md
+- **No email is delivered yet.** `EMAIL_PROVIDER=console` is the only provider; it logs that a message was produced and nothing else. Choosing a real provider (owner decision) means one new `EmailSender` in `apps/api/src/modules/email/` plus its name in `EMAIL_PROVIDERS`. Production needs `WEB_BASE_URL` (https).
+- **Local development:** `EMAIL_DEV_PRINT_LINKS=true` prints emails with their links to the API console. Tests use `MemoryEmailSender` through `buildAuthTestApp` (`t.emails`, and `await t.settle()` before reading it: email is sent after the response).
+- **T10 (web):** the emails link to `/verify-email#token=…`, `/reset-password#token=…`, `/forgot-password` and `/login`. The token is in the URL **fragment**: read it in the page, POST it to `/v1/auth/verify-email` or `/v1/auth/password/reset`, then remove it from the address bar. Forgot and resend always answer 202 `{status:"accepted"}`: show "if the address has an account, we sent a link". Any bad link is 400 `INVALID_TOKEN`. Password change: 403 `REAUTHENTICATION_FAILED` means the current password was wrong, not that the user is signed out. After a reset every session is gone, so send the user to login.
+- **T17 (share links):** put `auth.verifiedEmail` after `auth.authenticated` on routes that need a verified address (Q-04); it answers 403 `EMAIL_NOT_VERIFIED`.
+- **Settings task (email change, not built):** require the current password, send the `emailChanged` template to the OLD address, set `email_verified_at` to NULL, delete the user's `one_time_token` rows, and send a verification link to the new address. `one_time_token.sent_to` already stops an old link from verifying a new address.
+- **T6:** reset currently sets a password on an OAuth-only account (mailbox proof). Confirm or forbid. A reset also marks the address verified. The verification email can be triggered by a stranger registering someone's address; never treat "verified" on a password account as proof that its password holder owns the mailbox when linking.
+- **Schema:** `one_time_token.sent_to` (citext, NOT NULL) was added. Raw inserts into `one_time_token` need it.
+- **Smoke:** `30-auth-email.sh` needs its own instance (`SMOKE_AUTH_EMAIL_URL`, port 3003 in the workflow) and uses 9 of its 10 `/v1/auth` requests. The workflow fails if any API log contains a link, a token or a smoke address. Workflows that boot the API in production mode must set `WEB_BASE_URL`.
+- **T11 / before launch:** email budget (3 per kind per address per hour) and background email delivery are per process, in memory (lost on restart or crash; wrong with more than one instance); add a cleanup job for expired `one_time_token` rows; no response-time measurements exist for forgot or register; Q-04 (may unverified accounts log in?) is still open and leaves the pre-registration risk described in the T5 report.
+
 ## Standing rules
 - No PRs, no merges, no reviewer/tester agents; commit and push directly to `ccr-0014c7e1-32mc28`, then check CI + Smoke and fix forward.
 - Never pipe a gate (lint/typecheck/test) through `tail`/`head` in a way that hides its exit code (T3 lesson) — check exit codes.
