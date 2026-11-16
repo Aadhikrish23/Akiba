@@ -2,7 +2,8 @@
 # Sourced by scripts/smoke.sh. Read-only. Requests against SMOKE_BASE_URL that count towards the
 # global rate limit: 3 (/health is exempt).
 #
-#   SMOKE_EXPECT_DB   expected `checks.database` from /ready: ok | not_configured (default: either)
+#   SMOKE_EXPECT_DB   expected `checks.database` from /ready: ok | not_configured (default: either).
+#                     "ok" means the API ran `SELECT 1` against its database.
 
 http "$SMOKE_BASE_URL/health"
 expect_status 200

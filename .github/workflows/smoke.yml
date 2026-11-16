@@ -71,6 +71,13 @@ jobs:
           } >>"$GITHUB_ENV"
           mkdir -p "$RUNNER_TEMP/smoke-logs"
 
+      - name: Apply migrations
+        # What a deploy does before starting the new version.
+        run: pnpm db:migrate
+
+      - name: Seed reference data (production mode: genres only)
+        run: node apps/api/dist/db/seedCli.js
+
       - name: Start API (production mode)
         # API_RATE_LIMIT_MAX is raised here ONLY so that growing smoke suites never trip the
         # limiter on the instance under test. Each smoke.d file states how many counted requests
@@ -90,10 +97,20 @@ jobs:
           nohup node apps/api/dist/server.js >"$LOG_DIR/api-low-limit.log" 2>&1 &
           echo $! >"$LOG_DIR/api-low-limit.pid"
 
+      - name: Start API instance without a usable database (readiness check only)
+        # Same server and credentials, but a database that does not exist: /ready must be 503.
+        env:
+          PORT: '3002'
+          DATABASE_URL: postgresql://akiba:akiba_ci_only@localhost:5432/akiba_smoke_missing?schema=public
+        run: |
+          nohup node apps/api/dist/server.js >"$LOG_DIR/api-db-down.log" 2>&1 &
+          echo $! >"$LOG_DIR/api-db-down.pid"
+
       - name: Run smoke tests
         env:
           SMOKE_BASE_URL: http://127.0.0.1:3000
           SMOKE_EXPECT_DB: ok
+          SMOKE_DBDOWN_URL: http://127.0.0.1:3002
           SMOKE_RATELIMIT_URL: http://127.0.0.1:3001
           SMOKE_RATELIMIT_MAX: '5'
         run: scripts/smoke.sh
@@ -102,7 +119,7 @@ jobs:
         if: always()
         run: |
           status=0
-          for name in api api-low-limit; do
+          for name in api api-low-limit api-db-down; do
             pid_file="$LOG_DIR/$name.pid"
             [ -f "$pid_file" ] || continue
             pid="$(cat "$pid_file")"

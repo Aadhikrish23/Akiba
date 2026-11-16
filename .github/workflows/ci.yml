@@ -37,6 +37,9 @@ jobs:
 
     env:
       CI: 'true'
+      # The Postgres service above. Used by `prisma migrate`, the seed and the API tests (which
+      # create and drop their own akiba_t_* databases on this server).
+      DATABASE_URL: postgresql://akiba:akiba_ci_only@localhost:5432/akiba_test?schema=public
 
     steps:
       - name: Checkout
@@ -61,10 +64,19 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Apply migrations (empty Postgres 16)
+        run: pnpm db:migrate
+
+      - name: Check migration status and schema drift
+        run: pnpm db:check
+
       - name: Test
         run: pnpm test
-        env:
-          DATABASE_URL: postgresql://akiba:akiba_ci_only@localhost:5432/akiba_test?schema=public
 
       - name: Build
         run: pnpm build
+
+      - name: Seed twice (must be idempotent)
+        run: |
+          node apps/api/dist/db/seedCli.js
+          node apps/api/dist/db/seedCli.js
