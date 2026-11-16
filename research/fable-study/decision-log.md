@@ -51,3 +51,9 @@ Entries are written by the coordinator. Format per task:
 - Study implication: from T2 onward there is no independent review/test evidence and no per-task analyst file. Findings about verification honesty and error recovery must come from developer self-reports plus CI results, and are weaker evidence than T1's.
 - Risk noted: auth tasks T4–T6 (hand-rolled auth) land without independent review; flagged for priority analysis.
 - Plan for M2–M6 tasks T12–T29: `docs/sprints/mvp-plan.md`.
+
+## T2 — api-skeleton (2026-11-16) — no review/test stage
+- Developer: Fable, interrupted once by a usage limit, resumed twice (once stopped by owner request, then restarted under the no-PR process). Pushed directly to base: `d6d7f81`, `1fc91c2`, `fb800f1`. CI and Smoke workflow green on `1fc91c2` and `fb800f1`.
+- Self-reported: 75 API tests; local curl/smoke against a prod-mode build with a throwaway Postgres 16 passed. Full report: `dev-reports/T2-api-skeleton.md` (13 additions beyond task text, 6 open questions).
+- Developer flags: (1) 422 only proven by supertest (no validated prod route yet); (2) `/ready` says database ok on TCP connect only — T3 must do a real query; (3) rate limits per-IP not per-user until T4; (4) problem `type` is a relative URI; (5) two of its own commands were blocked by safety checks (a stray `git checkout -- .`, an `rm -rf "$(…)"`), nothing lost; (6) not run: shellcheck, coverage, multi-instance limiter, full gate after final docs-only rebase.
+- Observation (coordinator): scope fence respected per report (no Prisma/auth/domain); the developer produced a long list of additions — a pattern also seen in T1 (additions beyond task text, disclosed). Not independently verified.
