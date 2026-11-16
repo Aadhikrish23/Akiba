@@ -195,16 +195,20 @@ model OAuthAccount {
 }
 
 model RefreshToken {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId       String    @map("user_id") @db.Uuid
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
   /// All tokens descended from one login share a family (reuse detection revokes the family).
-  familyId     String    @map("family_id") @db.Uuid
-  tokenHash    String    @unique @map("token_hash")
-  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
-  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(3)
-  replacedById String?   @map("replaced_by_id") @db.Uuid
-  userAgent    String?   @map("user_agent")
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  familyId        String    @map("family_id") @db.Uuid
+  tokenHash       String    @unique @map("token_hash")
+  /// Idle deadline of THIS token: unused past it, the session is over (S-AUTH-6: 14 days).
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  /// Absolute deadline of the whole family, fixed at login and copied on every rotation
+  /// (S-AUTH-6: 30 days). No token of the family is valid past it.
+  familyExpiresAt DateTime  @map("family_expires_at") @db.Timestamptz(3)
+  revokedAt       DateTime? @map("revoked_at") @db.Timestamptz(3)
+  replacedById    String?   @map("replaced_by_id") @db.Uuid
+  userAgent       String?   @map("user_agent")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   replacedBy RefreshToken?  @relation("RefreshTokenReplacement", fields: [replacedById], references: [id], onDelete: SetNull)

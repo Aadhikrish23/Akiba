@@ -392,12 +392,24 @@ describe('identity constraints (doc 06 §2)', () => {
   it('rejects duplicate refresh-token and one-time-token hashes', async () => {
     const refresh = () =>
       testDb.sql.query(
-        `INSERT INTO refresh_token (user_id, family_id, token_hash, expires_at)
-         VALUES ($1, gen_random_uuid(), 'hash-1', now() + interval '30 days')`,
+        `INSERT INTO refresh_token (user_id, family_id, token_hash, expires_at, family_expires_at)
+         VALUES ($1, gen_random_uuid(), 'hash-1', now() + interval '14 days', now() + interval '30 days')`,
         [userId],
       );
     await refresh();
     expect((await pgFailure(refresh)).constraint).toBe('refresh_token_token_hash_key');
+
+    // S-AUTH-6: a token may not outlive the absolute deadline of its family.
+    const outlives = () =>
+      testDb.sql.query(
+        `INSERT INTO refresh_token (user_id, family_id, token_hash, expires_at, family_expires_at)
+         VALUES ($1, gen_random_uuid(), 'hash-2', now() + interval '31 days', now() + interval '30 days')`,
+        [userId],
+      );
+    expect(await pgFailure(outlives)).toMatchObject({
+      code: CHECK_VIOLATION,
+      constraint: 'refresh_token_expiry_within_family_check',
+    });
 
     const oneTime = () =>
       testDb.sql.query(
