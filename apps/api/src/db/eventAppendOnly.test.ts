@@ -182,8 +182,8 @@ describe('FR-ACCT-002 account purge may delete events (documented exception)', (
        SELECT user_id, family_id, 'h0', expires_at, family_expires_at, id FROM refresh_token`,
     );
     await testDb.sql.query(
-      `INSERT INTO one_time_token (user_id, purpose, token_hash, expires_at)
-       VALUES ($1, 'reset_password', 'h2', now() + interval '1 hour')`,
+      `INSERT INTO one_time_token (user_id, purpose, token_hash, sent_to, expires_at)
+       VALUES ($1, 'reset_password', 'h2', 'a@example.test', now() + interval '1 hour')`,
       [userId],
     );
     await testDb.sql.query(

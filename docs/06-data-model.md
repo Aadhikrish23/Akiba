@@ -29,7 +29,7 @@ erDiagram
 **user**: `id`, `email` (citext, unique), `email_verified_at`, `password_hash` (nullable for OAuth-only), `display_name`, `title_language` (`romaji|english|native`), `time_zone`, `library_view` (`grid|list`), `alerts_enabled`, `created_at`, `deleted_at` (soft-delete during grace), `purge_after`.
 **oauth_account**: `id`, `user_id`, `provider` (`google|apple`), `provider_user_id`, `created_at`; unique (`provider`, `provider_user_id`).
 **refresh_token**: `id`, `user_id`, `family_id`, `token_hash` (unique), `expires_at`, `revoked_at`, `replaced_by_id`, `user_agent`, `created_at`.
-**one_time_token**: `id`, `user_id`, `purpose` (`verify_email|reset_password`), `token_hash`, `expires_at`, `used_at`.
+**one_time_token**: `id`, `user_id`, `purpose` (`verify_email|reset_password`), `token_hash`, `sent_to` (the address the link was emailed to), `expires_at`, `used_at`.
 
 ### Catalog (shared, user-independent)
 **title** (the Akiba ID): `id`, `kind` (`tv|movie|ova|ona|special|tv_short|music`), `title_romaji`, `title_english`, `title_native`, `synonyms[]`, `synopsis`, `cover_url`, `banner_url`, `format`, `status` (`finished|releasing|not_yet_released|cancelled|hiatus`), `episodes_total` (source), `duration_min`, `season`, `season_year`, `start_date`, `end_date`, `average_score`, `popularity`, `is_adult`, `franchise_id`, `source_updated_at`, `fetched_at`, `stale`.

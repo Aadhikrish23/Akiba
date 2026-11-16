@@ -413,8 +413,8 @@ describe('identity constraints (doc 06 §2)', () => {
 
     const oneTime = () =>
       testDb.sql.query(
-        `INSERT INTO one_time_token (user_id, purpose, token_hash, expires_at)
-         VALUES ($1, 'verify_email', 'hash-2', now() + interval '1 day')`,
+        `INSERT INTO one_time_token (user_id, purpose, token_hash, sent_to, expires_at)
+         VALUES ($1, 'verify_email', 'hash-2', 'a@example.test', now() + interval '1 day')`,
         [userId],
       );
     await oneTime();

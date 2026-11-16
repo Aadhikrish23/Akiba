@@ -225,6 +225,8 @@ model OneTimeToken {
   userId    String              @map("user_id") @db.Uuid
   purpose   OneTimeTokenPurpose
   tokenHash String              @unique @map("token_hash")
+  /// The address the link was emailed to: the mailbox this token proves control of.
+  sentTo    String              @map("sent_to") @db.Citext
   expiresAt DateTime            @map("expires_at") @db.Timestamptz(3)
   usedAt    DateTime?           @map("used_at") @db.Timestamptz(3)
 
