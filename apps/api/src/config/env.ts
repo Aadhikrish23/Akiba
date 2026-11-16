@@ -65,6 +65,13 @@ const corsOrigins = z.preprocess(
     }),
 );
 
+/** Email delivery providers the API knows. The real one is an open decision. */
+export const EMAIL_PROVIDERS = ['console'] as const;
+export type EmailProvider = (typeof EMAIL_PROVIDERS)[number];
+
+/** Where emailed links point when `WEB_BASE_URL` is unset (development and test only). */
+export const DEV_WEB_BASE_URL = 'http://localhost:5173';
+
 /** An Ed25519 key in JWK form (RFC 8037) with a key ID. `d` is the private part. */
 export interface Ed25519Jwk {
   readonly kty: 'OKP';
@@ -208,6 +215,25 @@ const envSchema = z
     }),
     AUTH_COOKIE_SECURE: flag(true),
     AUTH_HIBP_ENABLED: flag(false),
+    // `console` is the only provider so far; anything else stops the boot instead of silently
+    // dropping verification and reset emails.
+    EMAIL_PROVIDER: z.preprocess(
+      emptyToUndefined,
+      z
+        .enum(EMAIL_PROVIDERS, { error: `must be one of: ${EMAIL_PROVIDERS.join(', ')}` })
+        .default('console'),
+    ),
+    EMAIL_DEV_PRINT_LINKS: flag(false),
+    WEB_BASE_URL: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .refine(isHttpOrigin, {
+          error:
+            'must be the exact http(s) origin of the web app such as https://app.example.com (no path, no trailing slash)',
+        })
+        .optional(),
+    ),
   })
   .superRefine((env, context) => {
     if (env.NODE_ENV === 'production' && env.AUTH_JWT_PRIVATE_JWK === undefined) {
@@ -234,6 +260,28 @@ const envSchema = z
         message: 'must have a different kid than AUTH_JWT_PRIVATE_JWK',
       });
     }
+    if (env.NODE_ENV === 'production' && env.EMAIL_DEV_PRINT_LINKS) {
+      context.addIssue({
+        code: 'custom',
+        path: ['EMAIL_DEV_PRINT_LINKS'],
+        message: 'may be true only when NODE_ENV is development or test',
+      });
+    }
+    if (env.NODE_ENV === 'production') {
+      if (env.WEB_BASE_URL === undefined) {
+        context.addIssue({
+          code: 'custom',
+          path: ['WEB_BASE_URL'],
+          message: 'is required when NODE_ENV=production (emailed links point to it)',
+        });
+      } else if (!env.WEB_BASE_URL.startsWith('https://')) {
+        context.addIssue({
+          code: 'custom',
+          path: ['WEB_BASE_URL'],
+          message: 'must be an https:// origin when NODE_ENV=production',
+        });
+      }
+    }
     if (env.NODE_ENV === 'production' && env.DATABASE_URL === undefined) {
       context.addIssue({
         code: 'custom',
@@ -242,6 +290,15 @@ const envSchema = z
       });
     }
   });
+
+export interface EmailConfig {
+  /** Which `EmailSender` delivers mail. Only `console` (delivers nothing) exists so far. */
+  readonly provider: EmailProvider;
+  /** Development aid: print whole messages, links included, to the console. Never in production. */
+  readonly devPrintLinks: boolean;
+  /** Origin of the web app; emailed links are built from it. */
+  readonly webBaseUrl: string;
+}
 
 export type NodeEnv = 'development' | 'test' | 'production';
 
@@ -285,6 +342,7 @@ export interface AppConfig {
     readonly authMax: number;
   };
   readonly auth: AuthConfig;
+  readonly email: EmailConfig;
   /** Number of reverse-proxy hops to trust for the client IP (0 = use the socket address). */
   readonly trustProxyHops: number;
   readonly shutdownTimeoutMs: number;
@@ -325,6 +383,11 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
       argon2: { memoryKib: env.AUTH_ARGON2_MEMORY_KIB, timeCost: env.AUTH_ARGON2_TIME_COST },
       cookieSecure: env.AUTH_COOKIE_SECURE,
       hibpEnabled: env.AUTH_HIBP_ENABLED,
+    },
+    email: {
+      provider: env.EMAIL_PROVIDER,
+      devPrintLinks: env.EMAIL_DEV_PRINT_LINKS,
+      webBaseUrl: env.WEB_BASE_URL ?? DEV_WEB_BASE_URL,
     },
     trustProxyHops: env.TRUST_PROXY_HOPS,
     shutdownTimeoutMs: env.SHUTDOWN_TIMEOUT_MS,

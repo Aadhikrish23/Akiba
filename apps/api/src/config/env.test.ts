@@ -40,6 +40,7 @@ describe('loadEnv', () => {
         cookieSecure: true,
         hibpEnabled: false,
       },
+      email: { provider: 'console', devPrintLinks: false, webBaseUrl: 'http://localhost:5173' },
     });
   });
 
@@ -58,6 +59,7 @@ describe('loadEnv', () => {
       LOG_LEVEL: 'warn',
       DATABASE_URL: 'postgresql://akiba:pw@db.internal:5432/akiba',
       AUTH_JWT_PRIVATE_JWK: PRIVATE_JWK,
+      WEB_BASE_URL: 'https://app.example.com',
       CORS_ORIGINS: 'https://app.example.com, http://localhost:5173',
       API_RATE_LIMIT_MAX: '50',
       API_RATE_LIMIT_WRITE_MAX: '5',
@@ -101,9 +103,10 @@ describe('loadEnv', () => {
     expect(error.message).toContain('Invalid environment configuration');
   });
 
-  it('requires DATABASE_URL and a signing key in production', () => {
+  it('requires DATABASE_URL, a signing key and the web app origin in production', () => {
     expect(failure({ NODE_ENV: 'production' }).issues).toEqual([
       'AUTH_JWT_PRIVATE_JWK: is required when NODE_ENV=production (generate one with `pnpm auth:gen-key`)',
+      'WEB_BASE_URL: is required when NODE_ENV=production (emailed links point to it)',
       'DATABASE_URL: is required when NODE_ENV=production',
     ]);
   });
@@ -207,6 +210,7 @@ describe('loadEnv', () => {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://akiba:pw@db.internal:5432/akiba',
         AUTH_JWT_PRIVATE_JWK: PRIVATE_JWK,
+        WEB_BASE_URL: 'https://app.example.com',
       };
       expect(loadEnv(production).auth.cookieSecure).toBe(true);
       expect(failure({ ...production, AUTH_COOKIE_SECURE: 'false' }).issues).toEqual([
@@ -224,6 +228,52 @@ describe('loadEnv', () => {
       expect(failure({ API_RATE_LIMIT_AUTH_MAX: '0' }).issues[0]).toMatch(
         /^API_RATE_LIMIT_AUTH_MAX: /,
       );
+    });
+  });
+
+  describe('email settings (T5)', () => {
+    const production = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://akiba:pw@db.internal:5432/akiba',
+      AUTH_JWT_PRIVATE_JWK: PRIVATE_JWK,
+      WEB_BASE_URL: 'https://app.example.com',
+    };
+
+    it('FR-AUTH-005/006: the provider defaults to console and an unknown one stops the boot', () => {
+      expect(loadEnv({}).email.provider).toBe('console');
+      expect(loadEnv({ EMAIL_PROVIDER: 'console' }).email.provider).toBe('console');
+      for (const unknown of ['smtp', 'resend', 'Console', 'none']) {
+        expect(failure({ EMAIL_PROVIDER: unknown }).issues).toEqual([
+          'EMAIL_PROVIDER: must be one of: console',
+        ]);
+      }
+    });
+
+    it('S-AUTH-10: printing links is a development aid that production refuses', () => {
+      expect(loadEnv({}).email.devPrintLinks).toBe(false);
+      expect(loadEnv({ EMAIL_DEV_PRINT_LINKS: 'true' }).email.devPrintLinks).toBe(true);
+      expect(loadEnv({ NODE_ENV: 'test', EMAIL_DEV_PRINT_LINKS: 'true' }).email.devPrintLinks).toBe(
+        true,
+      );
+      expect(loadEnv(production).email.devPrintLinks).toBe(false);
+      expect(failure({ ...production, EMAIL_DEV_PRINT_LINKS: 'true' }).issues).toEqual([
+        'EMAIL_DEV_PRINT_LINKS: may be true only when NODE_ENV is development or test',
+      ]);
+    });
+
+    it('WEB_BASE_URL must be an exact origin, and https in production', () => {
+      expect(loadEnv({ WEB_BASE_URL: 'http://localhost:4000' }).email.webBaseUrl).toBe(
+        'http://localhost:4000',
+      );
+      expect(loadEnv(production).email.webBaseUrl).toBe('https://app.example.com');
+      for (const bad of ['app.example.com', 'https://app.example.com/', 'https://a.example/x']) {
+        expect(failure({ WEB_BASE_URL: bad }).issues[0]).toMatch(
+          /^WEB_BASE_URL: must be the exact/,
+        );
+      }
+      expect(failure({ ...production, WEB_BASE_URL: 'http://app.example.com' }).issues).toEqual([
+        'WEB_BASE_URL: must be an https:// origin when NODE_ENV=production',
+      ]);
     });
   });
 });

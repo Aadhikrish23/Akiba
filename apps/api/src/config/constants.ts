@@ -51,3 +51,18 @@ export const LOGIN_BACKOFF = {
 
 /** Refresh-token cookie for web/desktop (doc 09 S-AUTH-7). */
 export const REFRESH_COOKIE = { name: 'akiba_refresh', path: '/v1/auth' } as const;
+
+/** One-time tokens from emailed links (doc 09 S-AUTH-10). Fixed by the security spec. */
+export const ONE_TIME_TOKEN = {
+  /** 32 random bytes = 256 bits (the spec asks for at least 128). */
+  bytes: 32,
+  verifyEmailMs: 24 * 60 * 60 * 1000,
+  resetPasswordMs: 60 * 60 * 1000,
+} as const;
+
+/**
+ * How many emails of one kind one address may be sent per window, whoever asks. Bounds what an
+ * attacker can push into someone else's inbox through forgot-password, resend-verification and
+ * repeated registration. Security notifications (password changed) are not limited.
+ */
+export const EMAIL_BUDGET = { max: 3, windowMs: 60 * 60 * 1000 } as const;

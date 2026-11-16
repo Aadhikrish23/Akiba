@@ -256,6 +256,7 @@ describe('problem details (RFC 9457, doc 07 §1)', () => {
         NODE_ENV: 'production',
         DATABASE_URL: 'postgresql://u:p@localhost:5432/db',
         AUTH_JWT_PRIVATE_JWK: JSON.stringify(TEST_SIGNING_JWK),
+        WEB_BASE_URL: 'https://app.example.com',
       },
     });
     const response = await request(app).get('/v1/boom');
