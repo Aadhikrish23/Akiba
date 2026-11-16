@@ -16,7 +16,7 @@ import {
   type BreachedPasswordChecker,
 } from './breachedPasswords.js';
 import { MemoryLoginThrottle, type LoginThrottle } from './loginThrottle.js';
-import { Argon2idHasher, type PasswordHasher } from './password.js';
+import { Argon2idHasher, createDummyHash, type PasswordHasher } from './password.js';
 import { RefreshTokenStore } from './refreshTokens.js';
 
 export type { AuthService } from './auth.service.js';
@@ -72,17 +72,22 @@ export async function createAuthModule(options: AuthModuleOptions): Promise<Auth
         ])
       : localList);
 
+  const hasher =
+    options.hasher ??
+    new Argon2idHasher({
+      memoryKib: config.auth.argon2.memoryKib,
+      timeCost: config.auth.argon2.timeCost,
+      pepper: config.auth.passwordPepper,
+    });
+
   const service = createAuthService({
     db,
     logger,
     now,
-    hasher:
-      options.hasher ??
-      new Argon2idHasher({
-        memoryKib: config.auth.argon2.memoryKib,
-        timeCost: config.auth.argon2.timeCost,
-        pepper: config.auth.passwordPepper,
-      }),
+    hasher,
+    // Made before the first request, so even the very first login for an unknown address does
+    // exactly one verification, like any other (S-AUTH-3). Also proves at boot that hashing works.
+    dummyHash: await createDummyHash(hasher),
     breachedPasswords,
     accessTokens: new JwtAccessTokenService({
       keys,

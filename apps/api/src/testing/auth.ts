@@ -29,7 +29,17 @@ export const DAY = 24 * 60 * MINUTE;
 /** The real argon2id hasher (production parameters) that also records how it was used. */
 export class RecordingHasher implements PasswordHasher {
   readonly #inner: PasswordHasher;
+  /** Every hash produced, in order. The first is always the module's dummy hash (made at start-up). */
   readonly hashed: string[] = [];
+  /** Hashes produced for real passwords (everything after the start-up dummy hash). */
+  get passwordHashes(): string[] {
+    return this.hashed.slice(1);
+  }
+
+  get dummyHash(): string | undefined {
+    return this.hashed[0];
+  }
+
   /** The stored hash each verification ran against, in call order. */
   readonly verifiedAgainst: string[] = [];
 

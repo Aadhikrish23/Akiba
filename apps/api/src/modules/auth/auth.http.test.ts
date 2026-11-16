@@ -112,7 +112,7 @@ describe('auth over HTTP: register, login, transport', () => {
       const rows = await userRow(credentials.email);
       expect(rows).toEqual([before]);
       // Same work on both paths: one password hash each.
-      expect(t.hasher.hashed).toHaveLength(2);
+      expect(t.hasher.passwordHashes).toHaveLength(2);
 
       // The attacker's password does not work; the owner's still does.
       const attacker = await request(t.app)
@@ -196,7 +196,7 @@ describe('auth over HTTP: register, login, transport', () => {
         ]);
         expect(await userRow(credentials.email)).toHaveLength(0);
       }
-      expect(t.hasher.hashed).toHaveLength(0);
+      expect(t.hasher.passwordHashes).toHaveLength(0);
     });
 
     it('S-AUTH-2: uses the injected BreachedPasswordChecker (interface seam)', async () => {
@@ -410,7 +410,7 @@ describe('auth over HTTP: register, login, transport', () => {
     it('S-AUTH-3: the dummy-hash path is taken: exactly one argon2 verification in every failure case', async () => {
       const credentials = newCredentials();
       await register(t.app, credentials);
-      const realHash = t.hasher.hashed[0];
+      const realHash = t.hasher.passwordHashes[0];
       expect(realHash).toBeDefined();
       // An account with no password (OAuth-only) and one in its deletion grace period.
       await testDb.sql.query(`INSERT INTO "user" (email) VALUES ('oauth-only@example.test')`);
@@ -419,7 +419,7 @@ describe('auth over HTTP: register, login, transport', () => {
       await testDb.sql.query(`UPDATE "user" SET deleted_at = now() WHERE email = $1`, [
         deleted.email,
       ]);
-      const deletedHash = t.hasher.hashed[1];
+      const deletedHash = t.hasher.passwordHashes[1];
 
       const attempt = async (email: string, password: string) => {
         const before = t.hasher.verifiedAgainst.length;
@@ -438,7 +438,8 @@ describe('auth over HTTP: register, login, transport', () => {
       const dummy = unknown.against;
       // The dummy is a real argon2id hash with the production parameters, and nobody's hash.
       expect(dummy).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
-      expect(t.hasher.hashed).toContain(dummy);
+      expect(dummy).toBe(t.hasher.dummyHash);
+      expect(t.hasher.passwordHashes).not.toContain(dummy);
       expect([realHash, deletedHash]).not.toContain(dummy);
       for (const result of [unknown, oauthOnly, inDeletion]) {
         expect(result.response.status).toBe(401);

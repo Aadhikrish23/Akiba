@@ -11,7 +11,7 @@ import type { AuthContext } from '../../middleware/auth.js';
 import type { AccessTokenService, IssuedAccessToken } from './accessTokens.js';
 import type { BreachedPasswordChecker } from './breachedPasswords.js';
 import type { LoginThrottle } from './loginThrottle.js';
-import { createDummyHash, type PasswordHasher } from './password.js';
+import type { PasswordHasher } from './password.js';
 import type { IssuedRefreshToken, RefreshTokenStore } from './refreshTokens.js';
 
 export interface ClientInfo {
@@ -44,6 +44,11 @@ export interface AuthService {
 export interface AuthServiceDependencies {
   readonly db: DbClient;
   readonly hasher: PasswordHasher;
+  /**
+   * A valid hash of a password nobody knows, made with `hasher` before the service starts
+   * (see `createDummyHash`). Login verifies against it when there is no usable account.
+   */
+  readonly dummyHash: string;
   readonly breachedPasswords: BreachedPasswordChecker;
   readonly accessTokens: AccessTokenService;
   readonly refreshTokens: RefreshTokenStore;
@@ -72,19 +77,17 @@ function toAuthUser(user: {
 const throttleKey = (email: string): string => email.toLowerCase();
 
 export function createAuthService(dependencies: AuthServiceDependencies): AuthService {
-  const { db, hasher, breachedPasswords, accessTokens, refreshTokens, loginThrottle, now } =
-    dependencies;
+  const {
+    db,
+    hasher,
+    dummyHash,
+    breachedPasswords,
+    accessTokens,
+    refreshTokens,
+    loginThrottle,
+    now,
+  } = dependencies;
   const log = dependencies.logger.child({ module: 'auth' });
-
-  // Computed once, on first use. A failure is not cached, so the next login retries.
-  let dummyHash: Promise<string> | undefined;
-  const getDummyHash = (): Promise<string> => {
-    dummyHash ??= createDummyHash(hasher).catch((error: unknown) => {
-      dummyHash = undefined;
-      throw error;
-    });
-    return dummyHash;
-  };
 
   return {
     async register(input) {
@@ -132,8 +135,7 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
       // account (unknown email, OAuth-only account, account in deletion), so the work done does
       // not depend on whether the email exists (S-AUTH-3).
       const usable = user !== null && user.passwordHash !== null && user.deletedAt === null;
-      const storedHash =
-        usable && user.passwordHash !== null ? user.passwordHash : await getDummyHash();
+      const storedHash = usable && user.passwordHash !== null ? user.passwordHash : dummyHash;
       const passwordMatches = await hasher.verify(storedHash, input.password);
       if (!usable || !passwordMatches) {
         log.info({ event: 'login_failed' }, 'login failed');
