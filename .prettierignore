@@ -2,6 +2,9 @@ node_modules
 dist
 coverage
 pnpm-lock.yaml
+# Generated Prisma client and Prisma-generated migration SQL.
+apps/api/src/generated
+prisma/migrations
 # Authored documentation and research notes are not reformatted by tooling.
 docs
 research

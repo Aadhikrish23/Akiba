@@ -49,7 +49,14 @@ export function createConfig({ tsconfigRootDir }) {
   return defineConfig(
     {
       name: 'akiba/ignores',
-      ignores: ['**/dist/**', '**/coverage/**', '**/node_modules/**', 'docs/**', 'research/**'],
+      ignores: [
+        '**/dist/**',
+        '**/coverage/**',
+        '**/node_modules/**',
+        '**/src/generated/**',
+        'docs/**',
+        'research/**',
+      ],
     },
     js.configs.recommended,
     tseslint.configs.recommendedTypeChecked,

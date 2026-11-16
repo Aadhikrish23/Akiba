@@ -10,10 +10,14 @@
   },
   "scripts": {
     "build:packages": "pnpm --filter \"./packages/*\" run build",
-    "lint": "pnpm run build:packages && eslint . --max-warnings 0 && prettier --check .",
-    "typecheck": "pnpm run build:packages && pnpm -r run typecheck",
-    "test": "pnpm run build:packages && pnpm -r run test",
-    "build": "pnpm -r run build",
+    "generate": "prisma generate",
+    "lint": "pnpm run generate && pnpm run build:packages && eslint . --max-warnings 0 && prettier --check .",
+    "typecheck": "pnpm run generate && pnpm run build:packages && pnpm -r run typecheck",
+    "test": "pnpm run generate && pnpm run build:packages && pnpm -r run test",
+    "build": "pnpm run generate && pnpm -r run build",
+    "db:migrate": "prisma migrate deploy",
+    "db:check": "prisma migrate status && prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code",
+    "db:seed": "pnpm --filter @akiba/api run build && node apps/api/dist/db/seedCli.js",
     "format": "prettier --write .",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
   },
@@ -22,6 +26,7 @@
     "@akiba/config": "workspace:*",
     "eslint": "^10.15.0",
     "prettier": "^3.10.1",
+    "prisma": "7.10.1",
     "typescript": "~6.0.3"
   }
 }

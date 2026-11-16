@@ -21,3 +21,6 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# generated Prisma client (pnpm generate)
+apps/api/src/generated/

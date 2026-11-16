@@ -1,3 +1,9 @@
 packages:
   - apps/*
   - packages/*
+
+# pnpm 10 runs dependency install scripts only for packages listed here. Prisma's download the
+# schema engine that `prisma migrate` needs.
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - prisma
