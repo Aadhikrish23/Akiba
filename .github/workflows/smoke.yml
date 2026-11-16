@@ -75,7 +75,7 @@ jobs:
         # What a deploy does before starting the new version.
         run: pnpm db:migrate
 
-      - name: Seed reference data (production mode: genres only)
+      - name: Seed reference data (production mode, genres only)
         run: node apps/api/dist/db/seedCli.js
 
       - name: Start API (production mode)
