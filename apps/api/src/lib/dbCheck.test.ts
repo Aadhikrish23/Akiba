@@ -1,56 +1,25 @@
-import { createServer, type Server } from 'node:net';
-import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
-import { createTcpDbCheck, dbNotConfigured } from './dbCheck.js';
+import { describe, expect, it, vi } from 'vitest';
+import { createDbCheck, dbNotConfigured } from './dbCheck.js';
 
-let listener: Server | undefined;
-
-async function listen(): Promise<number> {
-  const server = createServer((socket) => {
-    socket.end();
-  });
-  listener = server;
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', resolve);
-  });
-  return (server.address() as AddressInfo).port;
-}
-
-async function close(): Promise<void> {
-  const server = listener;
-  listener = undefined;
-  if (server?.listening) {
-    await new Promise<void>((resolve) => {
-      server.close(() => {
-        resolve();
-      });
-    });
-  }
-}
-
-afterEach(close);
-
+// The probe against a real PostgreSQL (and /ready on top of it) is tested in src/db/db.test.ts.
 describe('database readiness probes', () => {
   it('dbNotConfigured reports not_configured', async () => {
     await expect(dbNotConfigured()).resolves.toBe('not_configured');
   });
 
-  it('TCP probe resolves ok when the host accepts connections', async () => {
-    const port = await listen();
-    const check = createTcpDbCheck(`postgresql://user:pw@127.0.0.1:${port}/akiba`);
+  it('createDbCheck pings on every call and reports ok', async () => {
+    const ping = vi.fn(() => Promise.resolve());
+    const check = createDbCheck({ ping });
+
     await expect(check()).resolves.toBe('ok');
+    await expect(check()).resolves.toBe('ok');
+    expect(ping).toHaveBeenCalledTimes(2);
   });
 
-  it('TCP probe rejects when nothing listens, without leaking the URL', async () => {
-    const port = await listen();
-    await close();
-    const check = createTcpDbCheck(`postgresql://user:probe-secret@127.0.0.1:${port}/akiba`);
-    const error = await check().then(
-      () => undefined,
-      (reason: unknown) => reason,
-    );
-    expect(error).toBeInstanceOf(Error);
-    expect((error as Error).message).toMatch(/^database unreachable/);
-    expect((error as Error).message).not.toContain('probe-secret');
+  it('createDbCheck rejects with the ping error', async () => {
+    const failure = new Error('connection refused');
+    const check = createDbCheck({ ping: () => Promise.reject(failure) });
+
+    await expect(check()).rejects.toBe(failure);
   });
 });

@@ -1,6 +1,7 @@
 import { createApp } from './app.js';
 import { EnvError, loadEnv, type AppConfig } from './config/env.js';
-import { createTcpDbCheck, dbNotConfigured } from './lib/dbCheck.js';
+import { createDb } from './db/index.js';
+import { createDbCheck, dbNotConfigured } from './lib/dbCheck.js';
 import { createLogger } from './lib/logger.js';
 import { createShutdown } from './lib/shutdown.js';
 
@@ -17,11 +18,22 @@ function loadConfigOrExit(): AppConfig {
 const config = loadConfigOrExit();
 const logger = createLogger({ level: config.logLevel });
 
+// Creating the handle does not connect, so the API still boots while the database is down and
+// reports that through /ready.
+const db =
+  config.databaseUrl === undefined
+    ? undefined
+    : createDb({
+        databaseUrl: config.databaseUrl,
+        onPoolError: (error) => {
+          logger.error({ err: error }, 'database pool error');
+        },
+      });
+
 const app = createApp({
   config,
   logger,
-  checkDb:
-    config.databaseUrl === undefined ? dbNotConfigured : createTcpDbCheck(config.databaseUrl),
+  checkDb: db === undefined ? dbNotConfigured : createDbCheck(db),
 });
 
 const server = app.listen(config.port, () => {
@@ -33,7 +45,12 @@ server.on('error', (error) => {
   process.exit(1);
 });
 
-const shutdown = createShutdown({ server, logger, timeoutMs: config.shutdownTimeoutMs });
+const shutdown = createShutdown({
+  server,
+  logger,
+  timeoutMs: config.shutdownTimeoutMs,
+  ...(db === undefined ? {} : { onClose: () => db.close() }),
+});
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(signal, () => {
