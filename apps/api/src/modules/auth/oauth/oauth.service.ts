@@ -126,9 +126,17 @@ const toAuthUser = (user: UserRow): AuthUser => ({
 const isUniqueViolation = (error: unknown): boolean =>
   error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 
-/** PostgreSQL could not serialise two transactions (SQLSTATE 40001); the loser may be retried. */
-const isSerializationFailure = (error: unknown): boolean =>
-  error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+/**
+ * PostgreSQL could not serialise two transactions (SQLSTATE 40001); the loser may be retried.
+ * Prisma reports it as P2034 when a statement fails, and passes the driver adapter's own error
+ * through when the COMMIT fails.
+ */
+function isSerializationFailure(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) return error.code === 'P2034';
+  if (!(error instanceof Error) || error.name !== 'DriverAdapterError') return false;
+  const cause = error.cause as { kind?: unknown; originalCode?: unknown } | undefined;
+  return cause?.kind === 'TransactionWriteConflict' || cause?.originalCode === '40001';
+}
 
 const PROVIDER_ERROR = /^[a-z_]{1,64}$/;
 const CALLBACK_CODE = /^[\x21-\x7e]{1,2048}$/;
