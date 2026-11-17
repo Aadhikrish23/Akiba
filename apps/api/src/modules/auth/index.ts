@@ -175,7 +175,6 @@ export async function createAuthModule(options: AuthModuleOptions): Promise<Auth
     accessTokens,
     refreshTokens,
     hasher,
-    dummyHash,
     loginThrottle,
     emailSender,
     emailTemplates,

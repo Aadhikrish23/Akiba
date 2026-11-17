@@ -91,7 +91,6 @@ export interface OAuthServiceDependencies {
   readonly refreshTokens: RefreshTokenStore;
   /** Re-authentication with the current password, under the same backoff as login. */
   readonly hasher: PasswordHasher;
-  readonly dummyHash: string;
   readonly loginThrottle: LoginThrottle;
   readonly emailSender: EmailSender;
   readonly emailTemplates: EmailTemplates;
@@ -152,7 +151,6 @@ export function createOAuthService(dependencies: OAuthServiceDependencies): OAut
     accessTokens,
     refreshTokens,
     hasher,
-    dummyHash,
     loginThrottle,
     emailSender,
     emailTemplates,

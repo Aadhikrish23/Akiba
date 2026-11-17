@@ -287,6 +287,7 @@ describe('loadEnv', () => {
     // THROWAWAY key generated for this test file only; it is registered nowhere.
     const APPLE_PEM = generateKeyPairSync('ec', { namedCurve: 'P-256' })
       .privateKey.export({ type: 'pkcs8', format: 'pem' })
+      .toString()
       .trim();
     const production = {
       NODE_ENV: 'production',

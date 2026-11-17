@@ -747,7 +747,9 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
 
     it('S-AUTH-9: a missing state is refused', async () => {
       const { body } = await readyFlow();
-      const { state: _state, ...withoutState } = body;
+      const withoutState = Object.fromEntries(
+        Object.entries(body).filter(([field]) => field !== 'state'),
+      );
       const response = await complete('google', withoutState);
       expect(response.status).toBe(422);
       expect(problem(response).code).toBe('VALIDATION_ERROR');
@@ -1371,12 +1373,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
           ...NOT_CONFIGURED,
           detail: 'Sign-in with this provider is not set up on this server.',
         });
-        const started = await request(bare.app)
-          .post(`/v1/auth/oauth/${provider}/start`)
-          .send({
-            redirectUri: 'http://localhost:5173/oauth/callback',
-            codeChallenge: newPkce().challenge,
-          });
+        const started = await request(bare.app).post(`/v1/auth/oauth/${provider}/start`).send({
+          redirectUri: 'http://localhost:5173/oauth/callback',
+          codeChallenge: newPkce().challenge,
+        });
         expect(started.status).toBe(501);
       }
       expect(idp.calls).toEqual([]);
@@ -1409,12 +1409,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
       expect(viaToken.status).toBe(200);
 
       const pkce = newPkce();
-      const started = await request(mobileOnly.app)
-        .post('/v1/auth/oauth/google/start')
-        .send({
-          redirectUri: 'http://localhost:5173/oauth/callback',
-          codeChallenge: pkce.challenge,
-        });
+      const started = await request(mobileOnly.app).post('/v1/auth/oauth/google/start').send({
+        redirectUri: 'http://localhost:5173/oauth/callback',
+        codeChallenge: pkce.challenge,
+      });
       expect(started.status).toBe(501);
       expect(problem(started)).toEqual({
         ...NOT_CONFIGURED,

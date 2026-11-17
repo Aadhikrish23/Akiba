@@ -29,7 +29,7 @@ export const TEST_GOOGLE_CLIENT_SECRET = 'throwaway-google-client-secret-for-tes
 /** A fresh EC P-256 key as Apple would issue it (`.p8`, PKCS#8 PEM). Generated per call. */
 export function generateApplePrivateKeyPem(): { pem: string; publicKey: KeyObject } {
   const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
-  return { pem: privateKey.export({ type: 'pkcs8', format: 'pem' }).trim(), publicKey };
+  return { pem: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString().trim(), publicKey };
 }
 
 /** Environment that switches both providers on, web flow included. */
