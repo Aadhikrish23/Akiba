@@ -27,7 +27,8 @@ erDiagram
 
 ### Identity and auth
 **user**: `id`, `email` (citext, unique), `email_verified_at`, `password_hash` (nullable for OAuth-only), `display_name`, `title_language` (`romaji|english|native`), `time_zone`, `library_view` (`grid|list`), `alerts_enabled`, `created_at`, `deleted_at` (soft-delete during grace), `purge_after`.
-**oauth_account**: `id`, `user_id`, `provider` (`google|apple`), `provider_user_id`, `created_at`; unique (`provider`, `provider_user_id`).
+**oauth_account**: `id`, `user_id`, `provider` (`google|apple`), `provider_user_id`, `created_at`; unique (`provider`, `provider_user_id`); unique (`user_id`, `provider`): one identity per provider per user.
+**oauth_state**: `id`, `state_hash` (unique; SHA-256 of the `state` given to the browser), `provider`, `nonce`, `code_challenge` (PKCE S256), `redirect_uri`, `created_at`, `expires_at` (10 minutes), `used_at`. One row per started web sign-in; single use; expired rows are deleted when the next sign-in starts.
 **refresh_token**: `id`, `user_id`, `family_id`, `token_hash` (unique), `expires_at`, `revoked_at`, `replaced_by_id`, `user_agent`, `created_at`.
 **one_time_token**: `id`, `user_id`, `purpose` (`verify_email|reset_password`), `token_hash`, `sent_to` (the address the link was emailed to), `expires_at`, `used_at`.
 

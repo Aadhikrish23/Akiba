@@ -241,7 +241,11 @@ export class TestIdentityProvider {
   };
 
   /** A correctly signed ID token; every part can be overridden to make a wrong one. */
-  async sign(key: TestSigningKey, nonce: string, overrides: IdTokenOverrides = {}): Promise<string> {
+  async sign(
+    key: TestSigningKey,
+    nonce: string,
+    overrides: IdTokenOverrides = {},
+  ): Promise<string> {
     const nowSeconds = Math.floor(this.#now().getTime() / 1000);
     const issuedAt = overrides.issuedAt ?? nowSeconds;
     const tokenNonce = 'nonce' in overrides ? overrides.nonce : nonce;

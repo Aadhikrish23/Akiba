@@ -18,7 +18,10 @@
 |---|---|
 | `POST /auth/register` | `{email,password,displayName}` → 201, verification email sent |
 | `POST /auth/login` | `{email,password}` → `{accessToken, user}` + refresh cookie / `refreshToken` for mobile (`X-Client: mobile`) |
-| `POST /auth/oauth/google` · `/apple` | `{idToken, nonce}` (mobile) or code+PKCE (web) → tokens |
+| `POST /auth/oauth/:provider/start` | Web flow, `provider` = `google`\|`apple`: `{redirectUri, codeChallenge}` (PKCE S256; the browser keeps the verifier) → `{authorizationUrl, state, expiresIn}`. `state` is single-use and lasts 10 minutes |
+| `POST /auth/oauth/google` · `/apple` | `{idToken, nonce}` (mobile) or `{code, codeVerifier, redirectUri, state}` (web) → same answer as login. 401 `OAUTH_SIGN_IN_FAILED` (any rejected token or code), 400 `INVALID_OAUTH_STATE`, 403 `OAUTH_EMAIL_NOT_VERIFIED`, 409 `ACCOUNT_EMAIL_UNVERIFIED` (an account with that address exists but was never verified: not linked, not signed in), 409 `OAUTH_PROVIDER_ALREADY_LINKED`, 501 `OAUTH_PROVIDER_NOT_CONFIGURED`, 503 `OAUTH_PROVIDER_UNAVAILABLE` |
+| `POST /auth/oauth/apple/callback` | Relay for Apple's `form_post` response: 303 to `<web>/oauth/callback?provider=apple&code=…&state=…` (or `&error=…`). Issues nothing |
+| `GET /auth/oauth` | Authenticated; `{hasPassword, providers}` |
 | `POST /auth/refresh` | Rotates refresh token; returns new access token |
 | `POST /auth/logout` | Revokes current refresh token family |
 | `POST /auth/logout-all` | Revokes all families for the user |
@@ -26,7 +29,7 @@
 | `POST /auth/verify-email/resend` | Authenticated; sends a new link to the caller's own address → always 202 `{status:"accepted"}` |
 | `POST /auth/password/forgot` · `/reset` | Forgot `{email}`: always 202 `{status:"accepted"}` (no user enumeration). Reset `{token,newPassword}` → 200 `{status:"password_reset"}`, all sessions revoked; any unusable token → 400 `INVALID_TOKEN` |
 | `POST /auth/password/change` | Authenticated; `{currentPassword,newPassword}` → 204, other sessions revoked; wrong current password → 403 `REAUTHENTICATION_FAILED` |
-| `POST /auth/oauth/link` · `DELETE /auth/oauth/:provider` | Link/unlink provider (authenticated) |
+| `POST /auth/oauth/link` · `DELETE /auth/oauth/:provider` | Authenticated; both → `{hasPassword, providers}`. Link: `{provider, …credential as for sign-in, currentPassword?}`; needs a verified email (403 `EMAIL_NOT_VERIFIED`) and re-authentication (the current password, 403 `REAUTHENTICATION_FAILED`; accounts without a password must have signed in within 10 minutes, 403 `REAUTHENTICATION_REQUIRED`); 409 `OAUTH_IDENTITY_IN_USE` / `OAUTH_PROVIDER_ALREADY_LINKED`. Unlink: 404 if not linked, 409 `LAST_SIGN_IN_METHOD` if it is the only way in |
 
 ## 3. Discover (authenticated)
 | Method & path | Purpose |

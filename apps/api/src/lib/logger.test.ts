@@ -54,6 +54,19 @@ describe('logger redaction (doc 05 §9: no tokens in logs)', () => {
           jwt: { privateJwk: { d: 'jwk-secret' }, privateKey: 'pem-secret' },
         },
         cookies: { akiba_refresh: 'cookie-value-secret' },
+        oauth: {
+          idToken: 'id-token-secret',
+          id_token: 'id-token-snake-secret',
+          nonce: 'nonce-secret',
+          codeVerifier: 'verifier-secret',
+          code_verifier: 'verifier-snake-secret',
+          authorizationCode: 'code-secret',
+          oauthState: 'state-secret',
+          clientSecret: 'client-secret',
+          client_secret: 'client-snake-secret',
+          privateKeyPem: 'pem-secret',
+          provider: 'kept',
+        },
       },
       'auth sample',
     );
@@ -69,6 +82,19 @@ describe('logger redaction (doc 05 §9: no tokens in logs)', () => {
         jwt: { privateJwk: '[REDACTED]', privateKey: '[REDACTED]' },
       },
       cookies: { akiba_refresh: '[REDACTED]' },
+      oauth: {
+        idToken: '[REDACTED]',
+        id_token: '[REDACTED]',
+        nonce: '[REDACTED]',
+        codeVerifier: '[REDACTED]',
+        code_verifier: '[REDACTED]',
+        authorizationCode: '[REDACTED]',
+        oauthState: '[REDACTED]',
+        clientSecret: '[REDACTED]',
+        client_secret: '[REDACTED]',
+        privateKeyPem: '[REDACTED]',
+        provider: 'kept',
+      },
     });
   });
 

@@ -15,6 +15,7 @@ const DOC_06_TABLES = [
   'mapping_override',
   'notification',
   'oauth_account',
+  'oauth_state',
   'one_time_token',
   'refresh_token',
   'share_link',

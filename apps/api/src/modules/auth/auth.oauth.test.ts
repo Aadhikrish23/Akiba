@@ -399,7 +399,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
       const before = await userByEmail(squatter.email);
       const sessionsBefore = await db().refreshToken.count();
 
-      const response = await mobileSignIn('google', { subject: newSubject(), email: squatter.email });
+      const response = await mobileSignIn('google', {
+        subject: newSubject(),
+        email: squatter.email,
+      });
 
       expect(response.status).toBe(409);
       expect(problem(response)).toEqual({
@@ -552,7 +555,12 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
           .post('/v1/auth/oauth/apple')
           .set(MOBILE_HEADERS)
           .send({
-            idToken: idp.issue({ provider: 'google', subject: 's3', email: 'a@example.test', nonce }),
+            idToken: idp.issue({
+              provider: 'google',
+              subject: 's3',
+              email: 'a@example.test',
+              nonce,
+            }),
             nonce,
           }),
         // Not a token the provider ever issued.
@@ -655,7 +663,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
 
     it('FR-AUTH-002 / S-AUTH-9: a new user completes the Google web flow; the refresh token arrives as a cookie', async () => {
       const flow = await startedFlow('google');
-      const code = providerCode('google', flow, { subject: newSubject(), email: 'web@example.test' });
+      const code = providerCode('google', flow, {
+        subject: newSubject(),
+        email: 'web@example.test',
+      });
 
       const response = await complete('google', {
         code,
@@ -756,7 +767,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
       expect(first.status).toBe(200);
 
       // Same state again, even with a fresh, valid code for the same PKCE pair.
-      const secondCode = providerCode('google', flow, { subject: 'another', email: 'x@example.test' });
+      const secondCode = providerCode('google', flow, {
+        subject: 'another',
+        email: 'x@example.test',
+      });
       const replay = await complete('google', { ...body, code: secondCode });
       expect(replay.status).toBe(400);
       expect(problem(replay)).toEqual(INVALID_STATE);
@@ -943,9 +957,13 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
       const response = await link(
         session.accessToken,
         // The provider account has a different address: explicit linking does not need a match.
-        linkBody('google', { subject, email: 'other-address@example.test' }, {
-          currentPassword: credentials.password,
-        }),
+        linkBody(
+          'google',
+          { subject, email: 'other-address@example.test' },
+          {
+            currentPassword: credentials.password,
+          },
+        ),
       );
       expect(response.status).toBe(200);
       expect(response.body).toEqual({ hasPassword: true, providers: ['google'] });
@@ -1021,9 +1039,13 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
       const session = await loginMobile(t.app, squatter);
       const response = await link(
         session.accessToken,
-        linkBody('google', { subject: newSubject(), email: 'attacker@example.test' }, {
-          currentPassword: squatter.password,
-        }),
+        linkBody(
+          'google',
+          { subject: newSubject(), email: 'attacker@example.test' },
+          {
+            currentPassword: squatter.password,
+          },
+        ),
       );
       expect(response.status).toBe(403);
       expect(problem(response).code).toBe('EMAIL_NOT_VERIFIED');
@@ -1055,9 +1077,13 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
 
       const response = await link(
         session.accessToken,
-        linkBody('google', { subject, email: 'owner@example.test' }, {
-          currentPassword: credentials.password,
-        }),
+        linkBody(
+          'google',
+          { subject, email: 'owner@example.test' },
+          {
+            currentPassword: credentials.password,
+          },
+        ),
       );
       expect(response.status).toBe(409);
       expect(problem(response)).toMatchObject({
@@ -1238,7 +1264,12 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
   describe('transport, validation and limits', () => {
     it('S-AUTH-7: a browser origin that is not allowed is refused before anything else', async () => {
       const nonce = newNonce();
-      const idToken = idp.issue({ provider: 'google', subject: 's', email: 'c@example.test', nonce });
+      const idToken = idp.issue({
+        provider: 'google',
+        subject: 's',
+        email: 'c@example.test',
+        nonce,
+      });
       const response = await request(t.app)
         .post('/v1/auth/oauth/google')
         .set('Origin', 'https://evil.test')
@@ -1331,7 +1362,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
       for (const provider of ['google', 'apple'] as const) {
         const signIn = await request(bare.app)
           .post(`/v1/auth/oauth/${provider}`)
-          .send({ idToken: idp.issue({ provider, subject: 's', email: 'a@example.test', nonce }), nonce });
+          .send({
+            idToken: idp.issue({ provider, subject: 's', email: 'a@example.test', nonce }),
+            nonce,
+          });
         expect(signIn.status).toBe(501);
         expect(problem(signIn)).toEqual({
           ...NOT_CONFIGURED,
@@ -1339,7 +1373,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
         });
         const started = await request(bare.app)
           .post(`/v1/auth/oauth/${provider}/start`)
-          .send({ redirectUri: 'http://localhost:5173/oauth/callback', codeChallenge: newPkce().challenge });
+          .send({
+            redirectUri: 'http://localhost:5173/oauth/callback',
+            codeChallenge: newPkce().challenge,
+          });
         expect(started.status).toBe(501);
       }
       expect(idp.calls).toEqual([]);
@@ -1374,7 +1411,10 @@ describe('OAuth sign-in, link and unlink (T6)', () => {
       const pkce = newPkce();
       const started = await request(mobileOnly.app)
         .post('/v1/auth/oauth/google/start')
-        .send({ redirectUri: 'http://localhost:5173/oauth/callback', codeChallenge: pkce.challenge });
+        .send({
+          redirectUri: 'http://localhost:5173/oauth/callback',
+          codeChallenge: pkce.challenge,
+        });
       expect(started.status).toBe(501);
       expect(problem(started)).toEqual({
         ...NOT_CONFIGURED,

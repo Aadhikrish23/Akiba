@@ -26,6 +26,8 @@ describe('email templates (T5)', () => {
     templates.registrationAttempt(ada),
     templates.passwordChanged(ada),
     templates.emailChanged(ada),
+    templates.signInMethodChanged(ada, { provider: 'google', action: 'linked' }),
+    templates.signInMethodChanged(ada, { provider: 'apple', action: 'unlinked' }),
   ];
   const all = [...tokenMessages.map((entry) => entry.message), ...plainMessages];
 
@@ -57,6 +59,11 @@ describe('email templates (T5)', () => {
     expect(templates.passwordChanged(ada).text).toContain(`${BASE}/forgot-password`);
     expect(templates.registrationAttempt(ada).text).toContain(`${BASE}/login`);
     expect(templates.emailChanged(ada).subject).toContain('email address');
+    const linked = templates.signInMethodChanged(ada, { provider: 'google', action: 'linked' });
+    expect(linked.subject).toBe('Google sign-in was added to your Akiba account');
+    expect(linked.text).toContain(`${BASE}/forgot-password`);
+    const unlinked = templates.signInMethodChanged(ada, { provider: 'apple', action: 'unlinked' });
+    expect(unlinked.subject).toBe('Apple sign-in was removed from your Akiba account');
   });
 
   it('doc 09 §7: no tracking pixels, images, scripts, styles or remote content; every link goes to the web app', () => {

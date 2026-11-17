@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { TEST_SIGNING_JWK } from '../testing/harness.js';
 import { EnvError, loadEnv } from './env.js';
@@ -39,6 +40,11 @@ describe('loadEnv', () => {
         argon2: { memoryKib: 19_456, timeCost: 2 },
         cookieSecure: true,
         hibpEnabled: false,
+        oauth: {
+          google: { clientIds: [], clientSecret: undefined },
+          apple: { clientIds: [], webKey: undefined },
+          redirectUris: ['http://localhost:5173/oauth/callback'],
+        },
       },
       email: { provider: 'console', devPrintLinks: false, webBaseUrl: 'http://localhost:5173' },
     });
@@ -274,6 +280,111 @@ describe('loadEnv', () => {
       expect(failure({ ...production, WEB_BASE_URL: 'http://app.example.com' }).issues).toEqual([
         'WEB_BASE_URL: must be an https:// origin when NODE_ENV=production',
       ]);
+    });
+  });
+
+  describe('OAuth settings (T6, doc 09 S-AUTH-9)', () => {
+    // THROWAWAY key generated for this test file only; it is registered nowhere.
+    const APPLE_PEM = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+      .privateKey.export({ type: 'pkcs8', format: 'pem' })
+      .trim();
+    const production = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://u:p@db.internal:5432/akiba',
+      AUTH_JWT_PRIVATE_JWK: PRIVATE_JWK,
+      WEB_BASE_URL: 'https://app.akiba.example',
+    };
+
+    it('FR-AUTH-002: every provider variable is optional, in production too', () => {
+      const config = loadEnv(production);
+      expect(config.auth.oauth).toEqual({
+        google: { clientIds: [], clientSecret: undefined },
+        apple: { clientIds: [], webKey: undefined },
+        redirectUris: ['https://app.akiba.example/oauth/callback'],
+      });
+    });
+
+    it('S-AUTH-9: parses client ID lists, the Google secret, the Apple key and the redirect URIs', () => {
+      const { oauth } = loadEnv({
+        GOOGLE_CLIENT_IDS: ' web.apps.googleusercontent.com , android.apps.googleusercontent.com ',
+        GOOGLE_CLIENT_SECRET: 'throwaway-secret-123',
+        APPLE_CLIENT_IDS: 'com.example.web,com.example.app',
+        APPLE_TEAM_ID: 'ABCDE12345',
+        APPLE_KEY_ID: 'KEY1234567',
+        APPLE_PRIVATE_KEY: APPLE_PEM.replace(/\n/g, '\\n'),
+        OAUTH_REDIRECT_URIS:
+          'https://app.example.com/oauth/callback, http://localhost:5173/oauth/callback',
+      }).auth;
+      expect(oauth).toEqual({
+        google: {
+          clientIds: ['web.apps.googleusercontent.com', 'android.apps.googleusercontent.com'],
+          clientSecret: 'throwaway-secret-123',
+        },
+        apple: {
+          clientIds: ['com.example.web', 'com.example.app'],
+          webKey: { teamId: 'ABCDE12345', keyId: 'KEY1234567', privateKeyPem: APPLE_PEM },
+        },
+        redirectUris: [
+          'https://app.example.com/oauth/callback',
+          'http://localhost:5173/oauth/callback',
+        ],
+      });
+    });
+
+    it('S-AUTH-9: refuses malformed or repeated client IDs', () => {
+      expect(failure({ GOOGLE_CLIENT_IDS: 'has space' }).issues[0]).toMatch(/^GOOGLE_CLIENT_IDS:/);
+      expect(failure({ APPLE_CLIENT_IDS: 'a,a' }).issues[0]).toMatch(/^APPLE_CLIENT_IDS:/);
+    });
+
+    it('S-AUTH-9: a secret or key without its client IDs, and a partial Apple key, stop the boot', () => {
+      expect(failure({ GOOGLE_CLIENT_SECRET: 'throwaway-secret-123' }).issues[0]).toMatch(
+        /^GOOGLE_CLIENT_SECRET: needs GOOGLE_CLIENT_IDS/,
+      );
+      expect(
+        failure({ APPLE_CLIENT_IDS: 'com.example.web', APPLE_TEAM_ID: 'ABCDE12345' }).issues[0],
+      ).toMatch(
+        /^APPLE_PRIVATE_KEY: APPLE_TEAM_ID, APPLE_KEY_ID and APPLE_PRIVATE_KEY must be set together/,
+      );
+      expect(
+        failure({
+          APPLE_TEAM_ID: 'ABCDE12345',
+          APPLE_KEY_ID: 'KEY1234567',
+          APPLE_PRIVATE_KEY: APPLE_PEM,
+        }).issues[0],
+      ).toMatch(/^APPLE_CLIENT_IDS: is required/);
+      expect(failure({ APPLE_TEAM_ID: 'short' }).issues[0]).toMatch(/^APPLE_TEAM_ID:/);
+    });
+
+    it('doc 09 §5: a bad Apple key or Google secret is refused without echoing it', () => {
+      const badKey =
+        '-----BEGIN RSA PRIVATE KEY-----\nSECRETMATERIAL\n-----END RSA PRIVATE KEY-----';
+      const keyError = failure({ APPLE_PRIVATE_KEY: badKey });
+      expect(keyError.message).toContain('APPLE_PRIVATE_KEY: must be a PKCS#8 private key');
+      expect(keyError.message).not.toContain('SECRETMATERIAL');
+      const secretError = failure({
+        GOOGLE_CLIENT_IDS: 'a',
+        GOOGLE_CLIENT_SECRET: 'has space in it',
+      });
+      expect(secretError.message).not.toContain('has space in it');
+    });
+
+    it('S-AUTH-9: redirect URIs must be https (http for localhost only, never in production), without fragment or credentials', () => {
+      for (const value of [
+        'http://app.example.com/cb',
+        '/oauth/callback',
+        'https://app.example.com/cb#frag',
+        'https://user:pw@app.example.com/cb',
+        'javascript:alert(1)',
+        'https://ok.example.com/cb,ftp://x.example.com/cb',
+      ]) {
+        expect(failure({ OAUTH_REDIRECT_URIS: value }).issues[0], value).toMatch(
+          /^OAUTH_REDIRECT_URIS:/,
+        );
+      }
+      expect(
+        failure({ ...production, OAUTH_REDIRECT_URIS: 'http://localhost:5173/oauth/callback' })
+          .issues,
+      ).toEqual(['OAUTH_REDIRECT_URIS: must contain only https:// URLs when NODE_ENV=production']);
     });
   });
 });
