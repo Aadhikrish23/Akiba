@@ -70,14 +70,15 @@ missing database); `/health` never touches the database.
 Implemented in `apps/api/src/modules/auth` to [docs/09-security-privacy.md](docs/09-security-privacy.md) §2;
 the request/response schemas are in `packages/shared/src/auth.ts`.
 
-| Endpoint                   | Notes                                                                                                                                                       |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /v1/auth/register`   | `{email,password,displayName}` → 201 `{status:"verification_pending"}`, the same whether or not the address already has an account                          |
-| `POST /v1/auth/login`      | `{email,password}` → `{accessToken,tokenType,expiresIn,user}`; refresh token in an HttpOnly cookie (browsers) or in the body (`X-Client: mobile/<version>`) |
-| `POST /v1/auth/refresh`    | rotates the refresh token; replaying a used one ends the whole session                                                                                      |
-| `POST /v1/auth/logout`     | ends the session the refresh token belongs to; always 204                                                                                                   |
-| `POST /v1/auth/logout-all` | needs the access token; ends every session of the user                                                                                                      |
-| `GET /v1/me`               | needs the access token; `{id,email,displayName,emailVerified}`                                                                                              |
+| Endpoint                                | Notes                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /v1/auth/register`                | `{email,password,displayName}` → 201 `{status:"verification_pending"}`, the same whether or not the address already has an account                                                                                                                                                                                                                                                           |
+| `POST /v1/auth/login`                   | `{email,password}` → `{accessToken,tokenType,expiresIn,user}`; refresh token in an HttpOnly cookie (browsers) or in the body (`X-Client: mobile/<version>`)                                                                                                                                                                                                                                  |
+| `POST /v1/auth/refresh`                 | rotates the refresh token; replaying a used one ends the whole session                                                                                                                                                                                                                                                                                                                       |
+| `POST /v1/auth/logout`                  | ends the session the refresh token belongs to; always 204                                                                                                                                                                                                                                                                                                                                    |
+| `POST /v1/auth/logout-all`              | needs the access token; ends every session of the user                                                                                                                                                                                                                                                                                                                                       |
+| `POST /v1/auth/oauth/google` · `/apple` | sign in with a provider: `{idToken,nonce}` (mobile) or `{code,codeVerifier,redirectUri,state}` after `POST /v1/auth/oauth/:provider/start` (browser); `POST /v1/auth/oauth/link` and `DELETE /v1/auth/oauth/:provider` add and remove providers. Off (501) until `GOOGLE_CLIENT_IDS` / `APPLE_CLIENT_IDS` are set, see `apps/api/.env.example`. **Never run against the real providers yet** |
+| `GET /v1/me`                            | needs the access token; `{id,email,displayName,emailVerified}`                                                                                                                                                                                                                                                                                                                               |
 
 - **Signing key.** Access tokens are EdDSA JWTs. `pnpm auth:gen-key` prints a new key as an
   `AUTH_JWT_PRIVATE_JWK=...` line; it is required in production. Without it, development and test
@@ -137,17 +138,25 @@ weakened on the instance under test: the rate-limit check (a low limit), the rea
 `30-auth-email.sh` (its own `/v1/auth` budget: 9 more requests; it registers a second throwaway
 account). `30-auth-email.sh` proves that forgot-password always answers 202 and that a wrong
 one-time token gets the generic 400; it cannot follow a real link, because the API never logs
-one, so the link flows are covered by the integration tests:
+one, so the link flows are covered by the integration tests. `40-auth-oauth.sh` needs a fourth
+instance with Google "configured" with made-up values and Apple left off (8 requests): it checks
+the 501 for a switched-off provider, a 422, the 401s of link and unlink, that starting the browser
+flow returns a provider URL with `state`, `nonce` and the PKCE challenge, and that a wrong `state`
+or PKCE verifier is refused. It never makes the API contact Google or Apple; real sign-in is not
+covered by any automated check:
 
 ```sh
 PORT=3001 API_RATE_LIMIT_MAX=5 node apps/api/dist/server.js &
 PORT=3002 DATABASE_URL=postgresql://akiba:change-me@localhost:5432/akiba_missing node apps/api/dist/server.js &
 PORT=3003 node apps/api/dist/server.js &
+PORT=3004 GOOGLE_CLIENT_IDS=smoke-web.apps.googleusercontent.invalid GOOGLE_CLIENT_SECRET=smoke-only-not-a-real-secret \
+  node apps/api/dist/server.js &
 SMOKE_BASE_URL=http://127.0.0.1:3000 SMOKE_RATELIMIT_URL=http://127.0.0.1:3001 SMOKE_RATELIMIT_MAX=5 \
-  SMOKE_DBDOWN_URL=http://127.0.0.1:3002 SMOKE_AUTH_EMAIL_URL=http://127.0.0.1:3003 scripts/smoke.sh
+  SMOKE_DBDOWN_URL=http://127.0.0.1:3002 SMOKE_AUTH_EMAIL_URL=http://127.0.0.1:3003 \
+  SMOKE_AUTH_OAUTH_URL=http://127.0.0.1:3004 scripts/smoke.sh
 ```
 
-`SMOKE_SKIP_RATELIMIT=1`, `SMOKE_SKIP_DBDOWN=1`, `SMOKE_SKIP_AUTH=1` and `SMOKE_SKIP_AUTH_EMAIL=1` skip those files explicitly (for example
+`SMOKE_SKIP_RATELIMIT=1`, `SMOKE_SKIP_DBDOWN=1`, `SMOKE_SKIP_AUTH=1`, `SMOKE_SKIP_AUTH_EMAIL=1` and `SMOKE_SKIP_AUTH_OAUTH=1` skip those files explicitly (for example
 against a deployed API).
 
 Add checks for a new feature as a new `smoke.d` file with a free number (session-ending checks such

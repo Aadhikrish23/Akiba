@@ -129,6 +129,18 @@ jobs:
           nohup node apps/api/dist/server.js >"$LOG_DIR/api-auth-email.log" 2>&1 &
           echo $! >"$LOG_DIR/api-auth-email.pid"
 
+      - name: Start API instance for the OAuth checks
+        # Google is "configured" with made-up values and Apple is left off, so the smoke file can
+        # see both behaviours. Nothing in 40-auth-oauth.sh makes the API contact a provider: the
+        # values below are never sent anywhere. Not secrets.
+        env:
+          PORT: '3004'
+          GOOGLE_CLIENT_IDS: smoke-web.apps.googleusercontent.invalid
+          GOOGLE_CLIENT_SECRET: smoke-only-not-a-real-secret
+        run: |
+          nohup node apps/api/dist/server.js >"$LOG_DIR/api-auth-oauth.log" 2>&1 &
+          echo $! >"$LOG_DIR/api-auth-oauth.pid"
+
       - name: Run smoke tests
         env:
           SMOKE_BASE_URL: http://127.0.0.1:3000
@@ -138,6 +150,7 @@ jobs:
           SMOKE_RATELIMIT_URL: http://127.0.0.1:3001
           SMOKE_RATELIMIT_MAX: '5'
           SMOKE_AUTH_EMAIL_URL: http://127.0.0.1:3003
+          SMOKE_AUTH_OAUTH_URL: http://127.0.0.1:3004
         run: scripts/smoke.sh
 
       - name: Check that no one-time link or token reached the API logs
@@ -151,7 +164,10 @@ jobs:
             exit 1
           }
           status=0
-          for needle in 'token=' 'verify-email#' 'reset-password#' '@smoke.akiba.invalid'; do
+          # Also nothing of the OAuth checks: the made-up client secret, codes, or a PKCE or
+          # state parameter.
+          for needle in 'token=' 'verify-email#' 'reset-password#' '@smoke.akiba.invalid' \
+            'smoke-only-not-a-real-secret' 'smoke-code' 'smoke-relay-code' 'code_challenge' 'state='; do
             if grep -Fq -- "$needle" <<<"$logs"; then
               echo "::error::the API logs contain '$needle'"
               status=1
@@ -163,7 +179,7 @@ jobs:
         if: always()
         run: |
           status=0
-          for name in api api-low-limit api-db-down api-auth-email; do
+          for name in api api-low-limit api-db-down api-auth-email api-auth-oauth; do
             pid_file="$LOG_DIR/$name.pid"
             [ -f "$pid_file" ] || continue
             pid="$(cat "$pid_file")"
