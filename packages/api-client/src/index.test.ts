@@ -15,6 +15,20 @@ const USER = {
   email: 'reader@example.test',
   displayName: 'Reader',
   emailVerified: true,
+  // The settings `GET /me` adds to the identity.
+  titleLanguage: 'romaji',
+  timeZone: 'UTC',
+  libraryView: 'grid',
+  alertsEnabled: true,
+  showAdult: false,
+  createdAt: '2026-11-01T00:00:00.000Z',
+};
+/** What login returns: identity only. */
+const IDENTITY = {
+  id: USER.id,
+  email: USER.email,
+  displayName: USER.displayName,
+  emailVerified: USER.emailVerified,
 };
 const REFRESH_A = 'A'.repeat(43);
 const REFRESH_B = 'B'.repeat(43);
@@ -261,7 +275,7 @@ describe('@akiba/api-client: web session', () => {
     );
     await expect(
       client.auth.login({ email: USER.email, password: 'correct horse battery' }),
-    ).resolves.toEqual(USER);
+    ).resolves.toEqual(IDENTITY);
     expect(client.isSignedIn()).toBe(true);
     expect(events).toEqual(['signed-in']);
 
@@ -434,7 +448,7 @@ describe('@akiba/api-client: web session', () => {
     off();
     await expect(
       client.auth.login({ email: USER.email, password: 'correct horse battery' }),
-    ).resolves.toEqual(USER);
+    ).resolves.toEqual(IDENTITY);
     expect(seen).toEqual([]);
   });
 });
@@ -587,6 +601,7 @@ describe('@akiba/api-client: titles (T12 endpoints)', () => {
     seasonYear: 2013,
     averageScore: 85,
     libraryStatus: null,
+    libraryEntryId: null,
   };
   const list = { data: [card], nextCursor: 'abc', meta: { stale: false, source: 'anilist' } };
   const signedIn = (handler: Handler) =>
