@@ -531,14 +531,17 @@ model Event {
   /// When it happened for the user; `createdAt` is when the row was written.
   occurredAt DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(3)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Total order of writing (a database sequence): breaks ties between events with the same
+  /// `occurredAt`, so the timeline never reorders what happened in one request.
+  seq        BigInt    @default(autoincrement())
 
   user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   entry LibraryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   title Title        @relation(fields: [titleId], references: [id], onDelete: Restrict)
   run   ViewingRun?  @relation(fields: [runId], references: [id], onDelete: Cascade)
 
-  @@index([userId, occurredAt(sort: Desc)])
-  @@index([entryId, occurredAt])
+  @@index([userId, occurredAt(sort: Desc), seq(sort: Desc)])
+  @@index([entryId, occurredAt, seq])
   @@index([titleId])
   @@index([runId])
   @@map("event")

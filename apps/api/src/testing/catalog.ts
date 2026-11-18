@@ -1,6 +1,7 @@
 import request from 'supertest';
 import type { DbClient } from '../db/index.js';
 import { createLogger } from '../lib/logger.js';
+import { createLibraryModule } from '../modules/library/index.js';
 import { createTitlesModule } from '../modules/titles/index.js';
 import { createAniListAdapter } from '../sources/anilist/anilistAdapter.js';
 import { SourceGateway } from '../sources/gateway.js';
@@ -91,6 +92,8 @@ export async function buildCatalogTestApp(options: {
   const app = await buildAuthTestApp({
     db: options.db,
     extraRouters: (auth) => [
+      // The library runs on the real clock: its ordering and dates are what its tests check.
+      createLibraryModule({ db: options.db, authenticated: auth.authenticated }).router,
       createTitlesModule({
         config: testConfig(),
         db: options.db,

@@ -48,7 +48,7 @@ erDiagram
 ### User data
 **library_entry**: `id`, `user_id`, `title_id`, `status` (`watching|completed|planned|on_hold|dropped`), `progress` (int ≥ 0), `episodes_total_override` (nullable int ≥ 1), `rating` (nullable smallint 1–10), `review` (text, nullable), `is_favorite`, `alerts_enabled` (nullable override of user setting), `notes`, `started_at`, `completed_at`, `added_at`, `updated_at`; **unique (`user_id`,`title_id`)**.
 **viewing_run**: `id`, `entry_id`, `run_number` (1,2,…), `started_at`, `finished_at`, `rating` (nullable), `progress_at_end`; unique (`entry_id`,`run_number`). The *current* run is the one with `finished_at IS NULL`. `library_entry.progress` mirrors the current run's progress.
-**event** (append-only): `id`, `user_id`, `entry_id`, `title_id`, `run_id` (nullable), `type`, `payload` (jsonb), `occurred_at`, `created_at`.
+**event** (append-only): `id`, `seq` (database sequence: write order, the tie-break for events with equal `occurred_at`), `user_id`, `entry_id`, `title_id`, `run_id` (nullable), `type`, `payload` (jsonb), `occurred_at`, `created_at`.
 **notification**: `id`, `user_id`, `kind` (`episode_aired`), `title_id`, `episode_id`, `created_at`, `read_at`; **unique (`user_id`,`episode_id`)**.
 **share_link**: `id`, `user_id` (unique), `token_hash` (unique), `scope` (jsonb: statuses[], show_ratings, show_reviews), `created_at`, `revoked_at`.
 

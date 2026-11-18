@@ -228,7 +228,19 @@ export const sourcesUnavailable = (): HttpError =>
     headers: { 'Retry-After': '30' },
   });
 
-export const invalidCursor = (): HttpError => validationFailed([{ path: 'cursor', message: 'is not valid' }]);
+export const invalidCursor = (): HttpError =>
+  validationFailed([{ path: 'cursor', message: 'is not valid' }]);
+
+/** The title is already on the user's shelf (FR-LIB-006). Carries the entry so a client can open it. */
+export const alreadyInLibrary = (entryId: string): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'ALREADY_IN_LIBRARY',
+    slug: 'already-in-library',
+    title: 'Already in your library',
+    detail: 'This title is already in your library.',
+    extensions: { entryId },
+  });
 
 export const internalError = (detail = 'An unexpected error occurred.'): HttpError =>
   new HttpError({

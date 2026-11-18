@@ -47,11 +47,11 @@ All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `
 ## 4. Library, tracking, remember
 | Method & path | Purpose |
 |---|---|
-| `GET /library?status=&format=&genre=&q=&sort=&order=` | List entries |
-| `POST /library` | `{titleId,status}` → 201 (409 if exists) |
+| `GET /library?status=&format=&genre=&minRating=&year=&q=&sort=updated|title|rating|progress|start_date&order=&limit=&cursor=` | List entries (`q` matches any part of a title; `start_date` is when the user started; default sort is recently updated) |
+| `POST /library` | `{titleId,status}` → 201 with the entry and run 1; 409 `ALREADY_IN_LIBRARY` (carries `entryId`) if it is on the shelf. A title removed earlier is revived as a new run |
 | `GET /library/:entryId` | Entry with runs |
 | `PATCH /library/:entryId` | `{status?, rating?, review?, isFavorite?, alertsEnabled?, notes?}` |
-| `DELETE /library/:entryId` | Remove (events kept) |
+| `DELETE /library/:entryId` | Remove (tombstone: the entry and its events are kept) → 204 |
 | `POST /library/:entryId/progress` | `{ delta: 1 }` or `{ set: 12 }` → updated entry (+ `suggestComplete: true` at final episode) |
 | `PUT /library/:entryId/episodes-total` | `{ total: 24 }` override · `DELETE` clears it |
 | `POST /library/:entryId/runs` | Start a rewatch (entry must be Completed) |

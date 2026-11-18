@@ -77,7 +77,9 @@ export function createApp(dependencies: AppDependencies): Express {
     createHealthRouter({
       checkDb: dependencies.checkDb ?? dbNotConfigured,
       logger,
-      ...(dependencies.checkSources === undefined ? {} : { checkSources: dependencies.checkSources }),
+      ...(dependencies.checkSources === undefined
+        ? {}
+        : { checkSources: dependencies.checkSources }),
     }),
   );
   if (dependencies.v1Router) {

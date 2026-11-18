@@ -6,6 +6,7 @@ import { createLogger } from './lib/logger.js';
 import { createShutdown } from './lib/shutdown.js';
 import { MemoryRateLimitStore } from './middleware/rateLimit.js';
 import { createAuthModule } from './modules/auth/index.js';
+import { createLibraryModule } from './modules/library/index.js';
 import { createTitlesModule } from './modules/titles/index.js';
 import { composeV1 } from './modules/v1.js';
 
@@ -54,6 +55,11 @@ const titles =
     ? undefined
     : createTitlesModule({ config, db: db.client, logger, authenticated: auth.authenticated });
 
+const library =
+  db === undefined || auth === undefined
+    ? undefined
+    : createLibraryModule({ db: db.client, authenticated: auth.authenticated });
+
 const app = createApp({
   config,
   logger,
@@ -62,11 +68,18 @@ const app = createApp({
   ...(titles === undefined
     ? {}
     : {
-        checkSources: () => (titles.gateway.status().primary.breaker === 'closed' ? 'ok' : 'degraded'),
+        checkSources: () =>
+          titles.gateway.status().primary.breaker === 'closed' ? 'ok' : 'degraded',
       }),
   ...(auth === undefined
     ? {}
-    : { v1Router: titles === undefined ? auth.router : composeV1(auth.router, titles.router) }),
+    : {
+        v1Router: composeV1(
+          auth.router,
+          ...(titles === undefined ? [] : [titles.router]),
+          ...(library === undefined ? [] : [library.router]),
+        ),
+      }),
 });
 
 const server = app.listen(config.port, () => {

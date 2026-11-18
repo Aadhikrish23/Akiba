@@ -15,3 +15,4 @@ export * from './auth.js';
 export * from './common.js';
 export * from './titles.js';
 export * from './season.js';
+export * from './library.js';
