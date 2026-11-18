@@ -5,6 +5,7 @@
 //   POST /graphql          AniList (GraphQL)
 //   GET  /v4/...           Jikan: always 503 (the fallback is exercised by the API's own tests)
 //   POST /__mode {"anilist":"down"|"ok"}   simulate an AniList outage
+//   POST /__airing {"episode": n}   which episode the schedule says aired an hour ago (default 8)
 //   POST /__reset          back to normal
 import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -22,6 +23,7 @@ const fixtures = {
 };
 
 let anilistDown = false;
+let airingEpisode = 8;
 const send = (response, status, body) => {
   response.writeHead(status, { 'content-type': 'application/json' });
   response.end(JSON.stringify(body));
@@ -62,8 +64,13 @@ const server = createServer((request, response) => {
       anilistDown = JSON.parse(Buffer.concat(chunks).toString('utf8')).anilist === 'down';
       return send(response, 200, { anilistDown });
     }
+    if (url.pathname === '/__airing' && request.method === 'POST') {
+      airingEpisode = Number(JSON.parse(Buffer.concat(chunks).toString('utf8')).episode);
+      return send(response, 200, { airingEpisode });
+    }
     if (url.pathname === '/__reset') {
       anilistDown = false;
+      airingEpisode = 8;
       return send(response, 200, { anilistDown });
     }
     if (url.pathname === '/health') return send(response, 200, { status: 'ok' });
@@ -74,6 +81,20 @@ const server = createServer((request, response) => {
     const { query = '', variables = {} } = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     if (query.includes('query MediaDetail')) {
       return answer(response, variables.id === 16498 ? fixtures.detail : fixtures.notFound);
+    }
+    if (query.includes('query Airing')) {
+      // Every title asked about has had one episode air an hour ago (the real clock, so the API's
+      // own jobs treat it as just aired).
+      const airingAt = Math.floor(Date.now() / 1000) - 3600;
+      const ids = Array.isArray(variables.ids) ? variables.ids : [];
+      return send(response, 200, {
+        data: {
+          Page: {
+            pageInfo: { currentPage: 1, hasNextPage: false },
+            airingSchedules: ids.map((mediaId) => ({ episode: airingEpisode, airingAt, mediaId })),
+          },
+        },
+      });
     }
     if (query.includes('query Genres')) return answer(response, fixtures.genres);
     if (query.includes('query MediaPage')) return send(response, 200, mediaPage(variables));

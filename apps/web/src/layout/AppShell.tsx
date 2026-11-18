@@ -3,12 +3,14 @@ import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
+import { InboxProvider, badgeText, useInbox } from '../lib/inbox';
 
 /** Primary destinations. Each later milestone adds its own entry here (Discover, Library, …). */
 const NAV: readonly { readonly to: string; readonly label: string; readonly end?: boolean }[] = [
   { to: '/', label: 'Home', end: true },
   { to: '/discover', label: 'Discover' },
   { to: '/library', label: 'Library' },
+  { to: '/inbox', label: 'Inbox' },
   { to: '/history', label: 'History' },
   { to: '/settings', label: 'Settings' },
 ];
@@ -49,51 +51,68 @@ export function AppShell() {
   };
 
   return (
-    <div className="min-h-dvh min-[880px]:grid min-[880px]:grid-cols-[220px_1fr]">
-      <a
-        href="#main"
-        className="bg-ink text-paper absolute -top-20 left-2 z-10 rounded-sm px-4 py-2 focus:top-2"
-      >
-        Skip to content
-      </a>
-      <header
-        className="border-rule flex flex-wrap items-center gap-x-6 gap-y-2 border-b min-[880px]:flex-col min-[880px]:items-start min-[880px]:justify-start min-[880px]:border-r min-[880px]:border-b-0"
-        style={{ padding: '14px var(--gutter)' }}
-      >
-        <Link to="/" className="font-serif text-lg font-semibold tracking-tight">
-          Akiba <span lang="ja">秋葉</span>
-        </Link>
-        <nav
-          aria-label="Main"
-          className="flex gap-5 min-[880px]:mt-6 min-[880px]:flex-col min-[880px]:gap-1"
+    <InboxProvider>
+      <div className="min-h-dvh min-[880px]:grid min-[880px]:grid-cols-[220px_1fr]">
+        <a
+          href="#main"
+          className="bg-ink text-paper absolute -top-20 left-2 z-10 rounded-sm px-4 py-2 focus:top-2"
         >
-          {NAV.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end === true} className={navClass}>
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="ml-auto grid gap-1 text-sm min-[880px]:mt-auto min-[880px]:ml-0">
-          <span className="text-mute" data-testid="account-name">
-            {state.user.displayName ?? state.user.email}
-          </span>
-          <Button variant="link" onClick={signOut}>
-            Log out
-          </Button>
-        </div>
-      </header>
-      <div>
-        {!state.user.emailVerified && <VerifyBanner />}
-        {signOutError !== null && (
-          <div style={{ padding: '16px var(--gutter) 0' }}>
-            <Notice tone="error">{signOutError}</Notice>
+          Skip to content
+        </a>
+        <header
+          className="border-rule flex flex-wrap items-center gap-x-6 gap-y-2 border-b min-[880px]:flex-col min-[880px]:items-start min-[880px]:justify-start min-[880px]:border-r min-[880px]:border-b-0"
+          style={{ padding: '14px var(--gutter)' }}
+        >
+          <Link to="/" className="font-serif text-lg font-semibold tracking-tight">
+            Akiba <span lang="ja">秋葉</span>
+          </Link>
+          <nav
+            aria-label="Main"
+            className="flex flex-wrap gap-x-5 min-[880px]:mt-6 min-[880px]:flex-col min-[880px]:gap-1"
+          >
+            {NAV.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.end === true} className={navClass}>
+                {item.to === '/inbox' ? <InboxLabel label={item.label} /> : item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="ml-auto grid gap-1 text-sm min-[880px]:mt-auto min-[880px]:ml-0">
+            <span className="text-mute" data-testid="account-name">
+              {state.user.displayName ?? state.user.email}
+            </span>
+            <Button variant="link" onClick={signOut}>
+              Log out
+            </Button>
           </div>
-        )}
-        <main id="main" tabIndex={-1} style={{ padding: '32px var(--gutter)' }}>
-          <Outlet />
-        </main>
+        </header>
+        <div>
+          {!state.user.emailVerified && <VerifyBanner />}
+          {signOutError !== null && (
+            <div style={{ padding: '16px var(--gutter) 0' }}>
+              <Notice tone="error">{signOutError}</Notice>
+            </div>
+          )}
+          <main id="main" tabIndex={-1} style={{ padding: '32px var(--gutter)' }}>
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </InboxProvider>
+  );
+}
+
+/** "Inbox" with the unread count; the count is words for a screen reader, not just a number. */
+function InboxLabel({ label }: { label: string }) {
+  const { unread } = useInbox();
+  return (
+    <>
+      {label}{' '}
+      {unread !== null && unread > 0 && (
+        <span className="bg-ink text-paper ml-2 inline-block min-w-5 rounded-sm px-1.5 text-center text-xs leading-5 font-medium">
+          {badgeText(unread)} <span className="sr-only">unread</span>
+        </span>
+      )}
+    </>
   );
 }
 

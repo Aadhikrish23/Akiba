@@ -21,6 +21,7 @@ import {
   otherTitles,
 } from '../lib/titles';
 import { ROLE_LABEL } from './Explore';
+import { formatAirTime } from './Inbox';
 
 type Load =
   | { phase: 'loading' }
@@ -35,7 +36,7 @@ type Load =
  */
 export function TitlePage() {
   const { titleId = '' } = useParams();
-  const { client } = useAuth();
+  const { client, profile } = useAuth();
   const [load, setLoad] = useState<Load>({ phase: 'loading' });
   const [relations, setRelations] = useState<RelationsResponse | 'failed' | null>(null);
   const [cast, setCast] = useState<TitleCharactersResponse | 'failed' | null>(null);
@@ -199,10 +200,7 @@ export function TitlePage() {
             <p>
               Episode {title.nextAiring.episode} airs{' '}
               <time dateTime={title.nextAiring.airsAt}>
-                {new Date(title.nextAiring.airsAt).toLocaleString(undefined, {
-                  dateStyle: 'medium',
-                  timeStyle: 'short',
-                })}
+                {formatAirTime(title.nextAiring.airsAt, profile?.timeZone ?? 'UTC')}
               </time>
               .
             </p>

@@ -742,6 +742,48 @@ describe('@akiba/api-client: titles (T12 endpoints)', () => {
     expect(calls.at(-1)?.url).toContain('/franchises/a%2Fb');
   });
 
+  it('inbox: lists, counts, marks read, marks all read and deletes (T23/T24)', async () => {
+    const notification = {
+      id: card.id,
+      kind: 'episode_aired',
+      createdAt: '2026-11-20T15:00:00.000Z',
+      readAt: null,
+      episode: { number: 8, airsAt: '2026-11-20T14:00:00.000Z' },
+      title: card,
+    };
+    const { client, calls } = signedIn((request) => {
+      const path = new URL(request.url).pathname;
+      if (path.endsWith('/inbox/unread-count')) return json(200, { data: { count: 3 } });
+      if (path.endsWith('/inbox/read-all')) return json(200, { data: { updated: 3 } });
+      if (path.endsWith('/read')) {
+        return json(200, { data: { ...notification, readAt: '2026-11-20T16:00:00.000Z' } });
+      }
+      if (request.method === 'DELETE') return new Response(null, { status: 204 });
+      return json(200, { data: [notification], nextCursor: 'more' });
+    });
+    await expect(
+      client.inbox.list({ unread: true, limit: 5, cursor: 'c1' }),
+    ).resolves.toMatchObject({
+      nextCursor: 'more',
+      data: [{ episode: { number: 8 } }],
+    });
+    const list = calls.find((call) => call.url.includes('/inbox?'));
+    expect(Object.fromEntries(new URL(list?.url ?? '').searchParams)).toEqual({
+      unread: 'true',
+      limit: '5',
+      cursor: 'c1',
+    });
+    await expect(client.inbox.unreadCount()).resolves.toBe(3);
+    await expect(client.inbox.markRead('a/b')).resolves.toMatchObject({
+      readAt: '2026-11-20T16:00:00.000Z',
+    });
+    expect(calls.at(-1)?.method).toBe('POST');
+    expect(calls.at(-1)?.url).toContain('/inbox/a%2Fb/read');
+    await expect(client.inbox.markAllRead()).resolves.toBe(3);
+    await expect(client.inbox.remove(card.id)).resolves.toBeUndefined();
+    expect(calls.at(-1)?.method).toBe('DELETE');
+  });
+
   it('escapes a title ID in the path', async () => {
     const { client, calls } = signedIn(() => problem(404, 'NOT_FOUND'));
     await client.titles.detail('a/b?c').catch(() => undefined);

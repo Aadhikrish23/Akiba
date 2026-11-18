@@ -143,6 +143,23 @@ export function ShelfPanel({ title }: { title: TitleDetail }) {
         </label>
       </div>
 
+      {entry.status === 'watching' && (
+        <Select
+          label="Episode alerts for this title"
+          anyLabel="Follow my account setting"
+          value={entry.alertsEnabled === null ? '' : entry.alertsEnabled ? 'on' : 'off'}
+          options={[
+            { value: 'on', label: 'On' },
+            { value: 'off', label: 'Off' },
+          ]}
+          onChange={(event) =>
+            void change({
+              alertsEnabled: event.target.value === '' ? null : event.target.value === 'on',
+            })
+          }
+        />
+      )}
+
       {entry.status !== 'completed' ? (
         <PlusOne entry={entry} name={name} />
       ) : (

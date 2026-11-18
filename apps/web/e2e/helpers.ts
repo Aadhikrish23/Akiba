@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { expect, type Page } from '@playwright/test';
 
 export const unique = (label: string): string =>
@@ -37,4 +39,36 @@ export async function setAniList(state: 'ok' | 'down'): Promise<void> {
     body: JSON.stringify({ anilist: state }),
   });
   expect(response.ok).toBe(true);
+}
+
+/** Say which episode the mock schedule reports as aired an hour ago (see mock-sources.mjs). */
+export async function setAiringEpisode(episode: number): Promise<void> {
+  const response = await fetch('http://127.0.0.1:3200/__airing', {
+    method: 'POST',
+    body: JSON.stringify({ episode }),
+  });
+  expect(response.ok).toBe(true);
+}
+
+const JOBS_CLI = fileURLToPath(new URL('../../api/dist/jobs/cli.js', import.meta.url));
+
+/**
+ * Run one of the API's background jobs once, now, the way an operator would (`pnpm jobs:run`):
+ * the real airing sync and inbox fan-out against the test database and the mock AniList.
+ */
+export function runJob(name: 'airing-sync' | 'inbox-fanout'): string {
+  const databaseUrl = process.env['E2E_DATABASE_URL'] ?? process.env['DATABASE_URL'];
+  if (databaseUrl === undefined) throw new Error('set E2E_DATABASE_URL to run a job');
+  return execFileSync(process.execPath, [JOBS_CLI, name], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      NODE_ENV: 'development',
+      DATABASE_URL: databaseUrl,
+      SOURCE_ANILIST_URL: 'http://127.0.0.1:3200/graphql',
+      SOURCE_JIKAN_URL: 'http://127.0.0.1:3200/v4',
+      SOURCE_TIMEOUT_MS: '3000',
+      LOG_LEVEL: 'warn',
+    },
+  });
 }

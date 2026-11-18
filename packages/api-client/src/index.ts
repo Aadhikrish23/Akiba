@@ -28,6 +28,10 @@ import {
   titleDetailResponseSchema,
   titleListResponseSchema,
   characterResponseSchema,
+  inboxListResponseSchema,
+  notificationResponseSchema,
+  readAllResponseSchema,
+  unreadCountResponseSchema,
   franchiseResponseSchema,
   studioResponseSchema,
   titleCharactersResponseSchema,
@@ -74,6 +78,11 @@ import {
   type TitleDetailResponse,
   type TitleListResponse,
   type CharacterResponse,
+  type InboxListResponse,
+  type InboxQuery,
+  type NotificationResponse,
+  type ReadAllResponse,
+  type UnreadCountResponse,
   type FranchiseResponse,
   type StudioResponse,
   type StudioTitlesQuery,
@@ -168,6 +177,16 @@ export interface TitlesApi {
   genres(): Promise<string[]>;
 }
 
+/** The Inbox (doc 07 §5): episodes that aired for titles the user is watching. */
+export interface InboxApi {
+  list(params?: Partial<InboxQuery>): Promise<InboxListResponse>;
+  unreadCount(): Promise<UnreadCountResponse['data']['count']>;
+  /** Asking again keeps the first time it was read. */
+  markRead(notificationId: string): Promise<NotificationResponse['data']>;
+  markAllRead(): Promise<ReadAllResponse['data']['updated']>;
+  remove(notificationId: string): Promise<void>;
+}
+
 /** Franchise, studio and character pages (doc 07 §3). A missing or hidden one is an {@link ApiError} 404. */
 export interface ExploreApi {
   franchise(franchiseId: string): Promise<FranchiseResponse>;
@@ -217,6 +236,7 @@ export interface ApiClient {
   readonly auth: AuthApi;
   readonly titles: TitlesApi;
   readonly explore: ExploreApi;
+  readonly inbox: InboxApi;
   readonly library: LibraryApi;
   readonly history: { list(params?: Partial<HistoryQuery>): Promise<HistoryResponse> };
   readonly account: AccountApi;
@@ -633,6 +653,30 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
   };
 
+  const inbox: InboxApi = {
+    async list(params) {
+      return parse(inboxListResponseSchema, '/inbox', await get('/inbox', params));
+    },
+    async unreadCount() {
+      return parse(
+        unreadCountResponseSchema,
+        '/inbox/unread-count',
+        await get('/inbox/unread-count'),
+      ).data.count;
+    },
+    async markRead(notificationId) {
+      const path = `/inbox/${id(notificationId)}/read`;
+      return parse(notificationResponseSchema, path, await send('POST', path)).data;
+    },
+    async markAllRead() {
+      return parse(readAllResponseSchema, '/inbox/read-all', await send('POST', '/inbox/read-all'))
+        .data.updated;
+    },
+    async remove(notificationId) {
+      await send('DELETE', `/inbox/${id(notificationId)}`);
+    },
+  };
+
   const send = (
     method: CallOptions['method'],
     path: string,
@@ -731,6 +775,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     auth,
     titles,
     explore,
+    inbox,
     library,
     history: {
       async list(params) {

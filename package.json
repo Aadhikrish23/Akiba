@@ -22,6 +22,7 @@
     "format": "prettier --write .",
     "clean": "pnpm -r exec rm -rf dist .tsbuildinfo",
     "mapping:import": "pnpm --filter @akiba/api run build && node apps/api/dist/mapping/cli.js import",
+    "jobs:run": "pnpm --filter @akiba/api run build && node apps/api/dist/jobs/cli.js",
     "mapping:merge": "pnpm --filter @akiba/api run build && node apps/api/dist/mapping/cli.js merge"
   },
   "prettier": "@akiba/config/prettier",

@@ -351,6 +351,43 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
     });
   });
 
+  it('lets the reader turn episode alerts on or off for one title, or follow the account (FR-NOTE-004)', async () => {
+    const app = renderApp({
+      route: `/title/${TITLE}`,
+      handler: shelf({}, (call) =>
+        call.method === 'PATCH'
+          ? json(200, { data: detail(1, call.body as Record<string, unknown>) })
+          : undefined,
+      ),
+    });
+    const select = await screen.findByLabelText('Episode alerts for this title');
+    expect((select as HTMLSelectElement).value).toBe(''); // follows the account
+    await app.user.selectOptions(select, 'Off');
+    await waitFor(() => {
+      expect(app.calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+        alertsEnabled: false,
+      });
+    });
+    await app.user.selectOptions(screen.getByLabelText('Episode alerts for this title'), 'On');
+    await app.user.selectOptions(
+      screen.getByLabelText('Episode alerts for this title'),
+      'Follow my account setting',
+    );
+    await waitFor(() => {
+      expect(app.calls.filter((call) => call.method === 'PATCH').map((call) => call.body)).toEqual([
+        { alertsEnabled: false },
+        { alertsEnabled: true },
+        { alertsEnabled: null },
+      ]);
+    });
+  });
+
+  it('offers no alert setting for a title that is not being watched', async () => {
+    renderApp({ route: `/title/${TITLE}`, handler: shelf({ status: 'completed' }) });
+    await screen.findByRole('heading', { name: 'On your shelf' });
+    expect(screen.queryByLabelText('Episode alerts for this title')).toBeNull();
+  });
+
   it('edits the episode count, shows it as Edited, and resets it', async () => {
     const app = renderApp({
       route: `/title/${TITLE}`,
