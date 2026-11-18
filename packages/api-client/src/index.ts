@@ -55,6 +55,13 @@ export interface ApiClientOptions {
   readonly timeoutMs?: number;
   /** Clock in ms since the epoch; tests move it by hand. */
   readonly now?: () => number;
+  /**
+   * Runs a token renewal exclusively across every copy of the client that shares one refresh
+   * token (browser tabs). Without it two tabs can renew at the same moment, one of them presents a
+   * token the other has just retired, and the server ends the session as theft. The browser app
+   * passes a Web Locks wrapper; a single-process client needs none.
+   */
+  readonly refreshLock?: <T>(operation: () => Promise<T>) => Promise<T>;
 }
 
 export interface AuthApi {
@@ -309,7 +316,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
 
   /** Every caller waits for the same renewal; a second refresh would be read as token reuse. */
   const renew = (): Promise<void> => {
-    refreshing ??= renewSession().finally(() => {
+    refreshing ??= (options.refreshLock?.(renewSession) ?? renewSession()).finally(() => {
       refreshing = undefined;
     });
     return refreshing;

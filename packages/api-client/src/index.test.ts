@@ -513,3 +513,61 @@ describe('@akiba/api-client: mobile session', () => {
     expect(storage.value).toBeUndefined();
   });
 });
+
+describe('@akiba/api-client: two tabs sharing one refresh cookie (doc 09 S-AUTH-5)', () => {
+  /**
+   * A server that, like the real one, treats a refresh token presented after it was replaced as
+   * theft, and a browser whose cookie is updated only when a response arrives. Two clients stand
+   * for two tabs: they share the cookie and (when asked) a lock.
+   */
+  function twoTabs(withLock: boolean) {
+    let cookie = 'token-0';
+    let serverCurrent = 'token-0';
+    let generation = 0;
+    let revoked = false;
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (!url.endsWith('/auth/refresh')) return json(200, USER);
+      const presented = cookie; // the browser attaches the cookie when the request is sent
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      if (revoked || presented !== serverCurrent) {
+        revoked = true; // reuse: the whole session ends
+        return problem(401, 'INVALID_REFRESH_TOKEN');
+      }
+      generation += 1;
+      serverCurrent = `token-${generation}`;
+      cookie = serverCurrent; // Set-Cookie takes effect when the response is received
+      return json(200, tokens(`access-${generation}`));
+    };
+
+    let queue: Promise<unknown> = Promise.resolve();
+    const lock = <T>(operation: () => Promise<T>): Promise<T> => {
+      const run = queue.then(operation, operation);
+      queue = run.catch(() => undefined);
+      return run;
+    };
+    const make = () =>
+      createApiClient({
+        baseUrl: 'https://api.example.test/v1',
+        platform: 'web',
+        fetch: fetchImpl,
+        ...(withLock ? { refreshLock: lock } : {}),
+      });
+    return { a: make(), b: make() };
+  }
+
+  it('without a lock the second tab presents a retired token and the session is lost', async () => {
+    const { a, b } = twoTabs(false);
+    const results = await Promise.allSettled([a.restoreSession(), b.restoreSession()]);
+    expect(
+      results.map((result) => result.status === 'fulfilled' && result.value !== undefined),
+    ).toEqual([true, false]);
+  });
+
+  it('with the lock both tabs renew, one after the other, and the session survives', async () => {
+    const { a, b } = twoTabs(true);
+    const results = await Promise.all([a.restoreSession(), b.restoreSession()]);
+    expect(results.every((user) => user !== undefined)).toBe(true);
+    expect(a.isSignedIn() && b.isSignedIn()).toBe(true);
+  });
+});

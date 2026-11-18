@@ -74,14 +74,14 @@
 | Electron-specific | Renderer compromise → OS access | `contextIsolation`, no node integration, sandbox, CSP, restricted IPC, `will-navigate` allow-list |
 
 ## 9. Security checklist (gate for M1 and each release)
-- [ ] argon2id params verified; unit tests for hashing and policy
-- [ ] Token rotation + reuse-detection test passes
-- [ ] No endpoint returns another user's data (IDOR suite green)
-- [ ] Rate limits active on auth and writes
-- [ ] CSP/headers verified; no `localStorage` tokens; cookies flags correct
-- [ ] OAuth state/nonce/PKCE tests
-- [ ] Logs reviewed for secrets/PII
-- [ ] Dependency audit clean or exceptions documented
+- [x] argon2id params verified; unit tests for hashing and policy (not yet tuned on target hardware)
+- [x] Token rotation + reuse-detection test passes
+- [ ] No endpoint returns another user's data (IDOR suite green) — n/a until M3 (T20)
+- [x] Rate limits active on auth and writes (per process)
+- [x] CSP/headers verified; no `localStorage` tokens; cookies flags correct (web host must add frame-ancestors/HSTS at deployment)
+- [ ] OAuth state/nonce/PKCE tests — deferred: separate auth module
+- [ ] Logs reviewed for secrets/PII — asserted by tests; no human review yet
+- [x] Dependency audit clean or exceptions documented (see sprints/m1-status.md)
 - [ ] Electron hardening checklist (M7)
 - [ ] Independent code review of the auth module by the product owner/reviewer before M1 sign-off
 

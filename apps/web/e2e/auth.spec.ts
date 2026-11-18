@@ -145,3 +145,50 @@ test('mobile width: the top bar replaces the sidebar and nothing scrolls sideway
   );
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('the Content-Security-Policy is in force and the app breaks none of it', async ({ page }) => {
+  const problems: string[] = [];
+  page.on('console', (message) => {
+    // A visitor with no session gets a 401 when the app tries to restore one: expected, and the
+    // browser logs every failed request. Anything else (a 404, a script error) is a problem.
+    const expected = message.text().includes('status of 401');
+    if (message.type() === 'error' && !expected) problems.push(`console: ${message.text()}`);
+  });
+  page.on('pageerror', (error) => problems.push(`page error: ${error.message}`));
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (event) => {
+      console.error(`CSP violation: ${event.violatedDirective} ${event.blockedURI}`);
+    });
+  });
+
+  await page.goto('/login');
+  const policy = await page
+    .locator('meta[http-equiv="Content-Security-Policy"]')
+    .getAttribute('content');
+  expect(policy).toContain("script-src 'self'");
+  expect(policy).toContain("object-src 'none'");
+
+  const email = unique('csp');
+  await signUp(page, email);
+  await logIn(page, email);
+  await expect(page.getByRole('heading', { name: 'Welcome, Hana' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Welcome, Hana' })).toBeVisible();
+  expect(problems).toEqual([]);
+});
+
+test('no token is kept in browser storage (doc 09 S-AUTH-7)', async ({ page }) => {
+  const email = unique('storage');
+  await signUp(page, email);
+  await logIn(page, email);
+  await expect(page.getByRole('heading', { name: 'Welcome, Hana' })).toBeVisible();
+  const stored = await page.evaluate(() => ({
+    local: JSON.stringify({ ...localStorage }),
+    session: JSON.stringify({ ...sessionStorage }),
+    cookies: document.cookie,
+  }));
+  expect(stored).toEqual({ local: '{}', session: '{}', cookies: '' }); // the refresh cookie is HttpOnly
+  const cookies = await page.context().cookies();
+  const refresh = cookies.find((cookie) => cookie.name === 'akiba_refresh');
+  expect(refresh).toMatchObject({ httpOnly: true, sameSite: 'Lax', path: '/v1/auth' });
+});

@@ -5,7 +5,16 @@ import { createContext, useContext, type ReactNode } from 'react';
 export function createBrowserClient(): ApiClient {
   const baseUrl =
     (import.meta.env['VITE_API_URL'] as string | undefined) ?? `${window.location.origin}/v1`;
-  return createApiClient({ baseUrl, platform: 'web', clientVersion: '0.1.0' });
+  return createApiClient({
+    baseUrl,
+    platform: 'web',
+    clientVersion: '0.1.0',
+    // Tabs share one refresh cookie; renew one tab at a time (see ApiClientOptions.refreshLock).
+    refreshLock: <T,>(operation: () => Promise<T>): Promise<T> =>
+      'locks' in navigator
+        ? navigator.locks.request('akiba-token-refresh', operation)
+        : operation(),
+  });
 }
 
 const ApiContext = createContext<ApiClient | null>(null);
