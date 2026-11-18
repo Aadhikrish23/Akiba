@@ -10,6 +10,7 @@ import {
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Image, Text, View } from 'react-native';
 import { useAuth } from '../../../auth/AuthContext';
+import { ShelfPanel } from '../../../components/ShelfPanel';
 import { TitleRow } from '../../../components/TitleRow';
 import { Body, Button, Heading, Muted, Notice, Screen } from '../../../components/ui';
 import { formatMoment } from '../../../lib/format';
@@ -155,6 +156,8 @@ export default function TitleScreen() {
         ))}
       </View>
       {title.genres.length > 0 && <Body>Genres: {title.genres.join(', ')}</Body>}
+
+      <ShelfPanel key={title.id} title={title} />
 
       {title.synopsis !== null && (
         <View style={{ gap: theme.space(3) }}>

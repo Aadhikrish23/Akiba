@@ -1,7 +1,7 @@
 import { describeError } from '@akiba/api-client';
 import { useState } from 'react';
 import { useAuth } from '../../../auth/AuthContext';
-import { Body, Button, Heading, Muted, Notice, Screen } from '../../../components/ui';
+import { Body, Button, Heading, Muted, Notice, Screen, TextLink } from '../../../components/ui';
 
 export default function MeScreen() {
   const { state, client } = useAuth();
@@ -28,6 +28,7 @@ export default function MeScreen() {
       <Heading>{state.user.displayName ?? 'Your account'}</Heading>
       <Body>{state.user.email}</Body>
       {!state.user.emailVerified && <Muted>Your email address is not verified yet.</Muted>}
+      <TextLink href="/history">History</TextLink>
       {error !== null && <Notice tone="error">{error}</Notice>}
       <Button label="Log out" busy={busy} onPress={signOut} />
     </Screen>

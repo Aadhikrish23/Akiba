@@ -184,7 +184,9 @@ export function Field({ label, error, hint, ...input }: FieldProps) {
         accessibilityHint={hint}
         placeholderTextColor={theme.colors.mute}
         style={{
-          minHeight: MIN_TARGET + 4,
+          minHeight: input.multiline === true ? 120 : MIN_TARGET + 4,
+          textAlignVertical: input.multiline === true ? 'top' : 'center',
+          paddingVertical: input.multiline === true ? theme.space(3) : 0,
           borderWidth: 1,
           borderRadius: theme.radius,
           borderColor: error === undefined ? theme.colors.rule : theme.colors.accent,

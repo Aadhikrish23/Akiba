@@ -1,3 +1,4 @@
+import { waitFor } from '@testing-library/react-native';
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import {
   json,
@@ -249,13 +250,11 @@ describe('Discover: search (FR-DISC-001)', () => {
   });
 });
 
-/** Wait until one of the calls made so far satisfies `matches`. */
+/** Wait until one of the calls made so far satisfies `matches`, inside `act`. */
 async function waitForRequest(app: { calls: Call[] }, matches: (call: Call) => boolean) {
-  const deadline = Date.now() + 2000;
-  while (!app.calls.some(matches)) {
-    if (Date.now() > deadline) throw new Error('the request was never made');
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
+  await waitFor(() => {
+    if (!app.calls.some(matches)) throw new Error('the request was never made');
+  });
 }
 
 describe('Season chart and Home (FR-DISC-003)', () => {

@@ -185,7 +185,7 @@ describe('tabs and accessibility (T25, doc 08 §4 and §6)', () => {
     }
     expect(screen.getAllByRole('button', { name: /, tab, [0-9] of 5$/ })).toHaveLength(5);
     await app.user.press(tab('Library'));
-    expect(await screen.findByRole('header', { name: 'Library' })).toBeTruthy();
+    expect(await screen.findByLabelText('Search your library')).toBeTruthy();
   });
 
   it('every button and link has a role, a name and a target of at least 44 points', async () => {

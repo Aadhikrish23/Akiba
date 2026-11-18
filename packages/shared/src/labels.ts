@@ -1,4 +1,5 @@
 import type { CharacterRole } from './explore.js';
+import type { HistoryItem } from './library.js';
 import type { EntryStatus, TitleCard, TitleKind, TitleStatus } from './titles.js';
 import type { TitleLanguage } from './account.js';
 
@@ -105,4 +106,50 @@ export function metaLine(title: TitleCard): string {
     );
   }
   return parts.join(' · ');
+}
+
+const num = (value: unknown): number | null => (typeof value === 'number' ? value : null);
+const status = (value: unknown): string =>
+  typeof value === 'string' && value in ENTRY_LABEL
+    ? ENTRY_LABEL[value as keyof typeof ENTRY_LABEL]
+    : String(value);
+
+/** One event as a sentence a person would say (doc 08 §8: plain, specific). */
+export function describeEvent(item: HistoryItem): string {
+  const p = item.payload;
+  switch (item.type) {
+    case 'entry_added':
+      return `Added to your library as ${status(p['status'])}`;
+    case 'status_changed':
+      return `Changed from ${status(p['from'])} to ${status(p['to'])}`;
+    case 'progress_changed': {
+      const from = num(p['from']);
+      const to = num(p['to']);
+      if (from !== null && to !== null && to === from + 1) return `Watched episode ${to}`;
+      if (from !== null && to !== null && to > from) return `Watched episodes ${from + 1} to ${to}`;
+      return `Set progress to ${to ?? '?'} (was ${from ?? '?'})`;
+    }
+    case 'run_started':
+      return num(p['run_number']) === 1
+        ? 'Started watching'
+        : `Started rewatch ${num(p['run_number']) ?? ''}`.trim();
+    case 'run_completed':
+      return num(p['run_number']) === 1
+        ? 'Finished watching'
+        : `Finished rewatch ${num(p['run_number']) ?? ''}`.trim();
+    case 'rated':
+      return p['to'] === null ? 'Removed the rating' : `Rated ${num(p['to'])} out of 10`;
+    case 'reviewed':
+      return num(p['length']) === 0 ? 'Deleted the review' : 'Wrote a review';
+    case 'favorited':
+      return 'Marked as a favorite';
+    case 'unfavorited':
+      return 'Removed from favorites';
+    case 'total_overridden':
+      return `Changed the episode count to ${num(p['to']) ?? '?'}`;
+    case 'total_override_cleared':
+      return 'Reset the episode count';
+    case 'entry_removed':
+      return 'Removed from your library';
+  }
 }

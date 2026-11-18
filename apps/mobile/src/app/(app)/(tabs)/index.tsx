@@ -1,13 +1,16 @@
 import { SEASON_LABEL } from '@akiba/shared';
 import { View } from 'react-native';
 import { useAuth } from '../../../auth/AuthContext';
+import { EntryRow } from '../../../components/EntryViews';
 import { TitleRow } from '../../../components/TitleRow';
-import { Button, Heading, Muted, Notice, Screen, TextLink } from '../../../components/ui';
+import { Body, Button, Heading, Muted, Notice, Screen, TextLink } from '../../../components/ui';
 import { useRemote } from '../../../lib/useRemote';
 import { useTheme } from '../../../theme/theme';
 
 /** Titles shown from the season on Home; the rest is one tap away. */
 const SEASON_PREVIEW = 6;
+/** Shows in "Continue watching". */
+const CONTINUE_LIMIT = 5;
 
 export default function HomeScreen() {
   const { state, client } = useAuth();
@@ -16,10 +19,36 @@ export default function HomeScreen() {
   const season = useRemote('home-season', () =>
     client.titles.currentSeason({ limit: SEASON_PREVIEW }),
   );
+  const watching = useRemote('home-watching', () =>
+    client.library.list({ status: 'watching', sort: 'updated', limit: CONTINUE_LIMIT }),
+  );
 
   return (
     <Screen>
       <Heading>Welcome, {name}</Heading>
+
+      <View style={{ gap: theme.space(4) }}>
+        <Heading level={2}>Continue watching</Heading>
+        {watching.state.phase === 'loading' && <Muted>Loading…</Muted>}
+        {(watching.state.phase === 'error' || watching.state.phase === 'missing') && (
+          <View style={{ gap: theme.space(3) }}>
+            <Notice tone="error">
+              {watching.state.phase === 'error'
+                ? watching.state.message
+                : 'Your library is not available.'}
+            </Notice>
+            <Button label="Try again" onPress={watching.retry} />
+          </View>
+        )}
+        {watching.state.phase === 'ready' && watching.state.value.data.length === 0 && (
+          <View style={{ gap: theme.space(1) }}>
+            <Body>Nothing in progress. Pick something to watch in Discover.</Body>
+          </View>
+        )}
+        {watching.state.phase === 'ready' &&
+          watching.state.value.data.map((entry) => <EntryRow key={entry.id} entry={entry} />)}
+      </View>
+
       <View style={{ gap: theme.space(4) }}>
         <Heading level={2}>
           {season.state.phase === 'ready'
