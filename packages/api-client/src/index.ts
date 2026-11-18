@@ -12,6 +12,17 @@ import {
   resetPasswordResponseSchema,
   verifyEmailResponseSchema,
   genresResponseSchema,
+  deleteAccountResponseSchema,
+  historyResponseSchema,
+  libraryCountsSchema,
+  libraryEntryResponseSchema,
+  libraryListResponseSchema,
+  progressResponseSchema,
+  restoreAccountResponseSchema,
+  shareCreatedSchema,
+  shareStatusSchema,
+  sharedListResponseSchema,
+  profileSchema,
   relationsResponseSchema,
   seasonListResponseSchema,
   titleDetailResponseSchema,
@@ -33,6 +44,24 @@ import {
   type ResetPasswordResponse,
   type VerifyEmailResponse,
   type BrowseQuery,
+  type DeleteAccountResponse,
+  type EntryStatus,
+  type HistoryQuery,
+  type HistoryResponse,
+  type LibraryCounts,
+  type LibraryEntryResponse,
+  type LibraryListQuery,
+  type LibraryListResponse,
+  type ProgressRequest,
+  type ProgressResponse,
+  type Profile,
+  type RestoreAccountResponse,
+  type ShareCreated,
+  type ShareScope,
+  type ShareStatus,
+  type SharedListResponse,
+  type UpdateEntryRequest,
+  type UpdateProfileRequest,
   type RelationsResponse,
   type SearchQuery,
   type Season,
@@ -53,6 +82,20 @@ export interface RefreshTokenStorage {
 }
 
 export type AuthEvent = 'signed-in' | 'signed-out';
+
+/** A downloaded file: the export. */
+export interface DownloadedFile {
+  readonly text: string;
+  readonly contentType: string;
+  /** From `Content-Disposition`, e.g. `akiba-export-2026-11-18.json`. */
+  readonly filename: string;
+}
+
+interface RawBody {
+  readonly text: string;
+  readonly contentType: string;
+  readonly disposition: string;
+}
 
 export interface ApiClientOptions {
   /** Absolute origin (and optional base path) of the API, e.g. `https://api.example.com/v1`. */
@@ -94,6 +137,8 @@ export interface AuthApi {
   resetPassword(request: ResetPasswordRequest): Promise<ResetPasswordResponse>;
   /** Other sessions end; this one continues. */
   changePassword(request: ChangePasswordRequest): Promise<void>;
+  /** Undo an account deletion inside the grace period (the account cannot sign in until then). */
+  restoreAccount(request: LoginRequest): Promise<RestoreAccountResponse>;
 }
 
 /** Query parameters of the list endpoints; `limit` and `cursor` page through the answer. */
@@ -112,6 +157,38 @@ export interface TitlesApi {
   genres(): Promise<string[]>;
 }
 
+/** The user's library (doc 07 §4). */
+export interface LibraryApi {
+  list(params?: Partial<LibraryListQuery>): Promise<LibraryListResponse>;
+  favorites(params?: Partial<LibraryListQuery>): Promise<LibraryListResponse>;
+  counts(): Promise<LibraryCounts>;
+  get(entryId: string): Promise<LibraryEntryResponse['data']>;
+  /** 409 `ALREADY_IN_LIBRARY` (with `entryId`) if it is already there. */
+  add(titleId: string, status: EntryStatus): Promise<LibraryEntryResponse['data']>;
+  update(entryId: string, changes: UpdateEntryRequest): Promise<LibraryEntryResponse['data']>;
+  remove(entryId: string): Promise<void>;
+  progress(entryId: string, request: ProgressRequest): Promise<ProgressResponse>;
+  setEpisodesTotal(entryId: string, total: number): Promise<LibraryEntryResponse['data']>;
+  clearEpisodesTotal(entryId: string): Promise<LibraryEntryResponse['data']>;
+  startRun(entryId: string): Promise<LibraryEntryResponse['data']>;
+}
+
+/** Account, export, sharing and deletion (doc 07 §6). */
+export interface AccountApi {
+  updateProfile(changes: UpdateProfileRequest): Promise<Profile>;
+  /** Asks for the password again; schedules erasure after the grace period. */
+  deleteAccount(password: string): Promise<DeleteAccountResponse>;
+  exportFile(format: 'json' | 'csv'): Promise<DownloadedFile>;
+  getShare(): Promise<ShareStatus>;
+  putShare(scope: ShareScope): Promise<ShareCreated>;
+  revokeShare(): Promise<void>;
+  /** The public shared list: no sign-in needed. */
+  shared(
+    token: string,
+    params?: { limit?: number; cursor?: string | undefined },
+  ): Promise<SharedListResponse>;
+}
+
 export interface ApiClient {
   readonly platform: Platform;
   /** Value of the client name used in logs and `User-Agent`-style identification. */
@@ -120,6 +197,9 @@ export interface ApiClient {
   url(path: string): string;
   readonly auth: AuthApi;
   readonly titles: TitlesApi;
+  readonly library: LibraryApi;
+  readonly history: { list(params?: Partial<HistoryQuery>): Promise<HistoryResponse> };
+  readonly account: AccountApi;
   /** `GET /me`. Refreshes the session first if needed. */
   me(): Promise<MeResponse>;
   /**
@@ -148,13 +228,15 @@ interface Parser<T> {
 }
 
 interface CallOptions {
-  readonly method: 'GET' | 'POST';
+  readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** Relative to the base URL, or to the API origin when `root` is set. */
   readonly path: string;
   readonly root?: boolean;
   readonly body?: unknown;
   /** Send the access token and renew it when needed. */
   readonly authenticated?: boolean;
+  /** Resolve with the body as text plus its headers (a file download), not as JSON. */
+  readonly raw?: boolean;
 }
 
 function retryAfterSeconds(response: Response): number | undefined {
@@ -293,6 +375,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         }
       }
       if (!response.ok) throw toApiError(response, json);
+      if (req.raw === true) {
+        return {
+          text,
+          contentType: response.headers.get('content-type') ?? '',
+          disposition: response.headers.get('content-disposition') ?? '',
+        } satisfies RawBody;
+      }
       return json;
     } finally {
       clearTimeout(timer);
@@ -444,6 +533,14 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       return result;
     },
 
+    async restoreAccount(request) {
+      return parse(
+        restoreAccountResponseSchema,
+        '/auth/restore',
+        await post('/auth/restore', request),
+      );
+    },
+
     async changePassword(request) {
       await post('/auth/password/change', request, true);
     },
@@ -493,12 +590,110 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
   };
 
+  const send = (
+    method: CallOptions['method'],
+    path: string,
+    body?: unknown,
+    authenticated = true,
+  ) => call({ method, path, authenticated, ...(body === undefined ? {} : { body }) });
+  const entryPath = (entryId: string): string => `/library/${id(entryId)}`;
+  const entryOf = async (path: string, json: Promise<unknown>) =>
+    parse(libraryEntryResponseSchema, path, await json).data;
+
+  const library: LibraryApi = {
+    async list(params) {
+      return parse(libraryListResponseSchema, '/library', await get('/library', params));
+    },
+    async favorites(params) {
+      return parse(
+        libraryListResponseSchema,
+        '/library/favorites',
+        await get('/library/favorites', params),
+      );
+    },
+    async counts() {
+      return parse(libraryCountsSchema, '/library/counts', await get('/library/counts')).data;
+    },
+    get: (entryId) => entryOf(entryPath(entryId), get(entryPath(entryId))),
+    add: (titleId, status) => entryOf('/library', send('POST', '/library', { titleId, status })),
+    update: (entryId, changes) =>
+      entryOf(entryPath(entryId), send('PATCH', entryPath(entryId), changes)),
+    async remove(entryId) {
+      await send('DELETE', entryPath(entryId));
+    },
+    async progress(entryId, request) {
+      const path = `${entryPath(entryId)}/progress`;
+      return parse(progressResponseSchema, path, await send('POST', path, request));
+    },
+    setEpisodesTotal: (entryId, total) =>
+      entryOf(entryPath(entryId), send('PUT', `${entryPath(entryId)}/episodes-total`, { total })),
+    clearEpisodesTotal: (entryId) =>
+      entryOf(entryPath(entryId), send('DELETE', `${entryPath(entryId)}/episodes-total`)),
+    startRun: (entryId) => entryOf(entryPath(entryId), send('POST', `${entryPath(entryId)}/runs`)),
+  };
+
+  const filenameOf = (disposition: string, fallback: string): string =>
+    /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallback;
+
+  const account: AccountApi = {
+    async updateProfile(changes) {
+      return parse(profileSchema, '/me', await send('PATCH', '/me', changes));
+    },
+    async deleteAccount(password) {
+      const result = parse(
+        deleteAccountResponseSchema,
+        '/me',
+        await send('DELETE', '/me', { password }),
+      );
+      // The server ended every session of the account, this one included.
+      await endSession();
+      return result;
+    },
+    async exportFile(format) {
+      const raw = (await call({
+        method: 'POST',
+        path: withQuery('/me/export', { format }),
+        authenticated: true,
+        raw: true,
+      })) as RawBody;
+      return {
+        text: raw.text,
+        contentType: raw.contentType,
+        filename: filenameOf(raw.disposition, `akiba-export.${format}`),
+      };
+    },
+    async getShare() {
+      return parse(shareStatusSchema, '/me/share', await get('/me/share'));
+    },
+    async putShare(scope) {
+      return parse(shareCreatedSchema, '/me/share', await send('PUT', '/me/share', { scope }));
+    },
+    async revokeShare() {
+      await send('DELETE', '/me/share');
+    },
+    async shared(token, params) {
+      const path = `/shared/${id(token)}`;
+      return parse(
+        sharedListResponseSchema,
+        path,
+        await call({ method: 'GET', path: withQuery(path, params), authenticated: false }),
+      );
+    },
+  };
+
   return {
     platform,
     clientName: `${APP_NAME}/${platform}`,
     url,
     auth,
     titles,
+    library,
+    history: {
+      async list(params) {
+        return parse(historyResponseSchema, '/history', await get('/history', params));
+      },
+    },
+    account,
     me,
 
     async restoreSession() {
