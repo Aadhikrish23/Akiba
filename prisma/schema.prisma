@@ -434,6 +434,19 @@ model MappingConflict {
 }
 
 /// Manual mapping decisions; they win over the dataset.
+/// One row of the community ID-mapping dataset (doc 05 §5): the IDs one title has at each source.
+/// Imported weekly; read when a title is resolved for the first time. At least two IDs per row
+/// (a CHECK in the migration): a row with one ID maps nothing.
+model MappingDatasetEntry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  anilistId  String?  @unique @map("anilist_id")
+  malId      String?  @unique @map("mal_id")
+  kitsuId    String?  @unique @map("kitsu_id")
+  importedAt DateTime @default(now()) @map("imported_at") @db.Timestamptz(3)
+
+  @@map("mapping_dataset_entry")
+}
+
 model MappingOverride {
   source     ExternalSource
   externalId String         @map("external_id")

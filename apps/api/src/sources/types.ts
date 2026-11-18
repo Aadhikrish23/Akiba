@@ -10,7 +10,7 @@ export type BreakerState = 'closed' | 'open' | 'half_open';
 export type SourceName = 'anilist' | 'jikan';
 
 /** Which ID namespace a number belongs to. Jikan serves MyAnimeList data, so its IDs are `mal`. */
-export type IdNamespace = 'anilist' | 'mal';
+export type IdNamespace = 'anilist' | 'mal' | 'kitsu';
 
 /** Every ID a source reported for one title (AniList also reports the MAL ID). */
 export type ExternalIds = Partial<Record<IdNamespace, string>>;

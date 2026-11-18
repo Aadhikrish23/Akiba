@@ -12,6 +12,7 @@ const DOC_06_TABLES = [
   'genre',
   'library_entry',
   'mapping_conflict',
+  'mapping_dataset_entry',
   'mapping_override',
   'notification',
   'oauth_account',

@@ -43,6 +43,7 @@ erDiagram
 **airing_episode**: `id`, `title_id`, `episode_number`, `airs_at`, `source`, `aired_processed_at`; unique (`title_id`,`episode_number`).
 **mapping_conflict**: `id`, `source_a`, `id_a`, `source_b`, `id_b`, `reason`, `resolved_at`.
 **mapping_override**: manual wins; (`source`, `external_id`, `title_id`).
+**mapping_dataset_entry**: `id`, `anilist_id`, `mal_id`, `kitsu_id` (each unique, nullable; at least two non-null), `imported_at`. One row of the community ID-mapping dataset, imported weekly (T9); read when a title is first resolved.
 
 ### User data
 **library_entry**: `id`, `user_id`, `title_id`, `status` (`watching|completed|planned|on_hold|dropped`), `progress` (int ≥ 0), `episodes_total_override` (nullable int ≥ 1), `rating` (nullable smallint 1–10), `review` (text, nullable), `is_favorite`, `alerts_enabled` (nullable override of user setting), `notes`, `started_at`, `completed_at`, `added_at`, `updated_at`; **unique (`user_id`,`title_id`)**.

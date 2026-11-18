@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import type { ExternalIds, SourceTitle } from '../sources/types.js';
 
 /** Helpers for the source tests: recorded fixtures and a fake network. Test code only. */
 
@@ -80,4 +81,37 @@ export class ManualTime {
   advance(ms: number): void {
     this.#ms += ms;
   }
+}
+
+/** A normalised source title with sensible defaults, for tests that need one. */
+export function makeSourceTitle(
+  overrides: Partial<SourceTitle> & {
+    readonly externalIds: ExternalIds;
+  },
+): SourceTitle {
+  return {
+    source: overrides.externalIds.anilist === undefined ? 'jikan' : 'anilist',
+    kind: 'tv',
+    titleRomaji: `Title ${overrides.externalIds.anilist ?? overrides.externalIds.mal ?? '?'}`,
+    titleEnglish: null,
+    titleNative: null,
+    synonyms: [],
+    synopsis: null,
+    coverUrl: null,
+    bannerUrl: null,
+    format: 'TV',
+    status: 'finished',
+    episodesTotal: 12,
+    durationMin: 24,
+    season: null,
+    seasonYear: null,
+    startDate: null,
+    endDate: null,
+    averageScore: null,
+    popularity: null,
+    isAdult: false,
+    genres: [],
+    sourceUpdatedAt: null,
+    ...overrides,
+  };
 }
