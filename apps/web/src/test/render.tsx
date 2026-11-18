@@ -13,6 +13,12 @@ export const USER = {
   email: 'reader@example.test',
   displayName: 'Reader',
   emailVerified: true,
+  titleLanguage: 'romaji',
+  timeZone: 'UTC',
+  libraryView: 'grid',
+  alertsEnabled: true,
+  showAdult: false,
+  createdAt: '2026-11-01T00:00:00.000Z',
 };
 
 export const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>

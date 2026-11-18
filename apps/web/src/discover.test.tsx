@@ -1,6 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { json, problem, renderApp, signedInHandler, violations, type Call } from './test/render';
+import {
+  USER,
+  json,
+  problem,
+  renderApp,
+  signedInHandler,
+  violations,
+  type Call,
+} from './test/render';
 
 /**
  * T13: Discover, the seasonal chart and the title page, with the real API client over a fake
@@ -25,6 +33,7 @@ const card = (n: number, extra: Record<string, unknown> = {}) => ({
   seasonYear: 2024,
   averageScore: 80,
   libraryStatus: null,
+  libraryEntryId: null,
   ...extra,
 });
 
@@ -271,13 +280,7 @@ describe('Discover: search (FR-DISC-001)', () => {
       handler: async (call) => {
         if (call.path.endsWith('/auth/refresh'))
           return json(200, { accessToken: 'a', tokenType: 'Bearer', expiresIn: 900 });
-        if (call.path.endsWith('/me'))
-          return json(200, {
-            id: '3f2b8c1e-5a47-4d0e-9d57-0c5d9a3b7e11',
-            email: 'a@example.test',
-            displayName: 'A',
-            emailVerified: true,
-          });
+        if (call.path.endsWith('/me')) return json(200, USER);
         if (call.path.endsWith('/genres')) return json(200, { data: [] });
         if (call.path.includes('/titles/search')) {
           if (query(call).get('q') === 'old') {
