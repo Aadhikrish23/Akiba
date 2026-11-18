@@ -8,19 +8,22 @@ import {
   type Clock,
   type Sleep,
 } from '../resilience.js';
-import { cleanString, httpUrl, intOrNull, plainText } from '../text.js';
+import { characterDescription, cleanString, httpUrl, intOrNull, plainText } from '../text.js';
 import {
   SourceError,
+  type CharacterRole,
   type PageRequest,
   type RelationKind,
   type Season,
   type SourceAdapter,
   type SourceAiringEpisode,
+  type SourceCharacter,
   type SourceDate,
   type SourcePage,
   type SourceRelation,
   type SourceStudio,
   type SourceTitle,
+  type SourceVoiceActor,
   type SourceTitleDetail,
   type TitleFilters,
   type TitleKind,
@@ -94,6 +97,31 @@ const detailSchema = mediaSchema.extend({
     })
     .nullish(),
   nextAiringEpisode: z.object({ episode: z.number().int(), airingAt: z.number().int() }).nullish(),
+  characters: z
+    .object({
+      edges: z.array(
+        z.object({
+          role: optionalString,
+          node: z.object({
+            id: z.number().int(),
+            name: z.object({ full: optionalString, native: optionalString }).nullish(),
+            image: z.object({ large: optionalString }).nullish(),
+            description: optionalString,
+          }),
+          voiceActors: z
+            .array(
+              z.object({
+                id: z.number().int(),
+                name: z.object({ full: optionalString, native: optionalString }).nullish(),
+                image: z.object({ large: optionalString }).nullish(),
+                languageV2: optionalString,
+              }),
+            )
+            .nullish(),
+        }),
+      ),
+    })
+    .nullish(),
 });
 
 const pageInfoSchema = z.object({
@@ -208,6 +236,7 @@ function normalizeDetail(media: z.infer<typeof detailSchema>): SourceTitleDetail
     ...normalizeMedia(media),
     studios,
     relations: normalizeRelations(media),
+    characters: normalizeCharacters(media),
     nextAiring:
       media.nextAiringEpisode === null || media.nextAiringEpisode === undefined
         ? null
@@ -216,6 +245,44 @@ function normalizeDetail(media: z.infer<typeof detailSchema>): SourceTitleDetail
             airsAt: new Date(media.nextAiringEpisode.airingAt * 1000),
           },
   };
+}
+
+const ROLE_BY_SOURCE: Readonly<Record<string, CharacterRole>> = {
+  MAIN: 'main',
+  SUPPORTING: 'supporting',
+  BACKGROUND: 'background',
+};
+
+function normalizeCharacters(media: z.infer<typeof detailSchema>): SourceCharacter[] {
+  const seen = new Set<number>();
+  const characters: SourceCharacter[] = [];
+  for (const edge of media.characters?.edges ?? []) {
+    const name = cleanString(edge.node.name?.full);
+    if (name === null || seen.has(edge.node.id)) continue; // a nameless record is no use to anyone
+    seen.add(edge.node.id);
+    const voiceActors: SourceVoiceActor[] = [];
+    for (const actor of edge.voiceActors ?? []) {
+      const actorName = cleanString(actor.name?.full);
+      if (actorName === null) continue;
+      voiceActors.push({
+        externalId: String(actor.id),
+        name: actorName,
+        nativeName: cleanString(actor.name?.native),
+        imageUrl: httpUrl(actor.image?.large),
+        language: cleanString(actor.languageV2) ?? 'Japanese',
+      });
+    }
+    characters.push({
+      externalId: String(edge.node.id),
+      name,
+      nativeName: cleanString(edge.node.name?.native),
+      imageUrl: httpUrl(edge.node.image?.large),
+      description: characterDescription(edge.node.description),
+      role: ROLE_BY_SOURCE[edge.role ?? ''] ?? 'supporting',
+      voiceActors,
+    });
+  }
+  return characters;
 }
 
 function normalizeRelations(media: z.infer<typeof detailSchema>): SourceRelation[] {

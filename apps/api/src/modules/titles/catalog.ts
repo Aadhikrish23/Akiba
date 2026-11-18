@@ -94,6 +94,7 @@ export async function loadDetail(
       popularity: true,
       synonyms: true,
       stale: true,
+      franchiseId: true,
       fetchedAt: true,
       detailFetchedAt: true,
       genres: { select: { genre: { select: { name: true } } } },
@@ -132,6 +133,7 @@ export async function loadDetail(
         next === undefined
           ? null
           : { episode: next.episodeNumber, airsAt: next.airsAt.toISOString() },
+      franchiseId: row.franchiseId,
     },
   };
 }

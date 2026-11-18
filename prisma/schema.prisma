@@ -387,9 +387,38 @@ model Character {
   description String?
   externalIds Json    @default("{}") @map("external_ids")
 
-  titles TitleCharacter[]
+  titles       TitleCharacter[]
+  voiceActors  CharacterVoiceActor[]
 
   @@map("character")
+}
+
+/// A person who voices characters. `external_ids` is `{"anilist": "95000"}`; a unique expression index
+/// on the AniList ID (migration SQL) keeps one row per person.
+model VoiceActor {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  nativeName  String? @map("native_name")
+  imageUrl    String? @map("image_url")
+  externalIds Json    @default("{}") @map("external_ids")
+
+  characters CharacterVoiceActor[]
+
+  @@map("voice_actor")
+}
+
+/// Who voices a character, per language (the voice does not change between the character's titles).
+model CharacterVoiceActor {
+  characterId  String @map("character_id") @db.Uuid
+  voiceActorId String @map("voice_actor_id") @db.Uuid
+  language     String
+
+  character  Character  @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  voiceActor VoiceActor @relation(fields: [voiceActorId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, voiceActorId, language])
+  @@index([voiceActorId])
+  @@map("character_voice_actor")
 }
 
 model TitleCharacter {

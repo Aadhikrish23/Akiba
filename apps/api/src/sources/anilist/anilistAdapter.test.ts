@@ -130,6 +130,21 @@ describe('AniList adapter: contract against recorded responses (NFR-MNT-003)', (
     expect(detail?.relations[0]?.target.externalIds.anilist).toMatch(/^\d+$/);
   });
 
+  it('FR-EXP-004: detail carries the main cast with voice actors, descriptions as plain text without spoilers', async () => {
+    const detail = await adapterFor(serving('detail-16498')).getTitle('16498');
+    const cast = detail?.characters ?? [];
+    expect(cast.length).toBeGreaterThan(5);
+    expect(new Set(cast.map((c) => c.externalId)).size).toBe(cast.length);
+    expect(cast[0]).toMatchObject({ name: 'Eren Yeager', role: 'main' });
+    expect(cast[0]?.voiceActors.length).toBeGreaterThan(0);
+    expect(cast[0]?.voiceActors[0]?.language).toBe('Japanese');
+    for (const character of cast) {
+      expect(character.description ?? '').not.toMatch(/~!|!~|\]\(|<[a-z]/i);
+      expect((character.description ?? '').length).toBeLessThanOrEqual(2000);
+      expect(character.imageUrl === null || character.imageUrl.startsWith('https://')).toBe(true);
+    }
+  });
+
   it('FR-DISC-004: getRelations returns the same relations as the detail', async () => {
     const detail = await adapterFor(serving('detail-16498')).getTitle('16498');
     const relations = await adapterFor(serving('detail-16498')).getRelations('16498');

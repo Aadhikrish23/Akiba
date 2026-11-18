@@ -85,6 +85,29 @@ export interface SourceRelation {
   readonly target: SourceRelationTarget;
 }
 
+export type CharacterRole = 'main' | 'supporting' | 'background';
+
+/** A person who voices a character (the source's own ID; Akiba IDs come when it is stored). */
+export interface SourceVoiceActor {
+  readonly externalId: string;
+  readonly name: string;
+  readonly nativeName: string | null;
+  readonly imageUrl: string | null;
+  /** e.g. "Japanese". */
+  readonly language: string;
+}
+
+export interface SourceCharacter {
+  readonly externalId: string;
+  readonly name: string;
+  readonly nativeName: string | null;
+  readonly imageUrl: string | null;
+  /** Plain text, spoilers removed and capped. */
+  readonly description: string | null;
+  readonly role: CharacterRole;
+  readonly voiceActors: readonly SourceVoiceActor[];
+}
+
 export interface SourceAiringSlot {
   readonly episode: number;
   readonly airsAt: Date;
@@ -93,6 +116,8 @@ export interface SourceAiringSlot {
 export interface SourceTitleDetail extends SourceTitle {
   readonly studios: readonly SourceStudio[];
   readonly relations: readonly SourceRelation[];
+  /** The main cast with their voice actors; empty when the source did not send any (Jikan's detail has none). */
+  readonly characters: readonly SourceCharacter[];
   /** The next episode to air, when the source knows. */
   readonly nextAiring: SourceAiringSlot | null;
 }

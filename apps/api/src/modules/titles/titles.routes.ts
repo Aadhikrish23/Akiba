@@ -68,6 +68,16 @@ export function createTitlesRouter(options: {
     res.json(await service.relations(getAuth(res).userId, params.titleId));
   });
 
+  router.get(
+    '/titles/:titleId/characters',
+    ...guarded,
+    validate(titleParams),
+    async (_req, res) => {
+      const { params } = getValidated(res, titleParams);
+      res.json(await service.characters(getAuth(res).userId, params.titleId));
+    },
+  );
+
   router.get('/genres', ...guarded, async (_req, res) => {
     const body: GenresResponse = { data: await service.genres() };
     res.json(body);

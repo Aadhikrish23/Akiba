@@ -3,6 +3,7 @@ import {
   type BrowseQuery,
   type CatalogMeta,
   type RelationsResponse,
+  type TitleCharactersResponse,
   type SearchQuery,
   type Season,
   type SeasonListResponse,
@@ -12,6 +13,8 @@ import {
 } from '@akiba/shared';
 import type { DbClient } from '../../db/index.js';
 import { notFound, sourcesUnavailable } from '../../lib/errors.js';
+import { loadTitleCharacters, replaceCharacters } from '../explore/characters.js';
+import { recomputeFranchises } from '../explore/franchise.js';
 import type { Logger } from '../../lib/logger.js';
 import { UnresolvableTitleError, type TitleResolver } from '../../mapping/index.js';
 import { SourcesUnavailableError, type SourceGateway, type Sourced } from '../../sources/index.js';
@@ -64,6 +67,7 @@ export interface TitlesService {
   currentSeason(userId: string, query: SeasonQuery): Promise<SeasonListResponse>;
   detail(userId: string, titleId: string): Promise<TitleDetailResponse>;
   relations(userId: string, titleId: string): Promise<RelationsResponse>;
+  characters(userId: string, titleId: string): Promise<TitleCharactersResponse>;
   genres(): Promise<string[]>;
 }
 
@@ -400,6 +404,9 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
       await db.$transaction(async (tx) => {
         await applyDetail(tx, titleId, data, now());
         await replaceRelations(tx, titleId, related);
+        // Franchises follow the relations, and the cast follows the detail (AniList only).
+        await recomputeFranchises(tx, [titleId]);
+        if (data.source === 'anilist') await replaceCharacters(tx, titleId, data.characters);
       });
       return sourced.source;
     })().finally(() => {
@@ -479,6 +486,27 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     };
   }
 
+  async function characters(userId: string, titleId: string): Promise<TitleCharactersResponse> {
+    const { loaded, meta: found } = await ensureDetail(userId, titleId, await adultFor(userId));
+    let meta = found;
+    let cast = await loadTitleCharacters(db, titleId);
+    // A title fetched before casts were stored (or when AniList had none) is looked at again, at most hourly.
+    const age =
+      loaded.detailFetchedAt === null
+        ? Infinity
+        : now().getTime() - loaded.detailFetchedAt.getTime();
+    if (cast.length === 0 && age > HOUR) {
+      try {
+        const source = await refreshDetail(titleId);
+        cast = await loadTitleCharacters(db, titleId);
+        meta = { stale: false, source: source ?? 'cache' };
+      } catch (error) {
+        if (!(error instanceof SourcesUnavailableError)) throw error; // the cache answer stands
+      }
+    }
+    return { data: cast, meta };
+  }
+
   // ── Genres ──────────────────────────────────────────────────────────────────────
 
   /** Adult-only genre labels never appear in pickers (Q-10). */
@@ -520,6 +548,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     },
     detail,
     relations,
+    characters,
     genres,
   };
 }

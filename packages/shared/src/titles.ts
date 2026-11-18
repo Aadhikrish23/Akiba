@@ -91,6 +91,8 @@ export const titleDetailSchema = titleCardSchema.extend({
   genres: z.array(z.string()),
   studios: z.array(studioRefSchema),
   nextAiring: z.object({ episode: z.number().int(), airsAt: z.iso.datetime() }).nullable(),
+  /** The franchise this title belongs to; null when it has no related titles (or too many). */
+  franchiseId: z.uuid().nullable(),
 });
 export type TitleDetail = z.infer<typeof titleDetailSchema>;
 

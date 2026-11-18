@@ -36,11 +36,13 @@
 | `GET /seasons/current` · `GET /seasons/:year/:season` | Seasonal chart (accepts `genre`, `format`, `sort`, `limit`, `cursor`; the answer adds `season` and `seasonYear`) |
 | `GET /titles/:titleId` | Title detail incl. user's `libraryStatus`; `meta` says whether it is stale; 404 for an unknown or adult title; 503 `SOURCES_UNAVAILABLE` if it was never fetched and no source answers |
 | `GET /titles/:titleId/relations` | Related titles grouped by relation type |
-| `GET /franchises/:franchiseId` | All titles in the franchise with user status |
-| `GET /titles/:titleId/characters` | Characters and voice actors |
-| `GET /studios/:studioId` · `GET /studios/:studioId/titles` | Studio page |
-| `GET /characters/:characterId` | Character page and appearances |
+| `GET /franchises/:franchiseId` | `{data:{id,name,titles[],relations[],totals},meta}`: every visible title, oldest first (unknown dates last), each a card with `startDate` and the caller's `libraryStatus`/`libraryEntryId`; `relations` are the `{fromTitleId,toTitleId,relationType}` edges between those titles; `totals` = `{titles,inLibrary,completed}` for the caller. A title detail carries its `franchiseId` (null when it has none) |
+| `GET /titles/:titleId/characters` | `{data:[{id,name,nativeName,imageUrl,role,voiceActors:[{id,name,nativeName,imageUrl,language}]}],meta}`, main characters first. Refreshes the title's detail when it is old; a title whose cast is empty is looked at again at most hourly |
+| `GET /studios/:studioId` · `GET /studios/:studioId/titles?limit=&cursor=` | `{data:{id,name,isAnimationStudio,titleCount}}`, and the studio's works as an ordinary title list, most popular first (unknown popularity last). Only works Akiba has seen are listed: a studio fills in as titles are opened |
+| `GET /characters/:characterId` | `{data:{id,name,nativeName,imageUrl,description,voiceActors[],appearances:[{role,title:card}]}}`, main roles first, at most 50 |
 | `GET /genres` | Genre list (adult-only labels are left out) |
+
+Franchise, studio and character pages read Akiba's own copy (`meta: {stale:false, source:"cache"}`), hide adult-rated titles unless the user opted in, and answer 404 for an unknown or malformed ID or when nothing visible is left (an adult-only franchise, studio or character is not discoverable by ID).
 
 All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `cache`). Lists are `{ data, nextCursor, meta }`; the cursor is opaque and keeps its page size. Nothing outside the sources' own URLs carries an external ID: only Akiba IDs.
 

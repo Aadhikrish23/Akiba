@@ -1,9 +1,11 @@
-import type { Router, RequestHandler } from 'express';
+import { Router, type RequestHandler } from 'express';
 import type { AppConfig } from '../../config/env.js';
 import type { DbClient } from '../../db/index.js';
 import type { Logger } from '../../lib/logger.js';
 import { createTitleResolver } from '../../mapping/index.js';
 import { createSourceGateway, type SourceGateway } from '../../sources/index.js';
+import { createExploreRouter } from '../explore/explore.routes.js';
+import { createExploreService } from '../explore/explore.service.js';
 import { createTitlesRouter } from './titles.routes.js';
 import { createTitlesService, type TitlesService } from './titles.service.js';
 
@@ -60,7 +62,13 @@ export function createTitlesModule(options: TitlesModuleOptions): TitlesModule {
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   return {
-    router: createTitlesRouter({ service, authenticated: options.authenticated }),
+    router: Router().use(
+      createTitlesRouter({ service, authenticated: options.authenticated }),
+      createExploreRouter({
+        service: createExploreService({ db }),
+        authenticated: options.authenticated,
+      }),
+    ),
     service,
     gateway,
   };

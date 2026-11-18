@@ -7,6 +7,7 @@ import { runPrisma } from '../testing/prismaCli.js';
 const DOC_06_TABLES = [
   'airing_episode',
   'character',
+  'character_voice_actor',
   'event',
   'franchise',
   'genre',
@@ -28,6 +29,7 @@ const DOC_06_TABLES = [
   'title_studio',
   'user',
   'viewing_run',
+  'voice_actor',
 ];
 
 const DRIFT_ARGS = [

@@ -62,6 +62,13 @@ query MediaDetail($id: Int) {
     studios { edges { isMain node { id name isAnimationStudio } } }
     relations { edges { relationType(version: 2) node { id idMal type format title { romaji } } } }
     nextAiringEpisode { episode airingAt }
+    characters(perPage: 25, sort: [ROLE, RELEVANCE]) {
+      edges {
+        role
+        node { id name { full native } image { large } description(asHtml: false) }
+        voiceActors(language: JAPANESE) { id name { full native } image { large } languageV2 }
+      }
+    }
   }
 }`;
 

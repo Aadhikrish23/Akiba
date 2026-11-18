@@ -212,7 +212,13 @@ function normalizeDetail(anime: Anime): SourceTitleDetail | null {
     isMain: index === 0,
   }));
   // MAL does not publish the next episode's time; the airing schedule is AniList-only.
-  return { ...base, studios, relations: normalizeRelations(anime), nextAiring: null };
+  return {
+    ...base,
+    studios,
+    relations: normalizeRelations(anime),
+    characters: [],
+    nextAiring: null,
+  };
 }
 
 // ── The adapter ───────────────────────────────────────────────────────────

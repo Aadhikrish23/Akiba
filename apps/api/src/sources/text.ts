@@ -56,3 +56,27 @@ export function httpUrl(value: unknown): string | null {
     return null;
   }
 }
+
+/** Longest character description kept. */
+const CHARACTER_DESCRIPTION_MAX = 2_000;
+
+/**
+ * AniList character descriptions are Markdown with spoilers wrapped in `~!…!~`. Spoilers are dropped
+ * (a catalog page must not give away a plot), links keep their text, emphasis marks go, and the
+ * result is capped.
+ */
+export function characterDescription(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) return null;
+  const text = plainText(
+    value
+      .replace(/~!([\s\S]*?)!~/g, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/[_*]{1,2}([^_*\n]+)[_*]{1,2}/g, '$1')
+      .replace(/~~?/g, ''),
+  );
+  if (text === null) return null;
+  return text.length <= CHARACTER_DESCRIPTION_MAX
+    ? text
+    : text.slice(0, CHARACTER_DESCRIPTION_MAX - 1).trimEnd() + '…';
+}
