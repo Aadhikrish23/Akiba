@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { setAniList, signedIn } from './helpers';
 
 /**
@@ -15,8 +15,7 @@ test.afterAll(async () => {
   await setAniList('ok');
 });
 
-const grid = (page: import('@playwright/test').Page, name = 'Titles') =>
-  page.getByRole('list', { name }).getByRole('article');
+const grid = (page: Page, name = 'Titles') => page.getByRole('list', { name }).getByRole('article');
 
 test('journey: search for a title, open it, follow a related title (FR-DISC-001, -004, -005, -008)', async ({
   page,

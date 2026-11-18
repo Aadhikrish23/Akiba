@@ -39,7 +39,6 @@ import {
   type SeasonListResponse,
   type SeasonQuery,
   type TitleDetailResponse,
-  type TitleKind,
   type TitleListResponse,
 } from '@akiba/shared';
 import { ApiError, ContractError, NetworkError, NotSignedInError } from './errors.js';
