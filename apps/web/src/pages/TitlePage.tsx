@@ -8,13 +8,7 @@ import { ShelfPanel } from '../components/ShelfPanel';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { usePageTitle } from '../lib/page';
-import {
-  KIND_LABEL,
-  SEASON_LABEL,
-  STATUS_LABEL,
-  displayTitle,
-  otherTitles,
-} from '../lib/titles';
+import { KIND_LABEL, SEASON_LABEL, STATUS_LABEL, displayTitle, otherTitles } from '../lib/titles';
 
 const RELATION_LABEL: Record<string, string> = {
   prequel: 'Before this',

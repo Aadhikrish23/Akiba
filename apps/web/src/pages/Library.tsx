@@ -45,7 +45,9 @@ export function LibraryPage() {
   const q = (params.get('q') ?? '').trim();
   const format = pick(TITLE_KINDS as readonly TitleKind[], params.get('format'));
   const sort = pick(LIBRARY_SORTS, params.get('sort')) ?? 'updated';
-  const view = profile?.libraryView ?? 'grid';
+  // Switching is instant; saving it on the account is background work (a failure is harmless).
+  const [chosenView, setChosenView] = useState<'grid' | 'list' | null>(null);
+  const view = chosenView ?? profile?.libraryView ?? 'grid';
 
   const [draft, setDraft] = useState(q);
   useEffect(() => {
@@ -168,6 +170,7 @@ export function LibraryPage() {
                   value={value}
                   checked={view === value}
                   onChange={() => {
+                    setChosenView(value);
                     void updateProfile({ libraryView: value }).catch(() => undefined);
                   }}
                 />

@@ -81,9 +81,7 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     const cards = await screen.findAllByRole('article');
     expect(cards).toHaveLength(2);
     expect(within(cards[0]!).getByTestId('episode-count').textContent).toBe('3 / 12');
-    expect(
-      within(cards[0]!).getByRole('button', { name: 'Log one episode of Show 1' }),
-    ).toBeTruthy();
+    expect(within(cards[0]!).getByRole('button', { name: '+1 episode of Show 1' })).toBeTruthy();
   });
 
   it('+1 changes the count at once, then the server confirms', async () => {
@@ -105,7 +103,7 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
         return problem(404, 'NOT_FOUND');
       },
     });
-    await app.user.click(await screen.findByRole('button', { name: 'Log one episode of Show 1' }));
+    await app.user.click(await screen.findByRole('button', { name: '+1 episode of Show 1' }));
     // Optimistic: the number moved before the server answered.
     expect(screen.getByTestId('episode-count').textContent).toBe('4 / 12');
     release();
@@ -125,7 +123,7 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
         return undefined;
       }),
     });
-    await app.user.click(await screen.findByRole('button', { name: 'Log one episode of Show 1' }));
+    await app.user.click(await screen.findByRole('button', { name: '+1 episode of Show 1' }));
     expect((await screen.findByRole('alert')).textContent).toMatch(
       /Something went wrong on our side/,
     );
@@ -144,11 +142,11 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
         return undefined;
       }),
     });
-    await app.user.click(await screen.findByRole('button', { name: 'Log one episode of Show 1' }));
+    await app.user.click(await screen.findByRole('button', { name: '+1 episode of Show 1' }));
     expect(await screen.findByText('That was the last episode. Mark completed?')).toBeTruthy();
     await app.user.click(screen.getByRole('button', { name: 'Yes, mark completed' }));
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Log one episode of Show 1' })).toBeNull();
+      expect(screen.queryByRole('button', { name: '+1 episode of Show 1' })).toBeNull();
     });
     expect(app.calls.find((call) => call.method === 'PATCH')?.body).toEqual({
       status: 'completed',
@@ -241,9 +239,7 @@ describe('Library (FR-LIB-003…005)', () => {
       'listitem',
     );
     expect(rows).toHaveLength(1);
-    expect(
-      within(rows[0]!).getByRole('button', { name: 'Log one episode of Show 1' }),
-    ).toBeTruthy();
+    expect(within(rows[0]!).getByRole('button', { name: '+1 episode of Show 1' })).toBeTruthy();
   });
 
   it('empty library: one sentence and one action; filtered-empty says to remove a filter', async () => {

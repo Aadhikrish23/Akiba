@@ -66,11 +66,7 @@ export function PlusOne({ entry, name }: { entry: LibraryEntry; name: string }) 
       <div className="flex flex-wrap items-center gap-3">
         <EpisodeCount progress={track.progress} total={entry.effectiveTotal} />
         {track.canAdvance && (
-          <Button
-            onClick={() => void track.plusOne()}
-            busy={track.busy}
-            aria-label={`Log one episode of ${name}`}
-          >
+          <Button onClick={() => void track.plusOne()} aria-label={`+1 episode of ${name}`}>
             +1 episode
           </Button>
         )}

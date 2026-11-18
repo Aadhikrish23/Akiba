@@ -1,6 +1,6 @@
 import { ApiError } from '@akiba/api-client';
 import type { EntryStatus, LibraryEntryDetail } from '@akiba/shared';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { describeError } from './errors';
 
@@ -36,31 +36,33 @@ export function useEntryProgress(
   const atEnd = entry.effectiveTotal !== null && progress >= entry.effectiveTotal;
   const canAdvance = status !== 'completed' && !atEnd;
 
+  // Taps can come faster than the server answers (a held Enter key, a double tap). Each one counts
+  // at once; only the newest answer may set the number, so replies arriving out of order cannot
+  // put it back, and a failed tap takes back only its own episode.
+  const latest = useRef(0);
   const plusOne = useCallback(async () => {
-    if (busy || !canAdvance) return;
-    const before = { progress, status };
-    setBusy(true);
+    if (!canAdvance) return;
+    const mine = ++latest.current;
     setError(null);
-    setProgress(progress + 1);
+    setProgress((value) => value + 1);
     if (status === 'planned' || status === 'on_hold' || status === 'dropped') setStatus('watching');
     try {
       const result = await client.library.progress(entry.id, { delta: 1 });
-      setProgress(result.data.progress);
-      setStatus(result.data.status);
-      setSuggest(result.suggestComplete);
+      if (mine === latest.current) {
+        setProgress(result.data.progress);
+        setStatus(result.data.status);
+        setSuggest(result.suggestComplete);
+      }
       onChange?.(result.data);
     } catch (caught) {
-      setProgress(before.progress);
-      setStatus(before.status);
+      setProgress((value) => Math.max(0, value - 1));
       setError(
         caught instanceof ApiError && caught.code === 'PROGRESS_EXCEEDS_TOTAL'
           ? 'That is past the last episode.'
           : describeError(caught).message,
       );
-    } finally {
-      setBusy(false);
     }
-  }, [busy, canAdvance, progress, status, client, entry.id, onChange]);
+  }, [canAdvance, status, client, entry.id, onChange]);
 
   const complete = useCallback(async () => {
     setBusy(true);

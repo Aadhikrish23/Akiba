@@ -5,6 +5,9 @@ import { defineConfig } from '@playwright/test';
  * E2E_DATABASE_URL. Uses the Chrome that is installed on the machine (`channel: 'chrome'`), so no
  * browser download is needed; CI runners have Chrome.
  */
+/** How to run pnpm here; CI uses the default, a machine without a pnpm shim sets `PNPM="corepack pnpm"`. */
+const PNPM = process.env['PNPM'] ?? 'pnpm';
+
 export default defineConfig({
   testDir: 'e2e',
   testMatch: '**/*.spec.ts',
@@ -31,7 +34,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'pnpm run build && pnpm exec vite preview --port 4173 --strictPort',
+      command: `${PNPM} run build && ${PNPM} exec vite preview --port 4173 --strictPort`,
       url: 'http://localhost:4173',
       reuseExistingServer: false,
       timeout: 120_000,

@@ -52,6 +52,7 @@ export function Button({
   busy = false,
   children,
   disabled,
+  onClick,
   ...rest
 }: ButtonProps) {
   const style =
@@ -64,8 +65,12 @@ export function Button({
   return (
     <button
       {...rest}
-      disabled={disabled === true || busy}
+      // A busy button stays focusable (a `disabled` one drops keyboard focus mid-action); it just
+      // ignores clicks until the work is done.
+      disabled={disabled === true}
+      aria-disabled={busy || undefined}
       aria-busy={busy || undefined}
+      onClick={busy ? undefined : onClick}
       className={`${base} ${style}`}
     >
       {children}
