@@ -7,6 +7,7 @@ import {
   renderApp,
   screen,
   signedInHandler,
+  tab,
   tokens,
   type Handler,
 } from '../test/render';
@@ -44,10 +45,6 @@ const signedOut =
     call.path.endsWith('/auth/refresh')
       ? problem(401, 'INVALID_REFRESH_TOKEN')
       : server(extra)(call);
-
-/** A tab of the bar: React Navigation names it "Home, tab, 1 of 5" and exposes it as a button. */
-const tab = (name: string) =>
-  screen.getByRole('button', { name: new RegExp(`^${name}, tab, [0-9] of 5$`) });
 
 const flatten = (style: unknown): Record<string, unknown> =>
   StyleSheet.flatten(style as StyleProp<ViewStyle>) as Record<string, unknown>;

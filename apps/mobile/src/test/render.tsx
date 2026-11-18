@@ -107,3 +107,7 @@ export function signedInHandler(
 }
 
 export { screen };
+
+/** A tab of the bar: React Navigation names it "Home, tab, 1 of 5" and exposes it as a button. */
+export const tab = (name: string) =>
+  screen.getByRole('button', { name: new RegExp(`^${name}, tab, [0-9] of 5$`) });
