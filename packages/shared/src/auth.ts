@@ -114,7 +114,6 @@ export type LoginResponse = z.infer<typeof loginResponseSchema>;
 export const refreshResponseSchema = z.object(accessTokenFields);
 export type RefreshResponse = z.infer<typeof refreshResponseSchema>;
 
-
 /**
  * A one-time token from an emailed link (verify email, reset password). Deliberately loose: a
  * token of the wrong shape gets the same "invalid or expired" answer as a wrong one, not a

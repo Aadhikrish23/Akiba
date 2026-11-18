@@ -1,8 +1,9 @@
 import { ApiError } from '@akiba/api-client';
-import type {
-  RelationsResponse,
-  TitleCharactersResponse,
-  TitleDetailResponse,
+import {
+  ROLE_LABEL,
+  type RelationsResponse,
+  type TitleCharactersResponse,
+  type TitleDetailResponse,
 } from '@akiba/shared';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
@@ -20,7 +21,6 @@ import {
   displayTitle,
   otherTitles,
 } from '../lib/titles';
-import { ROLE_LABEL } from './Explore';
 import { formatAirTime } from './Inbox';
 
 type Load =

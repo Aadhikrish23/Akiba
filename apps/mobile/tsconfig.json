@@ -1,0 +1,8 @@
+{
+  "extends": "@akiba/config/tsconfig/react.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["jest"]
+  },
+  "include": ["src", "*.d.ts"]
+}

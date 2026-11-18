@@ -1,4 +1,4 @@
-import type { CharacterRole, Franchise, FranchiseTitle } from '@akiba/shared';
+import { ROLE_LABEL, type Franchise, type FranchiseTitle } from '@akiba/shared';
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
@@ -10,12 +10,6 @@ import { useRemote, type Remote } from '../lib/remote';
 import { ENTRY_LABEL, RELATION_LABEL, displayTitle, metaLine, useTitleList } from '../lib/titles';
 
 /** Franchise, studio and character pages (FR-EXP-001…004; doc 08 §4). */
-
-export const ROLE_LABEL: Readonly<Record<CharacterRole, string>> = {
-  main: 'Main character',
-  supporting: 'Supporting character',
-  background: 'Background character',
-};
 
 function PageSkeleton({ label }: { label: string }) {
   return (

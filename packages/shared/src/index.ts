@@ -16,6 +16,7 @@ export * from './common.js';
 export * from './titles.js';
 export * from './explore.js';
 export * from './inbox.js';
+export * from './labels.js';
 export * from './season.js';
 export * from './library.js';
 export * from './account.js';

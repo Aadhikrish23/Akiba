@@ -27,3 +27,6 @@ apps/api/src/generated/
 apps/web/e2e/.tmp
 apps/web/test-results
 apps/web/playwright-report
+
+# Expo
+.expo/

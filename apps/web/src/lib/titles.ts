@@ -1,11 +1,10 @@
 import { ApiError } from '@akiba/api-client';
-import type {
-  CatalogMeta,
-  EntryStatus,
-  TitleCard,
-  TitleKind,
-  TitleListResponse,
-  TitleStatus,
+import {
+  otherTitleNames,
+  titleNameIn,
+  type CatalogMeta,
+  type TitleCard,
+  type TitleListResponse,
 } from '@akiba/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { describeError } from './errors';
@@ -21,81 +20,25 @@ export function setTitleLanguage(language: 'romaji' | 'english' | 'native'): voi
 export function displayTitle(
   title: Pick<TitleCard, 'titleRomaji' | 'titleEnglish' | 'titleNative'>,
 ): string {
-  const order =
-    preferred === 'english'
-      ? [title.titleEnglish, title.titleRomaji, title.titleNative]
-      : preferred === 'native'
-        ? [title.titleNative, title.titleRomaji, title.titleEnglish]
-        : [title.titleRomaji, title.titleEnglish, title.titleNative];
-  return order.find((name) => name !== null) ?? 'Untitled';
+  return titleNameIn(title, preferred);
 }
 
 /** The other names worth showing under the main one. */
 export function otherTitles(
   title: Pick<TitleCard, 'titleRomaji' | 'titleEnglish' | 'titleNative'>,
 ): { text: string; lang: 'en' | 'ja' | undefined }[] {
-  const main = displayTitle(title);
-  const out: { text: string; lang: 'en' | 'ja' | undefined }[] = [];
-  if (title.titleRomaji !== null && title.titleRomaji !== main) {
-    out.push({ text: title.titleRomaji, lang: undefined });
-  }
-  if (title.titleEnglish !== null && title.titleEnglish !== main) {
-    out.push({ text: title.titleEnglish, lang: 'en' });
-  }
-  if (title.titleNative !== null && title.titleNative !== main) {
-    out.push({ text: title.titleNative, lang: 'ja' });
-  }
-  return out;
+  return otherTitleNames(title, preferred);
 }
 
-export const KIND_LABEL: Readonly<Record<TitleKind, string>> = {
-  tv: 'TV',
-  movie: 'Movie',
-  ova: 'OVA',
-  ona: 'ONA',
-  special: 'Special',
-  tv_short: 'TV short',
-  music: 'Music video',
-};
-
-export const STATUS_LABEL: Readonly<Record<TitleStatus, string>> = {
-  finished: 'Finished',
-  releasing: 'Airing',
-  not_yet_released: 'Not yet released',
-  cancelled: 'Cancelled',
-  hiatus: 'On hiatus',
-};
-
-export const ENTRY_LABEL: Readonly<Record<EntryStatus, string>> = {
-  watching: 'Watching',
-  completed: 'Completed',
-  planned: 'Planned',
-  on_hold: 'On hold',
-  dropped: 'Dropped',
-};
-
-export const SEASON_LABEL = {
-  winter: 'Winter',
-  spring: 'Spring',
-  summer: 'Summer',
-  fall: 'Fall',
-} as const;
-
-/** "TV · 25 episodes · Spring 2013": what a card shows under the name. */
-export function metaLine(title: TitleCard): string {
-  const parts: string[] = [KIND_LABEL[title.kind]];
-  if (title.episodesTotal !== null) {
-    parts.push(`${title.episodesTotal} ${title.episodesTotal === 1 ? 'episode' : 'episodes'}`);
-  }
-  if (title.seasonYear !== null) {
-    parts.push(
-      title.season === null
-        ? String(title.seasonYear)
-        : `${SEASON_LABEL[title.season]} ${title.seasonYear}`,
-    );
-  }
-  return parts.join(' · ');
-}
+// The words for the catalog's enums are shared with the mobile app.
+export {
+  ENTRY_LABEL,
+  KIND_LABEL,
+  RELATION_LABEL,
+  SEASON_LABEL,
+  STATUS_LABEL,
+  metaLine,
+} from '@akiba/shared';
 
 // ── Loading a cursor-paginated list ───────────────────────────────────────────
 
@@ -203,16 +146,3 @@ function listError(error: unknown): string {
   }
   return describeError(error).message;
 }
-
-/** What a related title is to the title page it is listed on (and to the franchise page rows). */
-export const RELATION_LABEL: Readonly<Record<string, string>> = {
-  prequel: 'Before this',
-  sequel: 'After this',
-  parent_story: 'Main story',
-  side_story: 'Side stories',
-  spin_off: 'Spin-offs',
-  alternative: 'Alternative versions',
-  adaptation: 'Adaptations',
-  summary: 'Summaries and recaps',
-  other: 'Also related',
-};

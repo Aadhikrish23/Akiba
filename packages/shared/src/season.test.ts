@@ -14,9 +14,21 @@ describe('seasons', () => {
   });
 
   it('shifts across year boundaries in both directions', () => {
-    expect(shiftSeason({ season: 'fall', year: 2026 }, 1)).toEqual({ season: 'winter', year: 2027 });
-    expect(shiftSeason({ season: 'winter', year: 2026 }, -1)).toEqual({ season: 'fall', year: 2025 });
-    expect(shiftSeason({ season: 'spring', year: 2026 }, 8)).toEqual({ season: 'spring', year: 2028 });
-    expect(shiftSeason({ season: 'spring', year: 2026 }, 0)).toEqual({ season: 'spring', year: 2026 });
+    expect(shiftSeason({ season: 'fall', year: 2026 }, 1)).toEqual({
+      season: 'winter',
+      year: 2027,
+    });
+    expect(shiftSeason({ season: 'winter', year: 2026 }, -1)).toEqual({
+      season: 'fall',
+      year: 2025,
+    });
+    expect(shiftSeason({ season: 'spring', year: 2026 }, 8)).toEqual({
+      season: 'spring',
+      year: 2028,
+    });
+    expect(shiftSeason({ season: 'spring', year: 2026 }, 0)).toEqual({
+      season: 'spring',
+      year: 2026,
+    });
   });
 });

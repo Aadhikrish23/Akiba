@@ -91,6 +91,7 @@ import {
 import { ApiError, ContractError, NetworkError, NotSignedInError } from './errors.js';
 
 export { ApiError, ContractError, NetworkError, NotSignedInError } from './errors.js';
+export { describeError, describeIssues, fieldLabel, type Described } from './describe.js';
 
 /** Where a mobile client keeps its refresh token (SecureStore on a device). Web/desktop never use it. */
 export interface RefreshTokenStorage {
