@@ -3,24 +3,27 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Design tokens for web and React Native (placeholder; Shelf tokens arrive in T7).",
+  "description": "Shelf design tokens (doc 08) for web (CSS variables, Tailwind v4 theme) and React Native (sRGB hex).",
   "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./tokens.css": "./dist/tokens.css",
+    "./tailwind.css": "./dist/tailwind.css"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-css.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "devDependencies": {
     "@akiba/config": "workspace:*",
+    "@types/node": "^22.20.5",
     "typescript": "~6.0.3",
     "vitest": "^5.1.0"
   }

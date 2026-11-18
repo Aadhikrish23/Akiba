@@ -12,3 +12,4 @@ export function isPlatform(value: unknown): value is Platform {
 }
 
 export * from './auth.js';
+export * from './common.js';

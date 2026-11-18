@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Typed client for the Akiba API (placeholder; real client arrives in T7).",
+  "description": "Typed client for the Akiba API: owns the session (access token in memory, refresh via cookie or injected storage).",
   "sideEffects": false,
   "exports": {
     ".": {
