@@ -6,6 +6,8 @@ import { createLogger } from './lib/logger.js';
 import { createShutdown } from './lib/shutdown.js';
 import { MemoryRateLimitStore } from './middleware/rateLimit.js';
 import { createAuthModule } from './modules/auth/index.js';
+import { createTitlesModule } from './modules/titles/index.js';
+import { composeV1 } from './modules/v1.js';
 
 /** How long shutdown waits for emails that are still on their way out. */
 const BACKGROUND_DRAIN_MS = 5_000;
@@ -47,12 +49,24 @@ if (auth === undefined) {
   logger.warn('DATABASE_URL is not set: the /v1 routes are not available');
 }
 
+const titles =
+  db === undefined || auth === undefined
+    ? undefined
+    : createTitlesModule({ config, db: db.client, logger, authenticated: auth.authenticated });
+
 const app = createApp({
   config,
   logger,
   rateLimitStore,
   checkDb: db === undefined ? dbNotConfigured : createDbCheck(db),
-  ...(auth === undefined ? {} : { v1Router: auth.router }),
+  ...(titles === undefined
+    ? {}
+    : {
+        checkSources: () => (titles.gateway.status().primary.breaker === 'closed' ? 'ok' : 'degraded'),
+      }),
+  ...(auth === undefined
+    ? {}
+    : { v1Router: titles === undefined ? auth.router : composeV1(auth.router, titles.router) }),
 });
 
 const server = app.listen(config.port, () => {

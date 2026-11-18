@@ -216,6 +216,20 @@ export const notReady = (checks: Readonly<Record<string, string>>): HttpError =>
     extensions: { checks },
   });
 
+/** No metadata source answered and Akiba has no stored copy to serve (FR-DISC-010). */
+export const sourcesUnavailable = (): HttpError =>
+  new HttpError({
+    status: 503,
+    code: 'SOURCES_UNAVAILABLE',
+    slug: 'sources-unavailable',
+    title: 'Catalog temporarily unavailable',
+    detail:
+      'The anime catalog could not be reached and there is no saved copy of this yet. Try again in a moment.',
+    headers: { 'Retry-After': '30' },
+  });
+
+export const invalidCursor = (): HttpError => validationFailed([{ path: 'cursor', message: 'is not valid' }]);
+
 export const internalError = (detail = 'An unexpected error occurred.'): HttpError =>
   new HttpError({
     status: 500,

@@ -41,6 +41,7 @@ describe('loadEnv', () => {
         hibpEnabled: false,
       },
       email: { provider: 'console', devPrintLinks: false, webBaseUrl: 'http://localhost:5173' },
+      sources: { anilistUrl: undefined, jikanUrl: undefined, timeoutMs: 5_000 },
     });
   });
 
@@ -275,5 +276,34 @@ describe('loadEnv', () => {
         'WEB_BASE_URL: must be an https:// origin when NODE_ENV=production',
       ]);
     });
+  });
+});
+
+describe('loadEnv: metadata sources (T12)', () => {
+  it('accepts endpoint overrides and a timeout', () => {
+    const config = loadEnv({
+      SOURCE_ANILIST_URL: 'http://localhost:4000/graphql',
+      SOURCE_JIKAN_URL: 'https://jikan.internal/v4',
+      SOURCE_TIMEOUT_MS: '2500',
+    });
+    expect(config.sources).toEqual({
+      anilistUrl: 'http://localhost:4000/graphql',
+      jikanUrl: 'https://jikan.internal/v4',
+      timeoutMs: 2500,
+    });
+  });
+
+  it.each([
+    ['SOURCE_ANILIST_URL', 'not a url'],
+    ['SOURCE_JIKAN_URL', 'ftp://example.test/v4'],
+    ['SOURCE_TIMEOUT_MS', '10'],
+    ['SOURCE_TIMEOUT_MS', '999999'],
+  ])('rejects %s=%s without echoing the value', (name, value) => {
+    expect(() => loadEnv({ [name]: value })).toThrow(new RegExp(name));
+    try {
+      loadEnv({ [name]: value });
+    } catch (error) {
+      expect(String(error)).not.toContain(value);
+    }
   });
 });

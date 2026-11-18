@@ -145,6 +145,27 @@ const claimName = (fallback: string) =>
       .default(fallback),
   );
 
+/** An optional absolute http(s) URL (a path is allowed: Jikan lives under /v4). */
+function httpUrlOption() {
+  return z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .refine(
+        (value) => {
+          try {
+            const { protocol } = new URL(value);
+            return protocol === 'http:' || protocol === 'https:';
+          } catch {
+            return false;
+          }
+        },
+        { error: 'must be an absolute http(s) URL' },
+      )
+      .optional(),
+  );
+}
+
 const envSchema = z
   .object({
     NODE_ENV: z.preprocess(
@@ -224,6 +245,10 @@ const envSchema = z
         .default('console'),
     ),
     EMAIL_DEV_PRINT_LINKS: flag(false),
+    // Metadata sources (T12). Defaults are the public services; override for a proxy or a mock.
+    SOURCE_ANILIST_URL: httpUrlOption(),
+    SOURCE_JIKAN_URL: httpUrlOption(),
+    SOURCE_TIMEOUT_MS: integer({ min: 500, max: 30_000, fallback: 5_000 }),
     WEB_BASE_URL: z.preprocess(
       emptyToUndefined,
       z
@@ -300,6 +325,15 @@ export interface EmailConfig {
   readonly webBaseUrl: string;
 }
 
+export interface SourcesConfig {
+  /** Override of the AniList GraphQL endpoint; undefined = the public one. */
+  readonly anilistUrl: string | undefined;
+  /** Override of the Jikan base URL (including /v4); undefined = the public one. */
+  readonly jikanUrl: string | undefined;
+  /** Per-request timeout towards a source (doc 05 §4: 5 s). */
+  readonly timeoutMs: number;
+}
+
 export type NodeEnv = 'development' | 'test' | 'production';
 
 export interface AuthConfig {
@@ -343,6 +377,7 @@ export interface AppConfig {
   };
   readonly auth: AuthConfig;
   readonly email: EmailConfig;
+  readonly sources: SourcesConfig;
   /** Number of reverse-proxy hops to trust for the client IP (0 = use the socket address). */
   readonly trustProxyHops: number;
   readonly shutdownTimeoutMs: number;
@@ -388,6 +423,11 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
       provider: env.EMAIL_PROVIDER,
       devPrintLinks: env.EMAIL_DEV_PRINT_LINKS,
       webBaseUrl: env.WEB_BASE_URL ?? DEV_WEB_BASE_URL,
+    },
+    sources: {
+      anilistUrl: env.SOURCE_ANILIST_URL,
+      jikanUrl: env.SOURCE_JIKAN_URL,
+      timeoutMs: env.SOURCE_TIMEOUT_MS,
     },
     trustProxyHops: env.TRUST_PROXY_HOPS,
     shutdownTimeoutMs: env.SHUTDOWN_TIMEOUT_MS,

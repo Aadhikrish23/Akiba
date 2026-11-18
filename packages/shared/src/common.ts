@@ -33,7 +33,7 @@ export const healthResponseSchema = z.object({ status: z.literal('ok') });
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
 /** What one readiness check can report. `not_configured` means there is nothing to probe. */
-export const readinessCheckSchema = z.enum(['ok', 'not_configured']);
+export const readinessCheckSchema = z.enum(['ok', 'degraded', 'not_configured']);
 export type ReadinessCheck = z.infer<typeof readinessCheckSchema>;
 
 /** `GET /ready` when every dependency answers (otherwise a 503 problem document). */

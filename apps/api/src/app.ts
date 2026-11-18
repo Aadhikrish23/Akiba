@@ -21,6 +21,8 @@ export interface AppDependencies {
   readonly logger: Logger;
   /** Database readiness probe for `/ready`. Defaults to reporting `not_configured`. */
   readonly checkDb?: DbCheck;
+  /** Health of the metadata sources for `/ready` (T12). Defaults to `not_configured`. */
+  readonly checkSources?: () => 'ok' | 'degraded' | 'not_configured';
   /** Counter store for the rate limiters. Defaults to a fresh in-memory store. */
   readonly rateLimitStore?: RateLimitStore;
   /** Routes served under `/v1` (doc 07): the auth module's router, later joined by the others. */
@@ -71,7 +73,13 @@ export function createApp(dependencies: AppDependencies): Express {
 
   app.use(express.json({ limit: MAX_BODY_BYTES }));
 
-  app.use(createHealthRouter({ checkDb: dependencies.checkDb ?? dbNotConfigured, logger }));
+  app.use(
+    createHealthRouter({
+      checkDb: dependencies.checkDb ?? dbNotConfigured,
+      logger,
+      ...(dependencies.checkSources === undefined ? {} : { checkSources: dependencies.checkSources }),
+    }),
+  );
   if (dependencies.v1Router) {
     app.use('/v1', dependencies.v1Router);
   }

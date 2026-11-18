@@ -267,6 +267,8 @@ model Title {
   franchiseId     String?                  @map("franchise_id") @db.Uuid
   sourceUpdatedAt DateTime?                @map("source_updated_at") @db.Timestamptz(3)
   fetchedAt       DateTime?                @map("fetched_at") @db.Timestamptz(3)
+  /// When studios, relations and the next airing were last fetched; null = only card data so far.
+  detailFetchedAt DateTime?                @map("detail_fetched_at") @db.Timestamptz(3)
   stale           Boolean                  @default(false)
   /// Generated column (see the migration): weighted tsvector over the titles and synonyms.
   /// Read-only, and invisible to the Prisma client; query it with raw SQL.

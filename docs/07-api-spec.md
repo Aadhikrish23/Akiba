@@ -32,15 +32,17 @@
 | Method & path | Purpose |
 |---|---|
 | `GET /titles/search?q=&format=&limit=&cursor=` | Text search |
-| `GET /titles/browse?genre=&tag=&season=&year=&format=&status=&sort=popularity|score|start_date&order=` | Filtered browse |
-| `GET /seasons/current` · `GET /seasons/:year/:season` | Seasonal chart |
-| `GET /titles/:titleId` | Title detail incl. user's `libraryStatus` |
+| `GET /titles/browse?genre=&season=&year=&format=&status=&sort=popularity|score|start_date&limit=&cursor=` | Filtered browse. `tag` and `order` are not offered: the sources only sort descending and tags are post-MVP |
+| `GET /seasons/current` · `GET /seasons/:year/:season` | Seasonal chart (accepts `genre`, `format`, `sort`, `limit`, `cursor`; the answer adds `season` and `seasonYear`) |
+| `GET /titles/:titleId` | Title detail incl. user's `libraryStatus`; `meta` says whether it is stale; 404 for an unknown or adult title; 503 `SOURCES_UNAVAILABLE` if it was never fetched and no source answers |
 | `GET /titles/:titleId/relations` | Related titles grouped by relation type |
 | `GET /franchises/:franchiseId` | All titles in the franchise with user status |
 | `GET /titles/:titleId/characters` | Characters and voice actors |
 | `GET /studios/:studioId` · `GET /studios/:studioId/titles` | Studio page |
 | `GET /characters/:characterId` | Character page and appearances |
-| `GET /genres` | Genre list |
+| `GET /genres` | Genre list (adult-only labels are left out) |
+
+All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `cache`). Lists are `{ data, nextCursor, meta }`; the cursor is opaque and keeps its page size. Nothing outside the sources' own URLs carries an external ID: only Akiba IDs.
 
 ## 4. Library, tracking, remember
 | Method & path | Purpose |
