@@ -207,7 +207,7 @@ export interface ApiClient {
    * the stored refresh token. Resolves with the user, or `undefined` when nobody is signed in.
    * Network and server errors are thrown (they say nothing about whether a session exists).
    */
-  restoreSession(): Promise<AuthUser | undefined>;
+  restoreSession(): Promise<Profile | undefined>;
   isSignedIn(): boolean;
   /** Subscribe to sign-in / sign-out (including a session the server ended). Returns unsubscribe. */
   onAuthChange(listener: (event: AuthEvent) => void): () => void;

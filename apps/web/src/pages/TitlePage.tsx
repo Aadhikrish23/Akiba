@@ -4,11 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { PosterCard, PosterGrid } from '../components/PosterCard';
+import { ShelfPanel } from '../components/ShelfPanel';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { usePageTitle } from '../lib/page';
 import {
-  ENTRY_LABEL,
   KIND_LABEL,
   SEASON_LABEL,
   STATUS_LABEL,
@@ -174,11 +174,6 @@ export function TitlePage() {
             ))}
           </div>
 
-          {title.libraryStatus !== null && (
-            <p className="border-ink w-fit rounded-sm border px-3 py-1 text-sm font-medium">
-              On your shelf: {ENTRY_LABEL[title.libraryStatus]}
-            </p>
-          )}
           {meta.stale && (
             <Notice>
               This is the copy saved earlier: the anime catalog could not be reached just now, so
@@ -218,6 +213,8 @@ export function TitlePage() {
           )}
         </div>
       </div>
+
+      <ShelfPanel key={title.id} title={title} />
 
       {title.synopsis !== null && (
         <section aria-labelledby="synopsis-heading" className="grid max-w-prose gap-3">

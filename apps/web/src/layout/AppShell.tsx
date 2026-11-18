@@ -8,6 +8,8 @@ import { describeError } from '../lib/errors';
 const NAV: readonly { readonly to: string; readonly label: string; readonly end?: boolean }[] = [
   { to: '/', label: 'Home', end: true },
   { to: '/discover', label: 'Discover' },
+  { to: '/library', label: 'Library' },
+  { to: '/history', label: 'History' },
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }): string =>

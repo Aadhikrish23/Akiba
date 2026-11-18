@@ -1,5 +1,5 @@
 import type { ApiClient } from '@akiba/api-client';
-import type { AuthUser } from '@akiba/shared';
+import type { AuthUser, Profile, UpdateProfileRequest } from '@akiba/shared';
 import {
   createContext,
   useContext,
@@ -19,9 +19,13 @@ export type AuthState =
 interface AuthValue {
   readonly state: AuthState;
   readonly client: ApiClient;
+  /** The signed-in user's settings; null until they have been read (right after logging in). */
+  readonly profile: Profile | null;
   /** Re-read the signed-in user (after verifying an email, say). */
   readonly refresh: () => Promise<void>;
   readonly setUser: (user: AuthUser) => void;
+  /** Change settings; the screen reflects the saved result. */
+  readonly updateProfile: (changes: UpdateProfileRequest) => Promise<Profile>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -29,23 +33,31 @@ const AuthContext = createContext<AuthValue | null>(null);
 /**
  * Owns "who is signed in". On load it asks the API client to restore the session from the refresh
  * cookie, then follows the client's sign-in / sign-out events (including a session the server
- * ended), so no screen has to track tokens.
+ * ended), so no screen has to track tokens. It also holds the user's settings (view, language…).
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const client = useApi();
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  const [profile, setProfile] = useState<Profile | null>(null);
   const restored = useRef(false);
 
   useEffect(() => {
     const off = client.onAuthChange((event) => {
-      if (event === 'signed-out') setState({ status: 'signed-out' });
+      if (event === 'signed-out') {
+        setState({ status: 'signed-out' });
+        setProfile(null);
+      }
     });
     if (!restored.current) {
       restored.current = true;
       client
         .restoreSession()
         .then((user) => {
-          setState(user === undefined ? { status: 'signed-out' } : { status: 'signed-in', user });
+          if (user === undefined) setState({ status: 'signed-out' });
+          else {
+            setProfile(user);
+            setState({ status: 'signed-in', user });
+          }
         })
         .catch(() => {
           // The server could not be asked; the sign-in screen will say so if it matters.
@@ -55,19 +67,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return off;
   }, [client]);
 
+  // Login answers with identity only; the settings come from one more read.
+  const signedIn = state.status === 'signed-in';
+  useEffect(() => {
+    if (!signedIn || profile !== null) return;
+    let live = true;
+    client
+      .me()
+      .then((next) => {
+        if (live) setProfile(next);
+      })
+      .catch(() => {
+        // Defaults apply until the next successful read.
+      });
+    return () => {
+      live = false;
+    };
+  }, [client, signedIn, profile]);
+
   const value = useMemo<AuthValue>(
     () => ({
       state,
       client,
+      profile,
       setUser: (user) => {
         setState({ status: 'signed-in', user });
       },
       refresh: async () => {
         const user = await client.me();
+        setProfile(user);
         setState({ status: 'signed-in', user });
       },
+      updateProfile: async (changes) => {
+        const next = await client.account.updateProfile(changes);
+        setProfile(next);
+        return next;
+      },
     }),
-    [state, client],
+    [state, client, profile],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

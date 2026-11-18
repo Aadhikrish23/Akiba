@@ -12,7 +12,9 @@ import {
   VerifyEmailPage,
 } from './pages/auth';
 import { DiscoverPage } from './pages/Discover';
+import { HistoryPage } from './pages/History';
 import { HomePage } from './pages/Home';
+import { LibraryPage } from './pages/Library';
 import { CurrentSeasonRedirect, SeasonChartPage } from './pages/SeasonChart';
 import { TitlePage } from './pages/TitlePage';
 
@@ -43,6 +45,8 @@ export function AppRoutes() {
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
         <Route path="discover" element={<DiscoverPage />} />
+        <Route path="library" element={<LibraryPage />} />
+        <Route path="history" element={<HistoryPage />} />
         <Route path="discover/season" element={<CurrentSeasonRedirect />} />
         <Route path="discover/season/:year/:season" element={<SeasonChartPage />} />
         <Route path="title/:titleId" element={<TitlePage />} />

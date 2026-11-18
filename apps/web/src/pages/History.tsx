@@ -1,0 +1,198 @@
+import { EVENT_TYPES, type EventType, type HistoryItem } from '@akiba/shared';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
+import { useAuth } from '../auth/AuthContext';
+import { Button, Notice, Select } from '../components/ui';
+import { describeError } from '../lib/errors';
+import { usePageTitle } from '../lib/page';
+import { ENTRY_LABEL, displayTitle } from '../lib/titles';
+
+const TYPE_LABEL: Record<EventType, string> = {
+  entry_added: 'Added to library',
+  status_changed: 'Status changes',
+  progress_changed: 'Episodes watched',
+  run_started: 'Viewings started',
+  run_completed: 'Viewings finished',
+  rated: 'Ratings',
+  reviewed: 'Reviews',
+  favorited: 'Favorites added',
+  unfavorited: 'Favorites removed',
+  total_overridden: 'Episode counts edited',
+  total_override_cleared: 'Episode counts reset',
+  entry_removed: 'Removed from library',
+};
+
+const num = (value: unknown): number | null => (typeof value === 'number' ? value : null);
+const status = (value: unknown): string =>
+  typeof value === 'string' && value in ENTRY_LABEL
+    ? ENTRY_LABEL[value as keyof typeof ENTRY_LABEL]
+    : String(value);
+
+/** One event as a sentence a person would say (doc 08 §8: plain, specific). */
+export function describeEvent(item: HistoryItem): string {
+  const p = item.payload;
+  switch (item.type) {
+    case 'entry_added':
+      return `Added to your library as ${status(p['status'])}`;
+    case 'status_changed':
+      return `Changed from ${status(p['from'])} to ${status(p['to'])}`;
+    case 'progress_changed': {
+      const from = num(p['from']);
+      const to = num(p['to']);
+      if (from !== null && to !== null && to === from + 1) return `Watched episode ${to}`;
+      if (from !== null && to !== null && to > from) return `Watched episodes ${from + 1} to ${to}`;
+      return `Set progress to ${to ?? '?'} (was ${from ?? '?'})`;
+    }
+    case 'run_started':
+      return num(p['run_number']) === 1
+        ? 'Started watching'
+        : `Started rewatch ${num(p['run_number']) ?? ''}`.trim();
+    case 'run_completed':
+      return num(p['run_number']) === 1
+        ? 'Finished watching'
+        : `Finished rewatch ${num(p['run_number']) ?? ''}`.trim();
+    case 'rated':
+      return p['to'] === null ? 'Removed the rating' : `Rated ${num(p['to'])} out of 10`;
+    case 'reviewed':
+      return num(p['length']) === 0 ? 'Deleted the review' : 'Wrote a review';
+    case 'favorited':
+      return 'Marked as a favorite';
+    case 'unfavorited':
+      return 'Removed from favorites';
+    case 'total_overridden':
+      return `Changed the episode count to ${num(p['to']) ?? '?'}`;
+    case 'total_override_cleared':
+      return 'Reset the episode count';
+    case 'entry_removed':
+      return 'Removed from your library';
+  }
+}
+
+/** The history timeline (FR-REM-003): newest first, grouped by day, filterable by kind. */
+export function HistoryPage() {
+  usePageTitle('History');
+  const { client, profile } = useAuth();
+  const [type, setType] = useState<EventType | ''>('');
+  const [items, setItems] = useState<HistoryItem[] | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const generation = useRef(0);
+
+  const load = useCallback(
+    (cursor?: string) => {
+      const mine = generation.current;
+      return client.history
+        .list({ type: type === '' ? undefined : ([type] as never), limit: 30, cursor })
+        .then((response) => {
+          if (mine !== generation.current) return;
+          setItems((current) =>
+            cursor === undefined || current === null
+              ? response.data
+              : [...current, ...response.data],
+          );
+          setNext(response.nextCursor);
+        });
+    },
+    [client, type],
+  );
+
+  useEffect(() => {
+    generation.current += 1;
+    setItems(null);
+    setError(null);
+    load().catch((caught: unknown) => {
+      setError(describeError(caught).message);
+    });
+  }, [load]);
+
+  const zone = profile?.timeZone ?? 'UTC';
+  const day = (iso: string): string =>
+    new Date(iso).toLocaleDateString(undefined, { dateStyle: 'full', timeZone: zone });
+  const time = (iso: string): string =>
+    new Date(iso).toLocaleTimeString(undefined, { timeStyle: 'short', timeZone: zone });
+
+  const groups: { day: string; entries: HistoryItem[] }[] = [];
+  for (const item of items ?? []) {
+    const label = day(item.occurredAt);
+    const last = groups.at(-1);
+    if (last?.day === label) last.entries.push(item);
+    else groups.push({ day: label, entries: [item] });
+  }
+
+  return (
+    <div className="grid gap-8">
+      <h1 className="font-serif text-2xl font-semibold tracking-tight">History</h1>
+      <div className="max-w-xs">
+        <Select
+          label="Show"
+          anyLabel="Everything"
+          value={type}
+          options={EVENT_TYPES.map((value) => ({ value, label: TYPE_LABEL[value] }))}
+          onChange={(event) => {
+            setType(event.target.value as EventType | '');
+          }}
+        />
+      </div>
+      {error !== null && <Notice tone="error">{error}</Notice>}
+      {items === null && error === null && (
+        <p role="status" aria-busy="true" className="text-mute">
+          Loading history…
+        </p>
+      )}
+      {items !== null && items.length === 0 && (
+        <p className="text-mute max-w-prose">
+          Nothing here yet. Add a title and log an episode, and it will appear.{' '}
+          <Link to="/discover" className="underline underline-offset-4">
+            Discover
+          </Link>
+        </p>
+      )}
+      {groups.map((group) => (
+        <section key={group.day} aria-label={group.day} className="grid gap-2">
+          <h2 className="text-mute text-sm font-medium tracking-wide uppercase">{group.day}</h2>
+          <ol className="grid list-none gap-0 p-0">
+            {group.entries.map((item) => (
+              <li
+                key={item.id}
+                className="border-rule grid grid-cols-[4.5rem_1fr] gap-3 border-b py-3"
+              >
+                <time dateTime={item.occurredAt} className="text-mute text-sm tabular-nums">
+                  {time(item.occurredAt)}
+                </time>
+                <p>
+                  <Link
+                    to={`/title/${item.title.id}`}
+                    className="font-serif font-semibold underline-offset-4 hover:underline"
+                  >
+                    {displayTitle(item.title)}
+                  </Link>
+                  <span className="block text-sm">{describeEvent(item)}</span>
+                </p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
+      {next !== null && (
+        <div>
+          <Button
+            busy={loadingMore}
+            onClick={() => {
+              setLoadingMore(true);
+              load(next)
+                .catch((caught: unknown) => {
+                  setError(describeError(caught).message);
+                })
+                .finally(() => {
+                  setLoadingMore(false);
+                });
+            }}
+          >
+            Load more
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}

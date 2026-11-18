@@ -389,7 +389,7 @@ describe('Title page (FR-DISC-004, FR-DISC-005, FR-DISC-007)', () => {
     expect(app.to(ID).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows where the user stands (FR-DISC-007) and when the next episode airs', async () => {
+  it('shows when the next episode airs', async () => {
     renderApp({
       route: `/title/${ID}`,
       handler: catalog({
@@ -397,7 +397,8 @@ describe('Title page (FR-DISC-004, FR-DISC-005, FR-DISC-007)', () => {
         nextAiring: { episode: 8, airsAt: '2026-11-20T15:00:00.000Z' },
       }),
     });
-    expect(await screen.findByText('On your shelf: Watching')).toBeTruthy();
+    // The shelf itself (status, +1, rating…) is covered in library.test.tsx.
+    expect(await screen.findByRole('heading', { name: 'Show 2' })).toBeTruthy();
     const airing = screen.getByText(/Episode 8 airs/);
     expect(airing.querySelector('time')?.getAttribute('datetime')).toBe('2026-11-20T15:00:00.000Z');
   });

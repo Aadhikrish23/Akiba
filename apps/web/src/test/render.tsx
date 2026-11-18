@@ -128,7 +128,8 @@ export function signedInHandler(
 ): Handler {
   return (call) => {
     if (call.path.endsWith('/auth/refresh')) return json(200, tokens());
-    if (call.path.endsWith('/me')) return json(200, { ...USER, ...overrides });
+    if (call.method === 'GET' && call.path.endsWith('/me'))
+      return json(200, { ...USER, ...overrides });
     return extra(call);
   };
 }

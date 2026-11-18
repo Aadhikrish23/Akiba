@@ -118,7 +118,7 @@ export function Select({ label, options, anyLabel, ...select }: SelectProps) {
         {...select}
         className="border-rule bg-raised text-ink h-11 w-full rounded-sm border px-3 text-base disabled:opacity-60"
       >
-        <option value="">{anyLabel}</option>
+        {anyLabel !== '' && <option value="">{anyLabel}</option>}
         {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
