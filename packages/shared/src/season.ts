@@ -1,4 +1,4 @@
-import type { Season } from '@akiba/shared';
+import type { Season } from './titles.js';
 
 /** Anime seasons by calendar quarter (the convention AniList and MAL both use). */
 export function seasonOf(date: Date): { season: Season; year: number } {
@@ -8,12 +8,13 @@ export function seasonOf(date: Date): { season: Season; year: number } {
   return { season, year: date.getUTCFullYear() };
 }
 
+const ORDER: readonly Season[] = ['winter', 'spring', 'summer', 'fall'];
+
 /** The season `steps` away from the given one (negative = earlier). */
 export function shiftSeason(
   from: { season: Season; year: number },
   steps: number,
 ): { season: Season; year: number } {
-  const order: Season[] = ['winter', 'spring', 'summer', 'fall'];
-  const index = from.year * 4 + order.indexOf(from.season) + steps;
-  return { season: order[((index % 4) + 4) % 4] as Season, year: Math.floor(index / 4) };
+  const index = from.year * 4 + ORDER.indexOf(from.season) + steps;
+  return { season: ORDER[((index % 4) + 4) % 4] as Season, year: Math.floor(index / 4) };
 }

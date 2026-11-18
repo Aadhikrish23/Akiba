@@ -11,6 +11,11 @@ import {
   registerResponseSchema,
   resetPasswordResponseSchema,
   verifyEmailResponseSchema,
+  genresResponseSchema,
+  relationsResponseSchema,
+  seasonListResponseSchema,
+  titleDetailResponseSchema,
+  titleListResponseSchema,
   acceptedResponseSchema,
   type AcceptedResponse,
   type AuthUser,
@@ -27,6 +32,15 @@ import {
   type ResetPasswordRequest,
   type ResetPasswordResponse,
   type VerifyEmailResponse,
+  type BrowseQuery,
+  type RelationsResponse,
+  type SearchQuery,
+  type Season,
+  type SeasonListResponse,
+  type SeasonQuery,
+  type TitleDetailResponse,
+  type TitleKind,
+  type TitleListResponse,
 } from '@akiba/shared';
 import { ApiError, ContractError, NetworkError, NotSignedInError } from './errors.js';
 
@@ -83,6 +97,22 @@ export interface AuthApi {
   changePassword(request: ChangePasswordRequest): Promise<void>;
 }
 
+/** Query parameters of the list endpoints; `limit` and `cursor` page through the answer. */
+export type SearchParams = Pick<SearchQuery, 'q'> & Partial<Omit<SearchQuery, 'q'>>;
+export type BrowseParams = Partial<BrowseQuery>;
+export type SeasonParams = Partial<SeasonQuery>;
+
+/** Discovery (doc 07 §3). Every call needs a signed-in user. */
+export interface TitlesApi {
+  search(params: SearchParams): Promise<TitleListResponse>;
+  browse(params?: BrowseParams): Promise<TitleListResponse>;
+  season(year: number, season: Season, params?: SeasonParams): Promise<SeasonListResponse>;
+  currentSeason(params?: SeasonParams): Promise<SeasonListResponse>;
+  detail(titleId: string): Promise<TitleDetailResponse>;
+  relations(titleId: string): Promise<RelationsResponse>;
+  genres(): Promise<string[]>;
+}
+
 export interface ApiClient {
   readonly platform: Platform;
   /** Value of the client name used in logs and `User-Agent`-style identification. */
@@ -90,6 +120,7 @@ export interface ApiClient {
   /** Resolve an API path against the configured base URL. */
   url(path: string): string;
   readonly auth: AuthApi;
+  readonly titles: TitlesApi;
   /** `GET /me`. Refreshes the session first if needed. */
   me(): Promise<MeResponse>;
   /**
@@ -419,11 +450,56 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
   };
 
+  /** `/path?a=1&b=2`, skipping parameters that are not set. */
+  const withQuery = (path: string, params: object | undefined): string => {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(params ?? {})) {
+      if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+    }
+    const text = query.toString();
+    return text === '' ? path : `${path}?${text}`;
+  };
+  const get = (path: string, params?: object): Promise<unknown> =>
+    call({ method: 'GET', path: withQuery(path, params), authenticated: true });
+  const id = (value: string): string => encodeURIComponent(value);
+
+  const titles: TitlesApi = {
+    async search(params) {
+      return parse(titleListResponseSchema, '/titles/search', await get('/titles/search', params));
+    },
+    async browse(params) {
+      return parse(titleListResponseSchema, '/titles/browse', await get('/titles/browse', params));
+    },
+    async season(year, season, params) {
+      const path = `/seasons/${year}/${season}`;
+      return parse(seasonListResponseSchema, path, await get(path, params));
+    },
+    async currentSeason(params) {
+      return parse(
+        seasonListResponseSchema,
+        '/seasons/current',
+        await get('/seasons/current', params),
+      );
+    },
+    async detail(titleId) {
+      const path = `/titles/${id(titleId)}`;
+      return parse(titleDetailResponseSchema, path, await get(path));
+    },
+    async relations(titleId) {
+      const path = `/titles/${id(titleId)}/relations`;
+      return parse(relationsResponseSchema, path, await get(path));
+    },
+    async genres() {
+      return parse(genresResponseSchema, '/genres', await get('/genres')).data;
+    },
+  };
+
   return {
     platform,
     clientName: `${APP_NAME}/${platform}`,
     url,
     auth,
+    titles,
     me,
 
     async restoreSession() {

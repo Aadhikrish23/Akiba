@@ -37,7 +37,7 @@ import {
   type LocalFilters,
 } from './catalog.js';
 import { decodeCursor, encodeCursor, type Cursor } from './cursor.js';
-import { seasonOf } from './season.js';
+import { seasonOf } from '@akiba/shared';
 
 const HOUR = 60 * 60 * 1000;
 /** A card seen in a list is refreshed when our copy is older than this. */

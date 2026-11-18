@@ -97,3 +97,34 @@ export function Notice({
     </div>
   );
 }
+
+interface SelectProps extends Omit<ComponentPropsWithoutRef<'select'>, 'id'> {
+  readonly label: string;
+  readonly options: readonly { readonly value: string; readonly label: string }[];
+  /** The option meaning "no filter", shown first with an empty value. */
+  readonly anyLabel: string;
+}
+
+/** A native select with a visible label: keyboard and screen-reader behaviour for free. */
+export function Select({ label, options, anyLabel, ...select }: SelectProps) {
+  const id = useId();
+  return (
+    <div className="grid gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <select
+        id={id}
+        {...select}
+        className="border-rule bg-raised text-ink h-11 w-full rounded-sm border px-3 text-base disabled:opacity-60"
+      >
+        <option value="">{anyLabel}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}

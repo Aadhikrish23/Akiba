@@ -30,6 +30,10 @@ const child = spawn(process.execPath, [server], {
     EMAIL_DEV_PRINT_LINKS: 'true',
     API_RATE_LIMIT_AUTH_MAX: '10000',
     LOG_LEVEL: 'warn',
+    // The mock source server (e2e/mock-sources.mjs) replays recorded AniList responses.
+    SOURCE_ANILIST_URL: 'http://127.0.0.1:3200/graphql',
+    SOURCE_JIKAN_URL: 'http://127.0.0.1:3200/v4',
+    SOURCE_TIMEOUT_MS: '3000',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });

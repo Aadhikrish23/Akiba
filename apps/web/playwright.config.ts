@@ -19,6 +19,12 @@ export default defineConfig({
   },
   webServer: [
     {
+      command: 'node e2e/mock-sources.mjs',
+      url: 'http://127.0.0.1:3200/health',
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
+    {
       command: 'node e2e/start-api.mjs',
       url: 'http://localhost:3100/health',
       reuseExistingServer: false,

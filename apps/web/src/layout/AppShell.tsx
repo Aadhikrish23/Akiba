@@ -7,6 +7,7 @@ import { describeError } from '../lib/errors';
 /** Primary destinations. Each later milestone adds its own entry here (Discover, Library, …). */
 const NAV: readonly { readonly to: string; readonly label: string; readonly end?: boolean }[] = [
   { to: '/', label: 'Home', end: true },
+  { to: '/discover', label: 'Discover' },
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }): string =>

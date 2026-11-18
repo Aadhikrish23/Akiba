@@ -50,6 +50,8 @@ export const tokens = (accessToken = 'access-1') => ({
 export interface Call {
   readonly method: string;
   readonly path: string;
+  /** The query string including the leading `?`, or empty. */
+  readonly search: string;
   readonly body: unknown;
 }
 
@@ -83,6 +85,7 @@ export function renderApp(
     const call: Call = {
       method: init?.method ?? 'GET',
       path: url.pathname,
+      search: url.search,
       body: typeof init?.body === 'string' ? (JSON.parse(init.body) as unknown) : undefined,
     };
     calls.push(call);

@@ -571,3 +571,100 @@ describe('@akiba/api-client: two tabs sharing one refresh cookie (doc 09 S-AUTH-
     expect(a.isSignedIn() && b.isSignedIn()).toBe(true);
   });
 });
+
+describe('@akiba/api-client: titles (T12 endpoints)', () => {
+  const card = {
+    id: '3f2b8c1e-5a47-4d0e-9d57-0c5d9a3b7e11',
+    kind: 'tv',
+    titleRomaji: 'Shingeki no Kyojin',
+    titleEnglish: 'Attack on Titan',
+    titleNative: null,
+    coverUrl: null,
+    format: 'TV',
+    status: 'finished',
+    episodesTotal: 25,
+    season: 'spring',
+    seasonYear: 2013,
+    averageScore: 85,
+    libraryStatus: null,
+  };
+  const list = { data: [card], nextCursor: 'abc', meta: { stale: false, source: 'anilist' } };
+  const signedIn = (handler: Handler) =>
+    setup((request, index) => {
+      if (request.url.endsWith('/auth/refresh')) return json(200, tokens('access-1'));
+      return handler(request, index);
+    });
+
+  it('sends the access token and only the parameters that are set', async () => {
+    const { client, calls } = signedIn(() => json(200, list));
+    await client.titles.search({ q: 'attack on titan', format: 'tv', limit: 3, cursor: undefined });
+    const search = calls.find((call) => call.url.includes('/titles/search'));
+    expect(search?.headers['authorization']).toBe('Bearer access-1');
+    const url = new URL(search?.url ?? '');
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      q: 'attack on titan',
+      format: 'tv',
+      limit: '3',
+    });
+  });
+
+  it('parses a list, a season and a title page with the shared schemas', async () => {
+    const { client } = signedIn((request) => {
+      if (request.url.includes('/seasons/'))
+        return json(200, { ...list, season: 'fall', seasonYear: 2024 });
+      if (request.url.endsWith('/relations'))
+        return json(200, { data: [{ relationType: 'sequel', titles: [card] }], meta: list.meta });
+      if (request.url.includes('/titles/3f2b')) {
+        return json(200, {
+          data: {
+            ...card,
+            synopsis: 'x',
+            bannerUrl: null,
+            durationMin: 24,
+            startDate: '2013-04-07',
+            endDate: null,
+            popularity: 1,
+            synonyms: [],
+            genres: ['Action'],
+            studios: [],
+            nextAiring: null,
+          },
+          meta: list.meta,
+        });
+      }
+      if (request.url.endsWith('/genres')) return json(200, { data: ['Action', 'Comedy'] });
+      return json(200, list);
+    });
+    await expect(client.titles.browse({ genre: 'Action' })).resolves.toMatchObject({
+      nextCursor: 'abc',
+    });
+    await expect(client.titles.season(2024, 'fall')).resolves.toMatchObject({
+      season: 'fall',
+      seasonYear: 2024,
+    });
+    await expect(client.titles.currentSeason()).resolves.toMatchObject({ season: 'fall' });
+    await expect(client.titles.detail(card.id)).resolves.toMatchObject({
+      data: { genres: ['Action'] },
+    });
+    await expect(client.titles.relations(card.id)).resolves.toMatchObject({
+      data: [{ relationType: 'sequel' }],
+    });
+    await expect(client.titles.genres()).resolves.toEqual(['Action', 'Comedy']);
+  });
+
+  it('escapes a title ID in the path', async () => {
+    const { client, calls } = signedIn(() => problem(404, 'NOT_FOUND'));
+    await client.titles.detail('a/b?c').catch(() => undefined);
+    expect(calls.at(-1)?.url).toContain('/titles/a%2Fb%3Fc');
+  });
+
+  it('surfaces a 503 as an ApiError and a changed shape as a ContractError', async () => {
+    const down = signedIn(() => problem(503, 'SOURCES_UNAVAILABLE'));
+    await expect(down.client.titles.search({ q: 'x' })).rejects.toMatchObject({
+      status: 503,
+      code: 'SOURCES_UNAVAILABLE',
+    });
+    const changed = signedIn(() => json(200, { data: [{ id: 'not-a-uuid' }] }));
+    await expect(changed.client.titles.browse()).rejects.toBeInstanceOf(ContractError);
+  });
+});

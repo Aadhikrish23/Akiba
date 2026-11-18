@@ -11,7 +11,10 @@ import {
   ResetPasswordPage,
   VerifyEmailPage,
 } from './pages/auth';
+import { DiscoverPage } from './pages/Discover';
 import { HomePage } from './pages/Home';
+import { CurrentSeasonRedirect, SeasonChartPage } from './pages/SeasonChart';
+import { TitlePage } from './pages/TitlePage';
 
 function NotFoundPage() {
   usePageTitle('Page not found');
@@ -39,6 +42,10 @@ export function AppRoutes() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
+        <Route path="discover" element={<DiscoverPage />} />
+        <Route path="discover/season" element={<CurrentSeasonRedirect />} />
+        <Route path="discover/season/:year/:season" element={<SeasonChartPage />} />
+        <Route path="title/:titleId" element={<TitlePage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
