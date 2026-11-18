@@ -52,6 +52,19 @@ export type LibraryEntryDetail = z.infer<typeof libraryEntryDetailSchema>;
 export const libraryEntryResponseSchema = z.object({ data: libraryEntryDetailSchema });
 export type LibraryEntryResponse = z.infer<typeof libraryEntryResponseSchema>;
 
+/** `GET /library/counts`: entries per status, for the tabs of the library screen. */
+export const libraryCountsSchema = z.object({
+  data: z.object({
+    watching: z.number().int().min(0),
+    completed: z.number().int().min(0),
+    planned: z.number().int().min(0),
+    on_hold: z.number().int().min(0),
+    dropped: z.number().int().min(0),
+    favorites: z.number().int().min(0),
+  }),
+});
+export type LibraryCounts = z.infer<typeof libraryCountsSchema>['data'];
+
 export const libraryListResponseSchema = z.object({
   data: z.array(libraryEntrySchema),
   nextCursor: z.string().nullable(),

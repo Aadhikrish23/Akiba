@@ -1,6 +1,7 @@
 import type {
   AddToLibraryRequest,
   EntryStatus,
+  LibraryCounts,
   LibraryEntryDetail,
   LibraryListQuery,
   LibraryListResponse,
@@ -28,6 +29,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export interface LibraryService {
   list(userId: string, query: LibraryListQuery): Promise<LibraryListResponse>;
   favorites(userId: string, query: LibraryListQuery): Promise<LibraryListResponse>;
+  counts(userId: string): Promise<LibraryCounts>;
   get(userId: string, entryId: string): Promise<LibraryEntryDetail>;
   add(userId: string, request: AddToLibraryRequest): Promise<LibraryEntryDetail>;
   update(userId: string, entryId: string, request: UpdateEntryRequest): Promise<LibraryEntryDetail>;
@@ -655,7 +657,29 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
     return get(userId, entryId);
   }
 
+  async function counts(userId: string): Promise<LibraryCounts> {
+    const groups = await db.libraryEntry.groupBy({
+      by: ['status'],
+      where: { userId, removedAt: null },
+      _count: { _all: true },
+    });
+    const favorites = await db.libraryEntry.count({
+      where: { userId, removedAt: null, isFavorite: true },
+    });
+    const result: LibraryCounts = {
+      watching: 0,
+      completed: 0,
+      planned: 0,
+      on_hold: 0,
+      dropped: 0,
+      favorites,
+    };
+    for (const group of groups) result[group.status] = group._count._all;
+    return result;
+  }
+
   return {
+    counts,
     progress,
     setEpisodesTotal,
     clearEpisodesTotal,

@@ -20,7 +20,7 @@ export const cardSelect = (userId: string) =>
     averageScore: true,
     libraryEntries: {
       where: { userId, removedAt: null },
-      select: { status: true },
+      select: { id: true, status: true },
       take: 1,
     },
   }) satisfies Prisma.TitleSelect;
@@ -42,6 +42,7 @@ export function toCard(row: CardRow): TitleCard {
     seasonYear: row.seasonYear,
     averageScore: row.averageScore,
     libraryStatus: row.libraryEntries[0]?.status ?? null,
+    libraryEntryId: row.libraryEntries[0]?.id ?? null,
   };
 }
 

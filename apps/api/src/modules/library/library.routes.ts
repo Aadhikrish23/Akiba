@@ -40,6 +40,10 @@ export function createLibraryRouter(options: {
     res.json(await service.list(getAuth(res).userId, getValidated(res, listSchemas).query));
   });
 
+  router.get('/library/counts', ...guarded, async (_req, res) => {
+    res.json({ data: await service.counts(getAuth(res).userId) });
+  });
+
   // Registered before `/library/:entryId` so "favorites" is not read as an entry ID.
   router.get('/library/favorites', ...guarded, validate(listSchemas), async (_req, res) => {
     res.json(await service.favorites(getAuth(res).userId, getValidated(res, listSchemas).query));

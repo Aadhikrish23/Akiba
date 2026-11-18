@@ -68,6 +68,8 @@ export const titleCardSchema = z.object({
   averageScore: z.number().int().nullable(),
   /** The caller's own library status for this title; null when it is not on their shelf. */
   libraryStatus: entryStatusSchema.nullable(),
+  /** The caller's entry for this title, so any screen can act on it (progress, status). */
+  libraryEntryId: z.uuid().nullable(),
 });
 export type TitleCard = z.infer<typeof titleCardSchema>;
 
