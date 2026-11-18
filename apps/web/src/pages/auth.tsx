@@ -109,12 +109,20 @@ export function LoginPage() {
     <AuthLayout
       title="Log in"
       footer={
-        <p>
-          New to Akiba?{' '}
-          <Link to="/register" className={LINK}>
-            Create an account
-          </Link>
-        </p>
+        <>
+          <p>
+            New to Akiba?{' '}
+            <Link to="/register" className={LINK}>
+              Create an account
+            </Link>
+          </p>
+          <p className="mt-2">
+            Deleted your account recently?{' '}
+            <Link to="/restore" className={LINK}>
+              Restore it
+            </Link>
+          </p>
+        </>
       }
     >
       <form onSubmit={submit} noValidate className="grid gap-5">

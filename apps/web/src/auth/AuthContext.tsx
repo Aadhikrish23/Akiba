@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useApi } from '../lib/api';
+import { setTitleLanguage } from '../lib/titles';
 
 export type AuthState =
   | { readonly status: 'loading' }
@@ -24,6 +25,9 @@ interface AuthValue {
   /** Re-read the signed-in user (after verifying an email, say). */
   readonly refresh: () => Promise<void>;
   readonly setUser: (user: AuthUser) => void;
+  /** True while the user is deleting their account, so the frame does not bounce them to log in. */
+  readonly deleting: boolean;
+  readonly setDeleting: (value: boolean) => void;
   /** Change settings; the screen reflects the saved result. */
   readonly updateProfile: (changes: UpdateProfileRequest) => Promise<Profile>;
 }
@@ -39,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const client = useApi();
   const [state, setState] = useState<AuthState>({ status: 'loading' });
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const restored = useRef(false);
 
   useEffect(() => {
@@ -67,6 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return off;
   }, [client]);
 
+  // The title-language setting changes how every title is named.
+  useEffect(() => {
+    if (profile !== null) setTitleLanguage(profile.titleLanguage);
+  }, [profile]);
+
   // Login answers with identity only; the settings come from one more read.
   const signedIn = state.status === 'signed-in';
   useEffect(() => {
@@ -90,6 +100,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       state,
       client,
       profile,
+      deleting,
+      setDeleting,
       setUser: (user) => {
         setState({ status: 'signed-in', user });
       },
@@ -104,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return next;
       },
     }),
-    [state, client, profile],
+    [state, client, profile, deleting],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -16,6 +16,8 @@ import { HistoryPage } from './pages/History';
 import { HomePage } from './pages/Home';
 import { LibraryPage } from './pages/Library';
 import { CurrentSeasonRedirect, SeasonChartPage } from './pages/SeasonChart';
+import { AccountDeletedPage, RestorePage, SharedPage } from './pages/Public';
+import { SettingsPage } from './pages/Settings';
 import { TitlePage } from './pages/TitlePage';
 
 function NotFoundPage() {
@@ -42,11 +44,15 @@ export function AppRoutes() {
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/restore" element={<RestorePage />} />
+      <Route path="/account-deleted" element={<AccountDeletedPage />} />
+      <Route path="/shared/:token" element={<SharedPage />} />
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
         <Route path="discover" element={<DiscoverPage />} />
         <Route path="library" element={<LibraryPage />} />
         <Route path="history" element={<HistoryPage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="discover/season" element={<CurrentSeasonRedirect />} />
         <Route path="discover/season/:year/:season" element={<SeasonChartPage />} />
         <Route path="title/:titleId" element={<TitlePage />} />

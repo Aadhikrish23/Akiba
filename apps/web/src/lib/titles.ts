@@ -10,11 +10,24 @@ import type {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { describeError } from './errors';
 
-/** Display name of a title: romaji by default (doc 08 §8); the title-language setting arrives in T19. */
+let preferred: 'romaji' | 'english' | 'native' = 'romaji';
+
+/** Set from the account's title-language setting once the profile is read (FR-ACCT-001). */
+export function setTitleLanguage(language: 'romaji' | 'english' | 'native'): void {
+  preferred = language;
+}
+
+/** A title's name in the user's language (romaji by default, doc 08 §8), else whatever exists. */
 export function displayTitle(
   title: Pick<TitleCard, 'titleRomaji' | 'titleEnglish' | 'titleNative'>,
 ): string {
-  return title.titleRomaji ?? title.titleEnglish ?? title.titleNative ?? 'Untitled';
+  const order =
+    preferred === 'english'
+      ? [title.titleEnglish, title.titleRomaji, title.titleNative]
+      : preferred === 'native'
+        ? [title.titleNative, title.titleRomaji, title.titleEnglish]
+        : [title.titleRomaji, title.titleEnglish, title.titleNative];
+  return order.find((name) => name !== null) ?? 'Untitled';
 }
 
 /** The other names worth showing under the main one. */
@@ -23,6 +36,9 @@ export function otherTitles(
 ): { text: string; lang: 'en' | 'ja' | undefined }[] {
   const main = displayTitle(title);
   const out: { text: string; lang: 'en' | 'ja' | undefined }[] = [];
+  if (title.titleRomaji !== null && title.titleRomaji !== main) {
+    out.push({ text: title.titleRomaji, lang: undefined });
+  }
   if (title.titleEnglish !== null && title.titleEnglish !== main) {
     out.push({ text: title.titleEnglish, lang: 'en' });
   }

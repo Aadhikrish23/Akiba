@@ -10,6 +10,7 @@ const NAV: readonly { readonly to: string; readonly label: string; readonly end?
   { to: '/discover', label: 'Discover' },
   { to: '/library', label: 'Library' },
   { to: '/history', label: 'History' },
+  { to: '/settings', label: 'Settings' },
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }): string =>
@@ -22,7 +23,7 @@ const navClass = ({ isActive }: { isActive: boolean }): string =>
  * not signed in is bounced to the log-in screen, remembering where it was headed.
  */
 export function AppShell() {
-  const { state, client } = useAuth();
+  const { state, client, deleting } = useAuth();
   const location = useLocation();
   const [signOutError, setSignOutError] = useState<string | null>(null);
 
@@ -33,6 +34,8 @@ export function AppShell() {
       </p>
     );
   }
+  // A deletion in progress ends the session on purpose; its own screen takes over.
+  if (state.status === 'signed-out' && deleting) return null;
   if (state.status === 'signed-out') {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
