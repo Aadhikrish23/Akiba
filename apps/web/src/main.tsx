@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import './index.css';
+import { createBrowserClient } from './lib/api';
 
 const container = document.getElementById('root');
 if (!container) {
@@ -10,6 +11,6 @@ if (!container) {
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <App client={createBrowserClient()} />
   </StrictMode>,
 );

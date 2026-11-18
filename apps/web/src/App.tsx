@@ -1,12 +1,58 @@
-import { APP_NAME } from '@akiba/shared';
-import { COLOR_SCHEMES, spacing } from '@akiba/ui-tokens';
+import type { ApiClient } from '@akiba/api-client';
+import { BrowserRouter, Link, Route, Routes } from 'react-router';
+import { AuthProvider } from './auth/AuthContext';
+import { AppShell } from './layout/AppShell';
+import { ApiProvider } from './lib/api';
+import { usePageTitle } from './lib/page';
+import {
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from './pages/auth';
+import { HomePage } from './pages/Home';
 
-/** Placeholder shell proving the workspace wiring; real screens arrive in T10. */
-export function App() {
+function NotFoundPage() {
+  usePageTitle('Page not found');
   return (
-    <main className="mx-auto max-w-prose" style={{ padding: spacing(6) }}>
-      <h1 className="text-2xl font-semibold">{APP_NAME}</h1>
-      <p>Workspace scaffold. Supported colour schemes: {COLOR_SCHEMES.join(', ')}.</p>
+    <main id="main" className="mx-auto max-w-md" style={{ padding: '64px var(--gutter)' }}>
+      <h1 className="font-serif text-2xl font-semibold">Page not found</h1>
+      <p className="text-mute mt-2">There is nothing at this address.</p>
+      <p className="mt-6">
+        <Link to="/" className="underline underline-offset-4">
+          Go to Akiba
+        </Link>
+      </p>
     </main>
+  );
+}
+
+/** Every route of the app. Rendered inside a router by `App` (browser) and by the tests (memory). */
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route element={<AppShell />}>
+        <Route index element={<HomePage />} />
+      </Route>
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  );
+}
+
+export function App({ client }: { client: ApiClient }) {
+  return (
+    <ApiProvider client={client}>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AuthProvider>
+    </ApiProvider>
   );
 }
