@@ -64,10 +64,12 @@ All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `
 ## 5. Inbox
 | Method & path | Purpose |
 |---|---|
-| `GET /inbox?unread=true` | List notifications |
-| `GET /inbox/unread-count` | Badge count |
-| `POST /inbox/:id/read` · `POST /inbox/read-all` | Mark read |
-| `DELETE /inbox/:id` | Delete |
+| `GET /inbox?unread=&limit=&cursor=` | `{data:[{id,kind:"episode_aired",createdAt,readAt,episode:{number,airsAt},title:card}],nextCursor}`, newest first (keyset cursor that keeps its size; `limit` 1–100, default 30). `unread=true` lists only unread. `title` is a card with the caller's own `libraryStatus` |
+| `GET /inbox/unread-count` | `{data:{count}}`, the badge |
+| `POST /inbox/:id/read` | 200 with the notification; asking again keeps the first `readAt`. `POST /inbox/read-all` → `{data:{updated}}` |
+| `DELETE /inbox/:id` | 204; the notification is not made again (its episode is already handled) |
+
+Another user's notification, an unknown ID and a malformed ID all answer the same 404. Notifications for adult-rated titles are hidden (list, count, actions) unless the user opted in (Q-10). Alerts can be off for the whole account (`alertsEnabled` in `PATCH /me`) or for one entry (`alertsEnabled` in `PATCH /library/:entryId`; the entry's setting wins, `null` follows the account). There is no push and no email (FR-NOTE-005).
 
 ## 6. Account, export, sharing
 | Method & path | Purpose |

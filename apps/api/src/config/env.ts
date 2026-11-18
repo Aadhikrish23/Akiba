@@ -249,6 +249,15 @@ const envSchema = z
     SOURCE_ANILIST_URL: httpUrlOption(),
     SOURCE_JIKAN_URL: httpUrlOption(),
     SOURCE_TIMEOUT_MS: integer({ min: 500, max: 30_000, fallback: 5_000 }),
+    // Background jobs (airing sync, inbox, cleanup). Unset = on in production, off elsewhere, so a
+    // development server or a test never calls the metadata sources on a timer.
+    JOBS_ENABLED: z.preprocess(
+      emptyToUndefined,
+      z
+        .enum(['true', 'false'], { error: 'must be true or false' })
+        .optional()
+        .transform((value) => (value === undefined ? undefined : value === 'true')),
+    ),
     WEB_BASE_URL: z.preprocess(
       emptyToUndefined,
       z
@@ -325,6 +334,11 @@ export interface EmailConfig {
   readonly webBaseUrl: string;
 }
 
+export interface JobsConfig {
+  /** Whether this process runs the scheduler (airing sync, inbox fan-out, refresh, cleanup). */
+  readonly enabled: boolean;
+}
+
 export interface SourcesConfig {
   /** Override of the AniList GraphQL endpoint; undefined = the public one. */
   readonly anilistUrl: string | undefined;
@@ -378,6 +392,7 @@ export interface AppConfig {
   readonly auth: AuthConfig;
   readonly email: EmailConfig;
   readonly sources: SourcesConfig;
+  readonly jobs: JobsConfig;
   /** Number of reverse-proxy hops to trust for the client IP (0 = use the socket address). */
   readonly trustProxyHops: number;
   readonly shutdownTimeoutMs: number;
@@ -429,6 +444,7 @@ export function loadEnv(source: Record<string, string | undefined> = process.env
       jikanUrl: env.SOURCE_JIKAN_URL,
       timeoutMs: env.SOURCE_TIMEOUT_MS,
     },
+    jobs: { enabled: env.JOBS_ENABLED ?? env.NODE_ENV === 'production' },
     trustProxyHops: env.TRUST_PROXY_HOPS,
     shutdownTimeoutMs: env.SHUTDOWN_TIMEOUT_MS,
   };

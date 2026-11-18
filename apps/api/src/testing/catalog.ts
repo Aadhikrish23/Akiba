@@ -2,8 +2,9 @@ import request from 'supertest';
 import type { DbClient } from '../db/index.js';
 import { createLogger } from '../lib/logger.js';
 import { createAccountModule } from '../modules/account/index.js';
+import { createInboxModule } from '../modules/inbox/index.js';
 import { createLibraryModule } from '../modules/library/index.js';
-import { createTitlesModule } from '../modules/titles/index.js';
+import { createTitlesModule, type TitlesModule } from '../modules/titles/index.js';
 import { createAniListAdapter } from '../sources/anilist/anilistAdapter.js';
 import { SourceGateway } from '../sources/gateway.js';
 import { createJikanAdapter } from '../sources/jikan/jikanAdapter.js';
@@ -33,6 +34,9 @@ export interface CatalogTestApp extends AuthTestApp {
   readonly jikan: FakeNet;
   readonly gateway: SourceGateway;
   readonly time: ManualTime;
+  /** The discovery service, for the jobs that use it (metadata refresh). */
+  readonly titles: TitlesModule['service'];
+  readonly logger: ReturnType<typeof createLogger>;
   /** Register and log in a fresh user; resolves with their bearer header. */
   signIn(label?: string): Promise<{ readonly userId: string; readonly auth: string }>;
   get(path: string, auth: string): request.Test;
@@ -90,6 +94,7 @@ export async function buildCatalogTestApp(options: {
         }),
   });
   const logger = createLogger({ level: 'silent', destination: new LogSink() });
+  let titlesModule: TitlesModule | undefined;
   const app = await buildAuthTestApp({
     db: options.db,
     extraRouters: (auth, context) => [
@@ -101,22 +106,26 @@ export async function buildCatalogTestApp(options: {
       }).router,
       // The library runs on the real clock: its ordering and dates are what its tests check.
       createLibraryModule({ db: options.db, authenticated: auth.authenticated }).router,
-      createTitlesModule({
+      createInboxModule({ db: options.db, authenticated: auth.authenticated }).router,
+      (titlesModule = createTitlesModule({
         config: testConfig(),
         db: options.db,
         logger,
         authenticated: auth.authenticated,
         gateway,
         now: () => new Date(time.now()),
-      }).router,
+      })).router,
     ],
   });
+  if (titlesModule === undefined) throw new Error('the titles module was not built');
   return {
     ...app,
     anilist,
     jikan,
     gateway,
     time,
+    titles: titlesModule.service,
+    logger,
     async signIn(label = 'catalog') {
       const credentials = newCredentials(label);
       await register(app.app, credentials);
@@ -125,4 +134,10 @@ export async function buildCatalogTestApp(options: {
     },
     get: (path, auth) => request(app.app).get(`/v1${path}`).set('Authorization', auth),
   };
+}
+
+/** True for AniList's airing-schedule query (the one the jobs send). */
+export function isAiringQuery(request: RecordedRequest): boolean {
+  const query = request.body?.['query'];
+  return typeof query === 'string' && query.includes('query Airing');
 }

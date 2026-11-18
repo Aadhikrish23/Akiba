@@ -86,6 +86,24 @@ const ENTRY_BODIES: Readonly<Record<string, object | null>> = {
   'POST /v1/library/:entryId/runs': null,
 };
 
+/** Routes that act on one of the caller's notifications by ID. */
+const NOTIFICATION_ROUTES = ['DELETE /v1/inbox/:id', 'POST /v1/inbox/:id/read'];
+
+/**
+ * Path parameters a private route may take. `entryId` and `id` (a notification) name the caller's
+ * own data and are attacked below; the rest name shared catalog records, the same for everybody
+ * (their user-specific parts, such as library status, are looked up by the caller's ID). A new
+ * parameter is a new decision: add it here only once it is clear which kind it is.
+ */
+const CATALOG_PARAMS = new Set([
+  'titleId',
+  'franchiseId',
+  'studioId',
+  'characterId',
+  'year',
+  'season',
+]);
+
 const NIL_UUID = '00000000-0000-4000-8000-000000000000';
 const fill = (path: string, values: Record<string, string>): string =>
   path.replace(/:(\w+)/g, (_, name: string) => values[name] ?? NIL_UUID);
@@ -121,6 +139,19 @@ describe('route table access control (T20, doc 11 §3.2)', () => {
       (route) => isPrivate(route) && route.path.includes(':entryId'),
     );
     expect(entryRoutes.map(key).sort()).toEqual(Object.keys(ENTRY_BODIES).sort());
+    const notificationRoutes = routes.filter(
+      (route) => isPrivate(route) && route.path.includes('/inbox/:id'),
+    );
+    expect(notificationRoutes.map(key).sort()).toEqual([...NOTIFICATION_ROUTES].sort());
+    // No private route takes a parameter nobody has decided about.
+    for (const route of routes.filter(isPrivate)) {
+      for (const [, name] of route.path.matchAll(/:(w+)/g)) {
+        expect(
+          name === 'entryId' || name === 'id' || CATALOG_PARAMS.has(name!),
+          `${key(route)} takes an unclassified parameter :${name}`,
+        ).toBe(true);
+      }
+    }
   });
 
   it('every private route answers 401 without a token, and with a forged or malformed one', async () => {
@@ -206,6 +237,53 @@ describe('route table access control (T20, doc 11 §3.2)', () => {
       .get(`/v1/library/${entryId}`)
       .set('Authorization', owner.auth);
     expect(still.body.data).toMatchObject({ progress: 0, rating: null, status: 'watching' });
+  });
+
+  it("a second user gets 404 for someone else's notification, and nothing changes", async () => {
+    const owner = await t.signIn('inbox-owner');
+    const intruder = await t.signIn('inbox-intruder');
+    const titleId = (
+      await testDb.sql.query<{ id: string }>(
+        `INSERT INTO title (kind, status, title_romaji, fetched_at) VALUES ('tv', 'releasing', 'Owned Show', now()) RETURNING id`,
+      )
+    ).rows[0]!.id;
+    const episodeId = (
+      await testDb.sql.query<{ id: string }>(
+        `INSERT INTO airing_episode (title_id, episode_number, airs_at, source) VALUES ($1, 1, now(), 'anilist') RETURNING id`,
+        [titleId],
+      )
+    ).rows[0]!.id;
+    const notificationId = (
+      await testDb.sql.query<{ id: string }>(
+        `INSERT INTO notification (user_id, kind, title_id, episode_id) VALUES ($1, 'episode_aired', $2, $3) RETURNING id`,
+        [owner.userId, titleId, episodeId],
+      )
+    ).rows[0]!.id;
+    const dump = async () =>
+      JSON.stringify((await testDb.sql.query('SELECT * FROM notification ORDER BY id')).rows);
+    const before = await dump();
+
+    const failures: string[] = [];
+    for (const signature of NOTIFICATION_ROUTES) {
+      const route = routes.find((r) => key(r) === signature)!;
+      const send = (id: string) =>
+        request(t.app)[route.method](fill(route.path, { id })).set('Authorization', intruder.auth);
+      const theirs = await send(notificationId);
+      const missing = await send(NIL_UUID);
+      if (theirs.status !== 404) failures.push(`${signature} on another user's: ${theirs.status}`);
+      if (missing.status !== 404) failures.push(`${signature} on a missing one: ${missing.status}`);
+      if (
+        JSON.stringify({ ...(theirs.body as object), instance: 0, requestId: 0 }) !==
+        JSON.stringify({ ...(missing.body as object), instance: 0, requestId: 0 })
+      ) {
+        failures.push(`${signature}: the two 404 bodies differ`);
+      }
+    }
+    expect(failures).toEqual([]);
+    expect(await dump()).toBe(before);
+    expect(
+      (await request(t.app).get('/v1/inbox/unread-count').set('Authorization', owner.auth)).body,
+    ).toEqual({ data: { count: 1 } });
   });
 
   it("listings never include another user's data (library, favourites, counts, history, export)", async () => {

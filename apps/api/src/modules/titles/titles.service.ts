@@ -68,7 +68,21 @@ export interface TitlesService {
   detail(userId: string, titleId: string): Promise<TitleDetailResponse>;
   relations(userId: string, titleId: string): Promise<RelationsResponse>;
   characters(userId: string, titleId: string): Promise<TitleCharactersResponse>;
+  /**
+   * The metadata-refresh job: re-read the detail of titles that are on someone's shelf and whose
+   * copy has outlived its time to live, oldest first, at most `limit`. Stops at the first moment
+   * no source can answer.
+   */
+  refreshStale(limit: number): Promise<RefreshSummary>;
   genres(): Promise<string[]>;
+}
+
+export interface RefreshSummary {
+  readonly candidates: number;
+  readonly refreshed: number;
+  readonly failed: number;
+  /** True when the sources went away part-way (the rest waits for the next run). */
+  readonly stopped: boolean;
 }
 
 export interface TitlesServiceOptions {
@@ -507,6 +521,39 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     return { data: cast, meta };
   }
 
+  async function refreshStale(limit: number): Promise<RefreshSummary> {
+    const live = new Date(now().getTime() - LIVE_DETAIL_TTL_MS);
+    const done = new Date(now().getTime() - DONE_DETAIL_TTL_MS);
+    const rows = await db.title.findMany({
+      where: {
+        libraryEntries: { some: { removedAt: null } },
+        OR: [
+          { detailFetchedAt: null },
+          { status: { in: ['finished', 'cancelled'] }, detailFetchedAt: { lt: done } },
+          { status: { notIn: ['finished', 'cancelled'] }, detailFetchedAt: { lt: live } },
+        ],
+      },
+      select: { id: true },
+      orderBy: [{ detailFetchedAt: { sort: 'asc', nulls: 'first' } }, { id: 'asc' }],
+      take: limit,
+    });
+    let refreshed = 0;
+    let failed = 0;
+    for (const row of rows) {
+      try {
+        await refreshDetail(row.id);
+        refreshed += 1;
+      } catch (error) {
+        if (error instanceof SourcesUnavailableError) {
+          return { candidates: rows.length, refreshed, failed, stopped: true };
+        }
+        failed += 1;
+        logger.warn({ titleId: row.id, err: error }, 'metadata refresh failed for a title');
+      }
+    }
+    return { candidates: rows.length, refreshed, failed, stopped: false };
+  }
+
   // ── Genres ──────────────────────────────────────────────────────────────────────
 
   /** Adult-only genre labels never appear in pickers (Q-10). */
@@ -549,6 +596,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     detail,
     relations,
     characters,
+    refreshStale,
     genres,
   };
 }
