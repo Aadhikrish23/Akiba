@@ -52,6 +52,7 @@ const detailOf = (n: number, extra: Record<string, unknown> = {}) => ({
   genres: ['Action', 'Comedy'],
   studios: [{ id: '00000000-0000-4000-8000-0000000000aa', name: 'Wit Studio', isMain: true }],
   nextAiring: null,
+  franchiseId: null,
   ...extra,
 });
 

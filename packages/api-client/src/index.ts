@@ -27,6 +27,10 @@ import {
   seasonListResponseSchema,
   titleDetailResponseSchema,
   titleListResponseSchema,
+  characterResponseSchema,
+  franchiseResponseSchema,
+  studioResponseSchema,
+  titleCharactersResponseSchema,
   acceptedResponseSchema,
   type AcceptedResponse,
   type AuthUser,
@@ -69,6 +73,11 @@ import {
   type SeasonQuery,
   type TitleDetailResponse,
   type TitleListResponse,
+  type CharacterResponse,
+  type FranchiseResponse,
+  type StudioResponse,
+  type StudioTitlesQuery,
+  type TitleCharactersResponse,
 } from '@akiba/shared';
 import { ApiError, ContractError, NetworkError, NotSignedInError } from './errors.js';
 
@@ -154,7 +163,17 @@ export interface TitlesApi {
   currentSeason(params?: SeasonParams): Promise<SeasonListResponse>;
   detail(titleId: string): Promise<TitleDetailResponse>;
   relations(titleId: string): Promise<RelationsResponse>;
+  /** The main cast with voice actors (`GET /titles/:titleId/characters`). */
+  characters(titleId: string): Promise<TitleCharactersResponse>;
   genres(): Promise<string[]>;
+}
+
+/** Franchise, studio and character pages (doc 07 §3). A missing or hidden one is an {@link ApiError} 404. */
+export interface ExploreApi {
+  franchise(franchiseId: string): Promise<FranchiseResponse>;
+  studio(studioId: string): Promise<StudioResponse>;
+  studioTitles(studioId: string, params?: Partial<StudioTitlesQuery>): Promise<TitleListResponse>;
+  character(characterId: string): Promise<CharacterResponse>;
 }
 
 /** The user's library (doc 07 §4). */
@@ -197,6 +216,7 @@ export interface ApiClient {
   url(path: string): string;
   readonly auth: AuthApi;
   readonly titles: TitlesApi;
+  readonly explore: ExploreApi;
   readonly library: LibraryApi;
   readonly history: { list(params?: Partial<HistoryQuery>): Promise<HistoryResponse> };
   readonly account: AccountApi;
@@ -585,8 +605,31 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       const path = `/titles/${id(titleId)}/relations`;
       return parse(relationsResponseSchema, path, await get(path));
     },
+    async characters(titleId) {
+      const path = `/titles/${id(titleId)}/characters`;
+      return parse(titleCharactersResponseSchema, path, await get(path));
+    },
     async genres() {
       return parse(genresResponseSchema, '/genres', await get('/genres')).data;
+    },
+  };
+
+  const explore: ExploreApi = {
+    async franchise(franchiseId) {
+      const path = `/franchises/${id(franchiseId)}`;
+      return parse(franchiseResponseSchema, path, await get(path));
+    },
+    async studio(studioId) {
+      const path = `/studios/${id(studioId)}`;
+      return parse(studioResponseSchema, path, await get(path));
+    },
+    async studioTitles(studioId, params) {
+      const path = `/studios/${id(studioId)}/titles`;
+      return parse(titleListResponseSchema, path, await get(path, params));
+    },
+    async character(characterId) {
+      const path = `/characters/${id(characterId)}`;
+      return parse(characterResponseSchema, path, await get(path));
     },
   };
 
@@ -687,6 +730,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     url,
     auth,
     titles,
+    explore,
     library,
     history: {
       async list(params) {

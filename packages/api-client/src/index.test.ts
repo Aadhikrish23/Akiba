@@ -643,6 +643,7 @@ describe('@akiba/api-client: titles (T12 endpoints)', () => {
             genres: ['Action'],
             studios: [],
             nextAiring: null,
+            franchiseId: null,
           },
           meta: list.meta,
         });
@@ -665,6 +666,80 @@ describe('@akiba/api-client: titles (T12 endpoints)', () => {
       data: [{ relationType: 'sequel' }],
     });
     await expect(client.titles.genres()).resolves.toEqual(['Action', 'Comedy']);
+  });
+
+  it('parses franchise, studio, studio works, character and cast pages with the shared schemas (T21/T22)', async () => {
+    const actor = {
+      id: '3f2b8c1e-5a47-4d0e-9d57-0c5d9a3b7e33',
+      name: 'Yuki Kaji',
+      nativeName: null,
+      imageUrl: null,
+      language: 'Japanese',
+    };
+    const { client, calls } = signedIn((request) => {
+      if (request.url.includes('/franchises/'))
+        return json(200, {
+          data: {
+            id: card.id,
+            name: 'Shingeki no Kyojin',
+            titles: [{ ...card, startDate: '2013-04-07' }],
+            relations: [{ fromTitleId: card.id, toTitleId: card.id, relationType: 'sequel' }],
+            totals: { titles: 1, inLibrary: 0, completed: 0 },
+          },
+          meta: { stale: false, source: 'cache' },
+        });
+      if (new URL(request.url).pathname.endsWith('/titles')) return json(200, list);
+      if (request.url.includes('/studios/'))
+        return json(200, {
+          data: { id: card.id, name: 'Wit Studio', isAnimationStudio: true, titleCount: 4 },
+          meta: { stale: false, source: 'cache' },
+        });
+      if (request.url.includes('/characters/'))
+        return json(200, {
+          data: {
+            id: card.id,
+            name: 'Eren',
+            nativeName: null,
+            imageUrl: null,
+            description: null,
+            voiceActors: [actor],
+            appearances: [{ role: 'main', title: card }],
+          },
+          meta: { stale: false, source: 'cache' },
+        });
+      return json(200, {
+        data: [
+          {
+            id: card.id,
+            name: 'Eren',
+            nativeName: null,
+            imageUrl: null,
+            role: 'main',
+            voiceActors: [actor],
+          },
+        ],
+        meta: list.meta,
+      });
+    });
+    await expect(client.explore.franchise(card.id)).resolves.toMatchObject({
+      data: { name: 'Shingeki no Kyojin', totals: { titles: 1 } },
+    });
+    await expect(client.explore.studio(card.id)).resolves.toMatchObject({
+      data: { titleCount: 4 },
+    });
+    await expect(
+      client.explore.studioTitles(card.id, { limit: 2, cursor: 'next' }),
+    ).resolves.toMatchObject({ nextCursor: 'abc' });
+    const works = calls.find((call) => call.url.endsWith('/titles?limit=2&cursor=next'));
+    expect(works).toBeDefined();
+    await expect(client.explore.character(card.id)).resolves.toMatchObject({
+      data: { voiceActors: [{ language: 'Japanese' }], appearances: [{ role: 'main' }] },
+    });
+    await expect(client.titles.characters(card.id)).resolves.toMatchObject({
+      data: [{ name: 'Eren', role: 'main' }],
+    });
+    await client.explore.franchise('a/b');
+    expect(calls.at(-1)?.url).toContain('/franchises/a%2Fb');
   });
 
   it('escapes a title ID in the path', async () => {

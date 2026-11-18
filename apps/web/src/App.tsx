@@ -12,6 +12,7 @@ import {
   VerifyEmailPage,
 } from './pages/auth';
 import { DiscoverPage } from './pages/Discover';
+import { CharacterPage, FranchisePage, StudioPage } from './pages/Explore';
 import { HistoryPage } from './pages/History';
 import { HomePage } from './pages/Home';
 import { LibraryPage } from './pages/Library';
@@ -56,6 +57,9 @@ export function AppRoutes() {
         <Route path="discover/season" element={<CurrentSeasonRedirect />} />
         <Route path="discover/season/:year/:season" element={<SeasonChartPage />} />
         <Route path="title/:titleId" element={<TitlePage />} />
+        <Route path="franchise/:franchiseId" element={<FranchisePage />} />
+        <Route path="studio/:studioId" element={<StudioPage />} />
+        <Route path="character/:characterId" element={<CharacterPage />} />
       </Route>
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

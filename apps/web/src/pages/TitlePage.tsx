@@ -1,6 +1,10 @@
 import { ApiError } from '@akiba/api-client';
-import type { RelationsResponse, TitleDetailResponse } from '@akiba/shared';
-import { useCallback, useEffect, useState } from 'react';
+import type {
+  RelationsResponse,
+  TitleCharactersResponse,
+  TitleDetailResponse,
+} from '@akiba/shared';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { PosterCard, PosterGrid } from '../components/PosterCard';
@@ -8,19 +12,15 @@ import { ShelfPanel } from '../components/ShelfPanel';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { usePageTitle } from '../lib/page';
-import { KIND_LABEL, SEASON_LABEL, STATUS_LABEL, displayTitle, otherTitles } from '../lib/titles';
-
-const RELATION_LABEL: Record<string, string> = {
-  prequel: 'Before this',
-  sequel: 'After this',
-  parent_story: 'Main story',
-  side_story: 'Side stories',
-  spin_off: 'Spin-offs',
-  alternative: 'Alternative versions',
-  adaptation: 'Adaptations',
-  summary: 'Summaries and recaps',
-  other: 'Also related',
-};
+import {
+  KIND_LABEL,
+  RELATION_LABEL,
+  SEASON_LABEL,
+  STATUS_LABEL,
+  displayTitle,
+  otherTitles,
+} from '../lib/titles';
+import { ROLE_LABEL } from './Explore';
 
 type Load =
   | { phase: 'loading' }
@@ -38,12 +38,14 @@ export function TitlePage() {
   const { client } = useAuth();
   const [load, setLoad] = useState<Load>({ phase: 'loading' });
   const [relations, setRelations] = useState<RelationsResponse | 'failed' | null>(null);
+  const [cast, setCast] = useState<TitleCharactersResponse | 'failed' | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
     setLoad({ phase: 'loading' });
     setRelations(null);
+    setCast(null);
     client.titles
       .detail(titleId)
       .then((response) => {
@@ -68,6 +70,14 @@ export function TitlePage() {
       })
       .catch(() => {
         if (live) setRelations('failed');
+      });
+    client.titles
+      .characters(titleId)
+      .then((response) => {
+        if (live) setCast(response);
+      })
+      .catch(() => {
+        if (live) setCast('failed');
       });
     return () => {
       live = false;
@@ -124,7 +134,7 @@ export function TitlePage() {
   }
 
   const { data: title, meta } = load.response;
-  const facts: [string, string][] = [
+  const facts: [string, ReactNode][] = [
     ['Format', title.format ?? KIND_LABEL[title.kind]],
     ['Status', STATUS_LABEL[title.status]],
   ];
@@ -141,8 +151,19 @@ export function TitlePage() {
   if (title.startDate !== null) facts.push(['Started', title.startDate]);
   if (title.endDate !== null) facts.push(['Ended', title.endDate]);
   if (title.averageScore !== null) facts.push(['Average score', `${title.averageScore} / 100`]);
-  if (title.studios.length > 0)
-    facts.push(['Studios', title.studios.map((studio) => studio.name).join(', ')]);
+  if (title.studios.length > 0) {
+    facts.push([
+      'Studios',
+      title.studios.map((studio, index) => (
+        <span key={studio.id}>
+          {index > 0 && ', '}
+          <Link to={`/studio/${studio.id}`} className="underline underline-offset-4">
+            {studio.name}
+          </Link>
+        </span>
+      )),
+    ]);
+  }
 
   return (
     <article className="grid max-w-5xl gap-10">
@@ -223,10 +244,71 @@ export function TitlePage() {
         </section>
       )}
 
-      <section aria-labelledby="related-heading" className="grid gap-5">
-        <h2 id="related-heading" className="font-serif text-xl font-semibold">
-          Related titles
+      <section aria-labelledby="cast-heading" className="grid gap-4">
+        <h2 id="cast-heading" className="font-serif text-xl font-semibold">
+          Characters
         </h2>
+        {cast === null && (
+          <p role="status" aria-busy="true" className="text-mute">
+            Loading characters…
+          </p>
+        )}
+        {cast === 'failed' && <Notice>The characters could not be loaded just now.</Notice>}
+        {cast !== null && cast !== 'failed' && cast.data.length === 0 && (
+          <p className="text-mute">No characters are listed for this title yet.</p>
+        )}
+        {cast !== null && cast !== 'failed' && cast.data.length > 0 && (
+          <ul
+            aria-label="Characters"
+            className="grid list-none gap-x-6 gap-y-3 p-0"
+            style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}
+          >
+            {cast.data.map((character) => (
+              <li
+                key={character.id}
+                className="has-[:focus-visible]:outline-accent relative grid grid-cols-[48px_1fr] gap-3 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4"
+              >
+                <div className="bg-raised border-rule aspect-square overflow-hidden rounded-sm border">
+                  {character.imageUrl !== null && (
+                    <img
+                      src={character.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="size-full object-cover"
+                    />
+                  )}
+                </div>
+                <div className="grid content-center">
+                  <Link
+                    to={`/character/${character.id}`}
+                    className="font-medium focus-visible:outline-none after:absolute after:inset-0"
+                  >
+                    {character.name}
+                  </Link>
+                  <p className="text-mute text-sm">
+                    {ROLE_LABEL[character.role]}
+                    {character.voiceActors[0] !== undefined &&
+                      ` · voiced by ${character.voiceActors[0].name}`}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="related-heading" className="grid gap-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+          <h2 id="related-heading" className="font-serif text-xl font-semibold">
+            Related titles
+          </h2>
+          {title.franchiseId !== null && (
+            <Link to={`/franchise/${title.franchiseId}`} className="underline underline-offset-4">
+              See the whole franchise
+            </Link>
+          )}
+        </div>
         {relations === null && (
           <p role="status" aria-busy="true" className="text-mute">
             Loading related titles…

@@ -203,3 +203,16 @@ function listError(error: unknown): string {
   }
   return describeError(error).message;
 }
+
+/** What a related title is to the title page it is listed on (and to the franchise page rows). */
+export const RELATION_LABEL: Readonly<Record<string, string>> = {
+  prequel: 'Before this',
+  sequel: 'After this',
+  parent_story: 'Main story',
+  side_story: 'Side stories',
+  spin_off: 'Spin-offs',
+  alternative: 'Alternative versions',
+  adaptation: 'Adaptations',
+  summary: 'Summaries and recaps',
+  other: 'Also related',
+};

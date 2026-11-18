@@ -291,6 +291,7 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
             genres: [],
             studios: [],
             nextAiring: null,
+            franchiseId: null,
           },
           meta: { stale: false, source: 'cache' },
         });
