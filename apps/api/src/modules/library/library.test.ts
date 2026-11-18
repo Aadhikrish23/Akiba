@@ -255,7 +255,7 @@ describe('library API (T15, FR-LIB-001…007)', () => {
         { status: 'finished' },
         {},
         { surprise: true },
-        { rating: 5 },
+        { progress: 5 },
         { notes: 'x'.repeat(2001) },
       ]) {
         expect((await patch(entry.id, body)).status, JSON.stringify(body).slice(0, 40)).toBe(422);

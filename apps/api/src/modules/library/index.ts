@@ -1,5 +1,6 @@
 import type { RequestHandler, Router } from 'express';
 import type { DbClient } from '../../db/index.js';
+import { createHistoryService } from './history.js';
 import { createLibraryRouter } from './library.routes.js';
 import { createLibraryService, type LibraryService } from './library.service.js';
 
@@ -23,7 +24,11 @@ export function createLibraryModule(options: LibraryModuleOptions): LibraryModul
     ...(options.now === undefined ? {} : { now: options.now }),
   });
   return {
-    router: createLibraryRouter({ service, authenticated: options.authenticated }),
+    router: createLibraryRouter({
+      service,
+      history: createHistoryService(options.db),
+      authenticated: options.authenticated,
+    }),
     service,
   };
 }

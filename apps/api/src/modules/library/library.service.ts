@@ -4,10 +4,21 @@ import type {
   LibraryEntryDetail,
   LibraryListQuery,
   LibraryListResponse,
+  EpisodesTotalRequest,
+  ProgressRequest,
+  ProgressResponse,
   UpdateEntryRequest,
 } from '@akiba/shared';
 import { Prisma, type DbClient, type DbTransaction } from '../../db/index.js';
-import { alreadyInLibrary, notFound } from '../../lib/errors.js';
+import {
+  alreadyInLibrary,
+  entryCompleted,
+  notCompleted,
+  notFound,
+  progressBelowZero,
+  progressExceedsTotal,
+  totalBelowProgress,
+} from '../../lib/errors.js';
 import { EventWriter } from './events.js';
 import { decodeOffset, encodeOffset } from './cursor.js';
 import { effectiveTotal, entrySelect, toDetail, toEntry, type EntryRow } from './view.js';
@@ -21,6 +32,17 @@ export interface LibraryService {
   add(userId: string, request: AddToLibraryRequest): Promise<LibraryEntryDetail>;
   update(userId: string, entryId: string, request: UpdateEntryRequest): Promise<LibraryEntryDetail>;
   remove(userId: string, entryId: string): Promise<void>;
+  /** FR-TRK-001…004, -007, -008: +1 / -1 / set; Planned → Watching on the first episode. */
+  progress(userId: string, entryId: string, request: ProgressRequest): Promise<ProgressResponse>;
+  /** FR-TRK-005: the user's own episode count (visible and resettable). */
+  setEpisodesTotal(
+    userId: string,
+    entryId: string,
+    request: EpisodesTotalRequest,
+  ): Promise<LibraryEntryDetail>;
+  clearEpisodesTotal(userId: string, entryId: string): Promise<LibraryEntryDetail>;
+  /** FR-REM-004: a new run of a completed title; earlier runs are kept. */
+  startRun(userId: string, entryId: string): Promise<LibraryEntryDetail>;
 }
 
 export interface LibraryServiceOptions {
@@ -57,8 +79,17 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
     client: DbClient | DbTransaction,
     userId: string,
     entryId: string,
+    lock = false,
   ): Promise<DetailRow> {
     if (!UUID.test(entryId)) throw notFound();
+    if (lock) {
+      // Two requests on one entry (a double-tapped +1, two devices) take turns: each reads the
+      // state the other left, so no update is lost. Waits only on the same entry's row.
+      await client.$queryRaw`
+        SELECT id FROM library_entry
+        WHERE id = ${entryId}::uuid AND user_id = ${userId}::uuid AND removed_at IS NULL
+        FOR UPDATE`;
+    }
     const row = await client.libraryEntry.findFirst({
       where: { id: entryId, userId, removedAt: null },
       select: DETAIL_SELECT(userId),
@@ -234,17 +265,20 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
         type: 'run_started',
         payload: { run_number: runNumber },
       });
+      // The entry's progress changes with the new run (back to 0, or to the total when added
+      // as Completed): the events must explain it, so the history and the state always agree.
+      const fromProgress = existing?.progress ?? 0;
+      if (progress !== fromProgress) {
+        await events.write({
+          userId,
+          entryId,
+          titleId: title.id,
+          runId: run.id,
+          type: 'progress_changed',
+          payload: { from: fromProgress, to: progress, run: runNumber },
+        });
+      }
       if (completed) {
-        if (progress > 0) {
-          await events.write({
-            userId,
-            entryId,
-            titleId: title.id,
-            runId: run.id,
-            type: 'progress_changed',
-            payload: { from: 0, to: progress, run: runNumber },
-          });
-        }
         await events.write({
           userId,
           entryId,
@@ -351,7 +385,7 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
     request: UpdateEntryRequest,
   ): Promise<LibraryEntryDetail> {
     await db.$transaction(async (tx) => {
-      const entry = await loadActive(tx, userId, entryId);
+      const entry = await loadActive(tx, userId, entryId, true);
       const at = now();
       const events = new EventWriter(tx, at);
       const data: Prisma.LibraryEntryUncheckedUpdateInput = {};
@@ -367,6 +401,39 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
           titleId: entry.titleId,
           type: request.isFavorite ? 'favorited' : 'unfavorited',
         });
+      }
+      if (request.rating !== undefined && request.rating !== entry.rating) {
+        data.rating = request.rating;
+        await events.write({
+          userId,
+          entryId: entry.id,
+          titleId: entry.titleId,
+          type: 'rated',
+          payload: { from: entry.rating, to: request.rating },
+        });
+        // The rating also belongs to the run it was given in (FR-REM-005).
+        const latest = [...entry.runs].sort((a, b) => b.runNumber - a.runNumber)[0];
+        if (latest !== undefined) {
+          await tx.viewingRun.update({
+            where: { id: latest.id },
+            data: { rating: request.rating },
+          });
+        }
+      }
+      if (request.review !== undefined) {
+        const next =
+          request.review === null || request.review.trim() === '' ? null : request.review;
+        if (next !== entry.review) {
+          data.review = next;
+          // Only the length is recorded: the text lives on the entry (doc 06 §3).
+          await events.write({
+            userId,
+            entryId: entry.id,
+            titleId: entry.titleId,
+            type: 'reviewed',
+            payload: { length: next === null ? 0 : next.length },
+          });
+        }
       }
       if (request.alertsEnabled !== undefined && request.alertsEnabled !== entry.alertsEnabled) {
         data.alertsEnabled = request.alertsEnabled;
@@ -385,7 +452,7 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
 
   async function remove(userId: string, entryId: string): Promise<void> {
     await db.$transaction(async (tx) => {
-      const entry = await loadActive(tx, userId, entryId);
+      const entry = await loadActive(tx, userId, entryId, true);
       const at = now();
       const events = new EventWriter(tx, at);
       // A tombstone, not a delete: the entry's events keep a target (doc 06 §3).
@@ -402,7 +469,192 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
     });
   }
 
+  // ── Tracking ────────────────────────────────────────────────────────────────────
+
+  const currentRunOf = (entry: DetailRow) =>
+    [...entry.runs].sort((a, b) => b.runNumber - a.runNumber)[0];
+
+  async function progress(
+    userId: string,
+    entryId: string,
+    request: ProgressRequest,
+  ): Promise<ProgressResponse> {
+    const suggestComplete = await db.$transaction(async (tx) => {
+      const entry = await loadActive(tx, userId, entryId, true);
+      // A completed entry's run is closed. Logging an episode there would silently reopen it.
+      if (entry.status === 'completed') throw entryCompleted();
+
+      const total = effectiveTotal(entry.episodesTotalOverride, entry.title.episodesTotal);
+      const from = entry.progress;
+      const to = 'delta' in request ? from + request.delta : request.set;
+      if (to < 0) throw progressBelowZero();
+      // FR-TRK-007: never past a known total; the user raises the count if the source is wrong.
+      if (total !== null && to > total) throw progressExceedsTotal(total);
+      if (to === from) return total !== null && to === total;
+
+      const at = now();
+      const events = new EventWriter(tx, at);
+      const data: Prisma.LibraryEntryUncheckedUpdateInput = { progress: to };
+      let run = currentRunOf(entry);
+      if (run === undefined || run.finishedAt !== null) {
+        // Defensive: an active, non-completed entry always has an open run. If one is missing,
+        // make it rather than lose the episode.
+        const created = await tx.viewingRun.create({
+          data: { entryId: entry.id, runNumber: (run?.runNumber ?? 0) + 1, startedAt: at },
+          select: {
+            id: true,
+            runNumber: true,
+            startedAt: true,
+            finishedAt: true,
+            rating: true,
+            progressAtEnd: true,
+          },
+        });
+        await events.write({
+          userId,
+          entryId: entry.id,
+          titleId: entry.titleId,
+          runId: created.id,
+          type: 'run_started',
+          payload: { run_number: created.runNumber },
+        });
+        run = created;
+      }
+
+      await events.write({
+        userId,
+        entryId: entry.id,
+        titleId: entry.titleId,
+        runId: run.id,
+        type: 'progress_changed',
+        payload: { from, to, run: run.runNumber },
+      });
+
+      // FR-TRK-004: the first episode of a Planned entry starts it. Watching an episode of a
+      // paused or dropped one picks it up again.
+      const resumes =
+        to > from &&
+        (entry.status === 'planned' || entry.status === 'on_hold' || entry.status === 'dropped');
+      if (resumes) {
+        data.status = 'watching';
+        if (entry.startedAt === null) data.startedAt = at;
+        await events.write({
+          userId,
+          entryId: entry.id,
+          titleId: entry.titleId,
+          type: 'status_changed',
+          payload: { from: entry.status, to: 'watching' },
+        });
+      }
+      await tx.libraryEntry.update({ where: { id: entry.id }, data: { ...data, updatedAt: at } });
+      return total !== null && to === total;
+    });
+    return { data: await get(userId, entryId), suggestComplete };
+  }
+
+  async function setEpisodesTotal(
+    userId: string,
+    entryId: string,
+    request: EpisodesTotalRequest,
+  ): Promise<LibraryEntryDetail> {
+    await db.$transaction(async (tx) => {
+      const entry = await loadActive(tx, userId, entryId, true);
+      // The invariant is progress <= total. Lowering the count below it is refused, not clamped:
+      // silently dropping watched episodes would lose what the user did.
+      if (request.total < entry.progress) throw totalBelowProgress(entry.progress);
+      if (entry.episodesTotalOverride === request.total) return;
+      const at = now();
+      await tx.libraryEntry.update({
+        where: { id: entry.id },
+        data: { episodesTotalOverride: request.total, updatedAt: at },
+      });
+      await new EventWriter(tx, at).write({
+        userId,
+        entryId: entry.id,
+        titleId: entry.titleId,
+        type: 'total_overridden',
+        payload: {
+          from: effectiveTotal(entry.episodesTotalOverride, entry.title.episodesTotal),
+          to: request.total,
+        },
+      });
+    });
+    return get(userId, entryId);
+  }
+
+  async function clearEpisodesTotal(userId: string, entryId: string): Promise<LibraryEntryDetail> {
+    await db.$transaction(async (tx) => {
+      const entry = await loadActive(tx, userId, entryId, true);
+      if (entry.episodesTotalOverride === null) return; // nothing to reset
+      const source = entry.title.episodesTotal;
+      if (source !== null && source < entry.progress) throw totalBelowProgress(entry.progress);
+      const at = now();
+      await tx.libraryEntry.update({
+        where: { id: entry.id },
+        data: { episodesTotalOverride: null, updatedAt: at },
+      });
+      await new EventWriter(tx, at).write({
+        userId,
+        entryId: entry.id,
+        titleId: entry.titleId,
+        type: 'total_override_cleared',
+        payload: { from: entry.episodesTotalOverride, to: source },
+      });
+    });
+    return get(userId, entryId);
+  }
+
+  async function startRun(userId: string, entryId: string): Promise<LibraryEntryDetail> {
+    await db.$transaction(async (tx) => {
+      const entry = await loadActive(tx, userId, entryId, true);
+      if (entry.status !== 'completed') throw notCompleted();
+      const at = now();
+      const events = new EventWriter(tx, at);
+      const last = currentRunOf(entry);
+      const runNumber = (last?.runNumber ?? 0) + 1;
+      // The finished run stays exactly as it is; the entry's live fields start over for the new one.
+      const run = await tx.viewingRun.create({
+        data: { entryId: entry.id, runNumber, startedAt: at },
+        select: { id: true },
+      });
+      await tx.libraryEntry.update({
+        where: { id: entry.id },
+        data: { status: 'watching', progress: 0, completedAt: null, updatedAt: at },
+      });
+      await events.write({
+        userId,
+        entryId: entry.id,
+        titleId: entry.titleId,
+        type: 'status_changed',
+        payload: { from: 'completed', to: 'watching' },
+      });
+      if (entry.progress > 0) {
+        await events.write({
+          userId,
+          entryId: entry.id,
+          titleId: entry.titleId,
+          runId: run.id,
+          type: 'progress_changed',
+          payload: { from: entry.progress, to: 0, run: runNumber },
+        });
+      }
+      await events.write({
+        userId,
+        entryId: entry.id,
+        titleId: entry.titleId,
+        runId: run.id,
+        type: 'run_started',
+        payload: { run_number: runNumber },
+      });
+    });
+    return get(userId, entryId);
+  }
+
   return {
+    progress,
+    setEpisodesTotal,
+    clearEpisodesTotal,
+    startRun,
     list: (userId, query) => list(userId, query),
     favorites: (userId, query) => list(userId, query, true),
     get,

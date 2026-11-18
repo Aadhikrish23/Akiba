@@ -1,5 +1,8 @@
 import {
   addToLibraryRequestSchema,
+  historyQuerySchema,
+  episodesTotalRequestSchema,
+  progressRequestSchema,
   libraryListQuerySchema,
   updateEntryRequestSchema,
 } from '@akiba/shared';
@@ -7,6 +10,7 @@ import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { getAuth } from '../../middleware/auth.js';
 import { getValidated, validate } from '../../middleware/validate.js';
+import type { HistoryService } from './history.js';
 import type { LibraryService } from './library.service.js';
 
 const entryParams = { params: z.object({ entryId: z.string().max(64) }) };
@@ -18,6 +22,7 @@ const entryParams = { params: z.object({ entryId: z.string().max(64) }) };
  */
 export function createLibraryRouter(options: {
   readonly service: LibraryService;
+  readonly history: HistoryService;
   readonly authenticated: readonly RequestHandler[];
 }): Router {
   const { service } = options;
@@ -51,10 +56,54 @@ export function createLibraryRouter(options: {
     res.json({ data: await service.get(getAuth(res).userId, params.entryId) });
   });
 
+  const historySchemas = { query: historyQuerySchema };
+  router.get('/history', ...guarded, validate(historySchemas), async (_req, res) => {
+    res.json(
+      await options.history.list(getAuth(res).userId, getValidated(res, historySchemas).query),
+    );
+  });
+
   const patchSchemas = { ...entryParams, body: updateEntryRequestSchema };
   router.patch('/library/:entryId', ...guarded, validate(patchSchemas), async (_req, res) => {
     const { params, body } = getValidated(res, patchSchemas);
     res.json({ data: await service.update(getAuth(res).userId, params.entryId, body) });
+  });
+
+  const progressSchemas = { ...entryParams, body: progressRequestSchema };
+  router.post(
+    '/library/:entryId/progress',
+    ...guarded,
+    validate(progressSchemas),
+    async (_req, res) => {
+      const { params, body } = getValidated(res, progressSchemas);
+      res.json(await service.progress(getAuth(res).userId, params.entryId, body));
+    },
+  );
+
+  const totalSchemas = { ...entryParams, body: episodesTotalRequestSchema };
+  router.put(
+    '/library/:entryId/episodes-total',
+    ...guarded,
+    validate(totalSchemas),
+    async (_req, res) => {
+      const { params, body } = getValidated(res, totalSchemas);
+      res.json({ data: await service.setEpisodesTotal(getAuth(res).userId, params.entryId, body) });
+    },
+  );
+
+  router.delete(
+    '/library/:entryId/episodes-total',
+    ...guarded,
+    validate(entryParams),
+    async (_req, res) => {
+      const { params } = getValidated(res, entryParams);
+      res.json({ data: await service.clearEpisodesTotal(getAuth(res).userId, params.entryId) });
+    },
+  );
+
+  router.post('/library/:entryId/runs', ...guarded, validate(entryParams), async (_req, res) => {
+    const { params } = getValidated(res, entryParams);
+    res.status(201).json({ data: await service.startRun(getAuth(res).userId, params.entryId) });
   });
 
   router.delete('/library/:entryId', ...guarded, validate(entryParams), async (_req, res) => {
