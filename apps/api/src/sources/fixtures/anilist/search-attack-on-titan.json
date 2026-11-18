@@ -1,0 +1,178 @@
+{
+  "recordedAt": "2026-11-18T11:00:08.241Z",
+  "request": {
+    "variables": {
+      "page": 1,
+      "perPage": 3,
+      "search": "attack on titan",
+      "isAdult": false,
+      "sort": ["SEARCH_MATCH"]
+    }
+  },
+  "status": 200,
+  "response": {
+    "data": {
+      "Page": {
+        "pageInfo": {
+          "currentPage": 1,
+          "hasNextPage": true
+        },
+        "media": [
+          {
+            "id": 16498,
+            "idMal": 16498,
+            "title": {
+              "romaji": "Shingeki no Kyojin",
+              "english": "Attack on Titan",
+              "native": "進撃の巨人"
+            },
+            "synonyms": [
+              "SnK",
+              "AoT",
+              "Ataque a los Titanes",
+              "Ataque dos Titãs",
+              "L'Attacco dei Giganti",
+              "מתקפת הטיטאנים",
+              "进击的巨人",
+              "L’Attaque des Titans",
+              "الهجوم على العمالقة",
+              "ผ่าพิภพไททัน",
+              "حمله به تایتان",
+              "Ataque de Titãs",
+              "Atak Tytanów",
+              "Атака титанов",
+              "Đại Chiến Titan"
+            ],
+            "description": "Several hundred years ago, humans were nearly exterminated by titans. Titans are typically several stories tall, seem to have no intelligence, devour human beings and, worst of all, seem to do it for the pleasure rather than as a food source. A small percentage of humanity survived by walling themselves in a city protected by extremely high walls, even taller than the biggest of titans.<br><br>\r\nFlash forward to the present and the city has not seen a titan in over 100 years. Teenage boy Eren and his foster sister Mikasa witness something horrific as the city walls are destroyed by a colossal titan that appears out of thin air. As the smaller titans flood the city, the two kids watch in horror as their mother is eaten alive. Eren vows that he will murder every single titan and take revenge for all of mankind.<br><br>\r\n(Source: MangaHelpers)",
+            "coverImage": {
+              "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-buvcRTBx4NSm.jpg",
+              "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx16498-buvcRTBx4NSm.jpg"
+            },
+            "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/16498-8jpFCOcDmneX.jpg",
+            "format": "TV",
+            "status": "FINISHED",
+            "episodes": 25,
+            "duration": 24,
+            "season": "SPRING",
+            "seasonYear": 2013,
+            "startDate": {
+              "year": 2013,
+              "month": 4,
+              "day": 7
+            },
+            "endDate": {
+              "year": 2013,
+              "month": 9,
+              "day": 28
+            },
+            "averageScore": 85,
+            "popularity": 1080169,
+            "isAdult": false,
+            "genres": ["Action", "Drama", "Fantasy", "Mystery"],
+            "updatedAt": 1794996015
+          },
+          {
+            "id": 110277,
+            "idMal": 40028,
+            "title": {
+              "romaji": "Shingeki no Kyojin: The Final Season",
+              "english": "Attack on Titan Final Season",
+              "native": "進撃の巨人 The Final Season"
+            },
+            "synonyms": [
+              "SnK 4",
+              "AoT 4",
+              "Shingeki no Kyojin 4",
+              "進撃の巨人4",
+              "Attack on Titan Season 4",
+              "진격의 거인 더 파이널 시즌",
+              "מתקפת הטיטאנים העונה האחרונה",
+              "L'Attaque des Titans Saison Finale",
+              "L'Attacco dei Giganti 4",
+              "L'Attacco dei Giganti - La Stagione Finale",
+              "حمله به تایتان فصل 4 ",
+              " ผ่าพิภพไททัน ไฟนอล ซีซั่น",
+              "ผ่าพิภพไททัน Final Season",
+              "ผ่าพิภพไททัน ภาค 4",
+              "هجوم العملاقة الجزء الأخير",
+              "Атака Титанов: Финал"
+            ],
+            "description": "It’s been four years since the Scout Regiment reached the shoreline, and the world looks different now. Things are heating up as the fate of the Scout Regiment—and the people of Paradis—are determined at last. However, Eren is missing. Will he reappear before age-old tensions between Marleyans and Eldians result in the war of all wars?<br>\n<br>\n(Source: Crunchyroll)",
+            "coverImage": {
+              "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx110277-sKUNXAsWMNFw.jpg",
+              "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx110277-sKUNXAsWMNFw.jpg"
+            },
+            "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/110277-iuGn6F5bK1U1.jpg",
+            "format": "TV",
+            "status": "FINISHED",
+            "episodes": 16,
+            "duration": 24,
+            "season": "WINTER",
+            "seasonYear": 2021,
+            "startDate": {
+              "year": 2020,
+              "month": 12,
+              "day": 7
+            },
+            "endDate": {
+              "year": 2021,
+              "month": 3,
+              "day": 29
+            },
+            "averageScore": 87,
+            "popularity": 657624,
+            "isAdult": false,
+            "genres": ["Action", "Drama", "Fantasy", "Mystery"],
+            "updatedAt": 1794999609
+          },
+          {
+            "id": 20958,
+            "idMal": 25777,
+            "title": {
+              "romaji": "Shingeki no Kyojin Season 2",
+              "english": "Attack on Titan Season 2",
+              "native": "進撃の巨人 Season２"
+            },
+            "synonyms": [
+              "SnK 2",
+              "AoT 2",
+              "+מתקפת הטיטאנים עונה 2",
+              "L'Attacco dei Giganti 2",
+              "L'Attacco dei Giganti - Seconda Stagione",
+              "ผ่าพิภพไททัน ภาค 2",
+              "حمله به تایتان فصل 2",
+              "Атака титанов 2"
+            ],
+            "description": "Eren Jaeger swore to wipe out every last Titan, but in a battle for his life he wound up becoming the thing he hates most. With his new powers, he fights for humanity's freedom facing the monsters that threaten his home. After a bittersweet victory against the Female Titan, Eren finds no time to rest—a horde of Titans is approaching Wall Rose and the battle for humanity continues!<br><br>\n\n(Source: Funimation)",
+            "coverImage": {
+              "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx20958-HuFJyr54Mmir.jpg",
+              "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx20958-HuFJyr54Mmir.jpg"
+            },
+            "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/20958-Y7eQdz9VENBD.jpg",
+            "format": "TV",
+            "status": "FINISHED",
+            "episodes": 12,
+            "duration": 25,
+            "season": "SPRING",
+            "seasonYear": 2017,
+            "startDate": {
+              "year": 2017,
+              "month": 4,
+              "day": 1
+            },
+            "endDate": {
+              "year": 2017,
+              "month": 6,
+              "day": 17
+            },
+            "averageScore": 85,
+            "popularity": 749650,
+            "isAdult": false,
+            "genres": ["Action", "Drama", "Fantasy", "Mystery"],
+            "updatedAt": 1794996018
+          }
+        ]
+      }
+    }
+  }
+}

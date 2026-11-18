@@ -1,0 +1,263 @@
+{
+  "recordedAt": "2026-11-18T11:00:13.995Z",
+  "request": {
+    "variables": {
+      "id": 16498
+    }
+  },
+  "status": 200,
+  "response": {
+    "data": {
+      "Media": {
+        "id": 16498,
+        "idMal": 16498,
+        "title": {
+          "romaji": "Shingeki no Kyojin",
+          "english": "Attack on Titan",
+          "native": "進撃の巨人"
+        },
+        "synonyms": [
+          "SnK",
+          "AoT",
+          "Ataque a los Titanes",
+          "Ataque dos Titãs",
+          "L'Attacco dei Giganti",
+          "מתקפת הטיטאנים",
+          "进击的巨人",
+          "L’Attaque des Titans",
+          "الهجوم على العمالقة",
+          "ผ่าพิภพไททัน",
+          "حمله به تایتان",
+          "Ataque de Titãs",
+          "Atak Tytanów",
+          "Атака титанов",
+          "Đại Chiến Titan"
+        ],
+        "description": "Several hundred years ago, humans were nearly exterminated by titans. Titans are typically several stories tall, seem to have no intelligence, devour human beings and, worst of all, seem to do it for the pleasure rather than as a food source. A small percentage of humanity survived by walling themselves in a city protected by extremely high walls, even taller than the biggest of titans.<br><br>\r\nFlash forward to the present and the city has not seen a titan in over 100 years. Teenage boy Eren and his foster sister Mikasa witness something horrific as the city walls are destroyed by a colossal titan that appears out of thin air. As the smaller titans flood the city, the two kids watch in horror as their mother is eaten alive. Eren vows that he will murder every single titan and take revenge for all of mankind.<br><br>\r\n(Source: MangaHelpers)",
+        "coverImage": {
+          "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx16498-buvcRTBx4NSm.jpg",
+          "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx16498-buvcRTBx4NSm.jpg"
+        },
+        "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/16498-8jpFCOcDmneX.jpg",
+        "format": "TV",
+        "status": "FINISHED",
+        "episodes": 25,
+        "duration": 24,
+        "season": "SPRING",
+        "seasonYear": 2013,
+        "startDate": {
+          "year": 2013,
+          "month": 4,
+          "day": 7
+        },
+        "endDate": {
+          "year": 2013,
+          "month": 9,
+          "day": 28
+        },
+        "averageScore": 85,
+        "popularity": 1080169,
+        "isAdult": false,
+        "genres": ["Action", "Drama", "Fantasy", "Mystery"],
+        "updatedAt": 1794996015,
+        "studios": {
+          "edges": [
+            {
+              "isMain": true,
+              "node": {
+                "id": 858,
+                "name": "WIT STUDIO",
+                "isAnimationStudio": true
+              }
+            },
+            {
+              "isMain": false,
+              "node": {
+                "id": 144,
+                "name": "Pony Canyon",
+                "isAnimationStudio": false
+              }
+            },
+            {
+              "isMain": false,
+              "node": {
+                "id": 159,
+                "name": "Kodansha",
+                "isAnimationStudio": false
+              }
+            },
+            {
+              "isMain": false,
+              "node": {
+                "id": 10,
+                "name": "Production I.G",
+                "isAnimationStudio": true
+              }
+            },
+            {
+              "isMain": false,
+              "node": {
+                "id": 53,
+                "name": "Dentsu",
+                "isAnimationStudio": false
+              }
+            },
+            {
+              "isMain": false,
+              "node": {
+                "id": 749,
+                "name": "Pony Canyon Enterprise",
+                "isAnimationStudio": false
+              }
+            },
+            {
+              "isMain": false,
+              "node": {
+                "id": 143,
+                "name": "Mainichi Broadcasting System",
+                "isAnimationStudio": false
+              }
+            }
+          ]
+        },
+        "relations": {
+          "edges": [
+            {
+              "relationType": "SOURCE",
+              "node": {
+                "id": 53390,
+                "idMal": 23390,
+                "type": "MANGA",
+                "format": "MANGA",
+                "title": {
+                  "romaji": "Shingeki no Kyojin"
+                }
+              }
+            },
+            {
+              "relationType": "ALTERNATIVE",
+              "node": {
+                "id": 20691,
+                "idMal": 23775,
+                "type": "ANIME",
+                "format": "MOVIE",
+                "title": {
+                  "romaji": "Shingeki no Kyojin Zenpen: Guren no Yumiya"
+                }
+              }
+            },
+            {
+              "relationType": "ALTERNATIVE",
+              "node": {
+                "id": 20692,
+                "idMal": 23777,
+                "type": "ANIME",
+                "format": "MOVIE",
+                "title": {
+                  "romaji": "Shingeki no Kyojin Kouhen: Jiyuu no Tsubasa"
+                }
+              }
+            },
+            {
+              "relationType": "SEQUEL",
+              "node": {
+                "id": 20958,
+                "idMal": 25777,
+                "type": "ANIME",
+                "format": "TV",
+                "title": {
+                  "romaji": "Shingeki no Kyojin Season 2"
+                }
+              }
+            },
+            {
+              "relationType": "SPIN_OFF",
+              "node": {
+                "id": 21281,
+                "idMal": 31374,
+                "type": "ANIME",
+                "format": "TV",
+                "title": {
+                  "romaji": "Shingeki! Kyojin Chuugakkou"
+                }
+              }
+            },
+            {
+              "relationType": "SIDE_STORY",
+              "node": {
+                "id": 18397,
+                "idMal": 18397,
+                "type": "ANIME",
+                "format": "OVA",
+                "title": {
+                  "romaji": "Shingeki no Kyojin OVA"
+                }
+              }
+            },
+            {
+              "relationType": "SUMMARY",
+              "node": {
+                "id": 119113,
+                "idMal": 42091,
+                "type": "ANIME",
+                "format": "MOVIE",
+                "title": {
+                  "romaji": "Shingeki no Kyojin: Chronicle"
+                }
+              }
+            },
+            {
+              "relationType": "PREQUEL",
+              "node": {
+                "id": 20811,
+                "idMal": 25781,
+                "type": "ANIME",
+                "format": "OVA",
+                "title": {
+                  "romaji": "Shingeki no Kyojin Gaiden: Kuinaki Sentaku"
+                }
+              }
+            },
+            {
+              "relationType": "SIDE_STORY",
+              "node": {
+                "id": 99634,
+                "idMal": 36106,
+                "type": "ANIME",
+                "format": "OVA",
+                "title": {
+                  "romaji": "Shingeki no Kyojin: LOST GIRLS"
+                }
+              }
+            },
+            {
+              "relationType": "OTHER",
+              "node": {
+                "id": 19391,
+                "idMal": 19391,
+                "type": "ANIME",
+                "format": "SPECIAL",
+                "title": {
+                  "romaji": "Shingeki no Kyojin: Chimi Kyara Gekijou - Tondeke! Kunren Heidan"
+                }
+              }
+            },
+            {
+              "relationType": "CHARACTER",
+              "node": {
+                "id": 143391,
+                "idMal": 43413,
+                "type": "ANIME",
+                "format": "ONA",
+                "title": {
+                  "romaji": "Chiyuki no Fashion Check"
+                }
+              }
+            }
+          ]
+        },
+        "nextAiringEpisode": null
+      }
+    }
+  }
+}

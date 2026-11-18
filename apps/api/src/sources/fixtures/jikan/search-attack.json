@@ -1,0 +1,139 @@
+{
+  "status": 200,
+  "response": {
+    "pagination": {
+      "last_visible_page": 3,
+      "has_next_page": true,
+      "current_page": 1,
+      "items": { "count": 4, "total": 11, "per_page": 4 }
+    },
+    "data": [
+      {
+        "mal_id": 16498,
+        "title": "Shingeki no Kyojin",
+        "title_english": "Attack on Titan",
+        "title_japanese": "進撃の巨人",
+        "title_synonyms": ["AoT", "SnK"],
+        "type": "TV",
+        "status": "Finished Airing",
+        "episodes": 25,
+        "duration": "24 min per ep",
+        "rating": "R - 17+ (violence & profanity)",
+        "score": 8.57,
+        "popularity": 1,
+        "synopsis": "Centuries ago, mankind was slaughtered to near extinction by monstrous humanoid creatures called titans.",
+        "season": "spring",
+        "year": 2013,
+        "aired": {
+          "prop": {
+            "from": { "day": 7, "month": 4, "year": 2013 },
+            "to": { "day": 29, "month": 9, "year": 2013 }
+          }
+        },
+        "images": {
+          "jpg": {
+            "image_url": "https://cdn.myanimelist.net/images/anime/10/47347.jpg",
+            "large_image_url": "https://cdn.myanimelist.net/images/anime/10/47347l.jpg"
+          }
+        },
+        "genres": [
+          { "mal_id": 1, "name": "Action" },
+          { "mal_id": 8, "name": "Drama" }
+        ],
+        "explicit_genres": [],
+        "studios": [{ "mal_id": 858, "name": "Wit Studio" }]
+      },
+      {
+        "mal_id": 25777,
+        "title": "Shingeki no Kyojin Season 2",
+        "title_english": "Attack on Titan Season 2",
+        "title_japanese": "進撃の巨人 Season2",
+        "title_synonyms": [],
+        "type": "TV",
+        "status": "Finished Airing",
+        "episodes": 12,
+        "duration": "24 min per ep",
+        "rating": "R - 17+ (violence & profanity)",
+        "score": 8.52,
+        "popularity": 25,
+        "synopsis": "Season 2.",
+        "season": "spring",
+        "year": 2017,
+        "aired": {
+          "prop": {
+            "from": { "day": 1, "month": 4, "year": 2017 },
+            "to": { "day": 17, "month": 6, "year": 2017 }
+          }
+        },
+        "images": {
+          "jpg": {
+            "image_url": "https://cdn.myanimelist.net/images/anime/4/84177.jpg",
+            "large_image_url": "https://cdn.myanimelist.net/images/anime/4/84177l.jpg"
+          }
+        },
+        "genres": [{ "mal_id": 1, "name": "Action" }],
+        "explicit_genres": [],
+        "studios": []
+      },
+      {
+        "mal_id": 99999,
+        "title": "Attack on Titan Commercial",
+        "title_english": null,
+        "title_japanese": null,
+        "title_synonyms": [],
+        "type": "CM",
+        "status": "Finished Airing",
+        "episodes": 1,
+        "duration": "1 min",
+        "rating": null,
+        "score": null,
+        "popularity": 50000,
+        "synopsis": null,
+        "season": null,
+        "year": 2013,
+        "aired": {
+          "prop": {
+            "from": { "day": null, "month": null, "year": 2013 },
+            "to": { "day": null, "month": null, "year": null }
+          }
+        },
+        "images": { "jpg": { "image_url": null, "large_image_url": null } },
+        "genres": [],
+        "explicit_genres": [],
+        "studios": []
+      },
+      {
+        "mal_id": 12345,
+        "title": "Adult Example",
+        "title_english": null,
+        "title_japanese": null,
+        "title_synonyms": [],
+        "type": "OVA",
+        "status": "Finished Airing",
+        "episodes": 2,
+        "duration": "1 hr 5 min",
+        "rating": "Rx - Hentai",
+        "score": 6.1,
+        "popularity": 9000,
+        "synopsis": "x",
+        "season": null,
+        "year": 2010,
+        "aired": {
+          "prop": {
+            "from": { "day": 1, "month": 2, "year": 2010 },
+            "to": { "day": null, "month": null, "year": null }
+          }
+        },
+        "images": {
+          "jpg": {
+            "image_url": "https://cdn.myanimelist.net/images/anime/1/1.jpg",
+            "large_image_url": null
+          }
+        },
+        "genres": [],
+        "explicit_genres": [{ "mal_id": 12, "name": "Hentai" }],
+        "studios": []
+      }
+    ]
+  }
+}

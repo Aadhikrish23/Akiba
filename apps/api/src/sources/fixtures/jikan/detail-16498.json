@@ -1,0 +1,67 @@
+{
+  "status": 200,
+  "response": {
+    "data": {
+      "mal_id": 16498,
+      "title": "Shingeki no Kyojin",
+      "title_english": "Attack on Titan",
+      "title_japanese": "進撃の巨人",
+      "title_synonyms": ["AoT", "SnK"],
+      "type": "TV",
+      "status": "Finished Airing",
+      "episodes": 25,
+      "duration": "24 min per ep",
+      "rating": "R - 17+ (violence & profanity)",
+      "score": 8.57,
+      "popularity": 1,
+      "synopsis": "Centuries ago, mankind was slaughtered to near extinction by monstrous humanoid creatures called titans.\n\n(Source: MAL Rewrite)",
+      "season": "spring",
+      "year": 2013,
+      "aired": {
+        "prop": {
+          "from": { "day": 7, "month": 4, "year": 2013 },
+          "to": { "day": 29, "month": 9, "year": 2013 }
+        }
+      },
+      "images": {
+        "jpg": {
+          "image_url": "https://cdn.myanimelist.net/images/anime/10/47347.jpg",
+          "large_image_url": "https://cdn.myanimelist.net/images/anime/10/47347l.jpg"
+        }
+      },
+      "genres": [
+        { "mal_id": 1, "name": "Action" },
+        { "mal_id": 8, "name": "Drama" }
+      ],
+      "explicit_genres": [],
+      "studios": [{ "mal_id": 858, "name": "Wit Studio" }],
+      "relations": [
+        {
+          "relation": "Adaptation",
+          "entry": [{ "mal_id": 23390, "type": "manga", "name": "Shingeki no Kyojin" }]
+        },
+        {
+          "relation": "Sequel",
+          "entry": [{ "mal_id": 25777, "type": "anime", "name": "Shingeki no Kyojin Season 2" }]
+        },
+        {
+          "relation": "Side story",
+          "entry": [
+            { "mal_id": 18397, "type": "anime", "name": "Shingeki no Kyojin OVA" },
+            { "mal_id": 22877, "type": "manga", "name": "Side manga" }
+          ]
+        },
+        {
+          "relation": "Summary",
+          "entry": [
+            { "mal_id": 25781, "type": "anime", "name": "Shingeki no Kyojin: Picture Drama" }
+          ]
+        },
+        {
+          "relation": "Character",
+          "entry": [{ "mal_id": 31000, "type": "anime", "name": "Cameo" }]
+        }
+      ]
+    }
+  }
+}

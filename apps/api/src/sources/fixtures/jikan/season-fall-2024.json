@@ -1,0 +1,45 @@
+{
+  "status": 200,
+  "response": {
+    "pagination": {
+      "last_visible_page": 9,
+      "has_next_page": true,
+      "current_page": 1,
+      "items": { "count": 1, "total": 220, "per_page": 1 }
+    },
+    "data": [
+      {
+        "mal_id": 57658,
+        "title": "Example Season Show",
+        "title_english": "Example Season Show",
+        "title_japanese": "例",
+        "title_synonyms": [],
+        "type": "TV",
+        "status": "Currently Airing",
+        "episodes": null,
+        "duration": "23 min per ep",
+        "rating": "PG-13 - Teens 13 or older",
+        "score": null,
+        "popularity": 120,
+        "synopsis": "Airing now.",
+        "season": "fall",
+        "year": 2024,
+        "aired": {
+          "prop": {
+            "from": { "day": 5, "month": 10, "year": 2024 },
+            "to": { "day": null, "month": null, "year": null }
+          }
+        },
+        "images": {
+          "jpg": {
+            "image_url": "https://cdn.myanimelist.net/images/anime/1/2.jpg",
+            "large_image_url": "https://cdn.myanimelist.net/images/anime/1/2l.jpg"
+          }
+        },
+        "genres": [{ "mal_id": 4, "name": "Comedy" }],
+        "explicit_genres": [],
+        "studios": []
+      }
+    ]
+  }
+}
