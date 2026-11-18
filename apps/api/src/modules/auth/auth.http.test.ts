@@ -483,11 +483,18 @@ describe('auth over HTTP: register, login, transport', () => {
       const response = await getMe(t.app, session.accessToken);
       expect(response.status).toBe(200);
       expect(response.headers['cache-control']).toBe('no-store');
+      // Identity plus the settings of T17, with their defaults.
       expect(response.body).toEqual({
         id: session.userId,
         email: credentials.email,
         displayName: 'Test User',
         emailVerified: false,
+        titleLanguage: 'romaji',
+        timeZone: 'UTC',
+        libraryView: 'grid',
+        alertsEnabled: true,
+        showAdult: false,
+        createdAt: expect.any(String) as string,
       });
     });
 

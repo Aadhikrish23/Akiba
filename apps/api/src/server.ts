@@ -6,6 +6,7 @@ import { createLogger } from './lib/logger.js';
 import { createShutdown } from './lib/shutdown.js';
 import { MemoryRateLimitStore } from './middleware/rateLimit.js';
 import { createAuthModule } from './modules/auth/index.js';
+import { createAccountModule } from './modules/account/index.js';
 import { createLibraryModule } from './modules/library/index.js';
 import { createTitlesModule } from './modules/titles/index.js';
 import { composeV1 } from './modules/v1.js';
@@ -60,6 +61,11 @@ const library =
     ? undefined
     : createLibraryModule({ db: db.client, authenticated: auth.authenticated });
 
+const account =
+  db === undefined || auth === undefined
+    ? undefined
+    : createAccountModule({ config, db: db.client, auth, rateLimitStore });
+
 const app = createApp({
   config,
   logger,
@@ -78,6 +84,7 @@ const app = createApp({
           auth.router,
           ...(titles === undefined ? [] : [titles.router]),
           ...(library === undefined ? [] : [library.router]),
+          ...(account === undefined ? [] : [account.router]),
         ),
       }),
 });

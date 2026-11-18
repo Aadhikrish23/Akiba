@@ -87,7 +87,10 @@ export interface AuthTestAppOptions {
   readonly clock?: TestClock;
   readonly breachedPasswords?: BreachedPasswordChecker;
   /** More routers to serve under /v1 after the auth routes (the module under test). */
-  readonly extraRouters?: (auth: AuthModule) => readonly Router[];
+  readonly extraRouters?: (
+    auth: AuthModule,
+    context: { readonly config: AppConfig; readonly rateLimitStore: MemoryRateLimitStore },
+  ) => readonly Router[];
 }
 
 /**
@@ -130,7 +133,10 @@ export async function buildAuthTestApp(options: AuthTestAppOptions): Promise<Aut
       ? {}
       : { breachedPasswords: options.breachedPasswords }),
   });
-  const v1Router = composeV1(auth.router, ...(options.extraRouters?.(auth) ?? []));
+  const v1Router = composeV1(
+    auth.router,
+    ...(options.extraRouters?.(auth, { config, rateLimitStore }) ?? []),
+  );
   const app = createApp({ config, logger, rateLimitStore, v1Router });
   return {
     app,

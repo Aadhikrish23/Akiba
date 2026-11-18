@@ -50,10 +50,11 @@ export async function loadCards(
   db: DbClient,
   ids: readonly string[],
   userId: string,
+  includeAdult = false,
 ): Promise<TitleCard[]> {
   if (ids.length === 0) return [];
   const rows = await db.title.findMany({
-    where: { id: { in: [...ids] }, isAdult: false },
+    where: { id: { in: [...ids] }, ...(includeAdult ? {} : { isAdult: false }) },
     select: cardSelect(userId),
   });
   const byId = new Map(rows.map((row) => [row.id, row]));
@@ -72,6 +73,7 @@ export async function loadDetail(
   id: string,
   userId: string,
   now: Date,
+  includeAdult = false,
 ): Promise<{
   detail: TitleDetail;
   stale: boolean;
@@ -80,7 +82,7 @@ export async function loadDetail(
   status: string;
 } | null> {
   const row = await db.title.findFirst({
-    where: { id, isAdult: false },
+    where: { id, ...(includeAdult ? {} : { isAdult: false }) },
     select: {
       ...cardSelect(userId),
       synopsis: true,
@@ -280,6 +282,8 @@ export async function replaceRelations(
 // ── Local (cached) search and browse: the answer when no source can be asked ───────────────
 
 export interface LocalFilters {
+  /** Adult-rated titles are left out unless the user turned them on (Q-10). */
+  readonly includeAdult?: boolean | undefined;
   readonly kind?: string | undefined;
   readonly status?: string | undefined;
   readonly genre?: string | undefined;
@@ -299,7 +303,7 @@ export async function localSearchIds(
   const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
     SELECT id::text FROM title
     WHERE search @@ websearch_to_tsquery('simple', ${query})
-      AND NOT is_adult
+      ${filters.includeAdult === true ? Prisma.empty : Prisma.sql`AND NOT is_adult`}
       ${filters.kind === undefined ? Prisma.empty : Prisma.sql`AND kind = ${filters.kind}::title_kind`}
     ORDER BY ts_rank(search, websearch_to_tsquery('simple', ${query})) DESC,
              popularity ASC NULLS LAST, id
@@ -314,7 +318,7 @@ export async function localBrowseIds(
   limit: number,
 ): Promise<string[]> {
   const where: Prisma.TitleWhereInput = {
-    isAdult: false,
+    ...(filters.includeAdult === true ? {} : { isAdult: false }),
     ...(filters.kind === undefined ? {} : { kind: filters.kind as never }),
     ...(filters.status === undefined ? {} : { status: filters.status as never }),
     ...(filters.season === undefined ? {} : { season: filters.season as never }),

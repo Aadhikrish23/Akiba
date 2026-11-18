@@ -163,6 +163,8 @@ model User {
   timeZone        String        @default("UTC") @map("time_zone")
   libraryView     LibraryView   @default(grid) @map("library_view")
   alertsEnabled   Boolean       @default(true) @map("alerts_enabled")
+  /// Show adult-rated titles in discovery and let them be added (Q-10: off by default).
+  showAdult       Boolean       @default(false) @map("show_adult")
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   /// Soft delete: set when the user asks for deletion; the row is purged after `purgeAfter`.
   deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(3)

@@ -102,14 +102,17 @@ async function mapLimit<T, R>(
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function toSourceFilters(filters: {
-  format?: string | undefined;
-  status?: string | undefined;
-  genre?: string | undefined;
-  sort?: 'popularity' | 'score' | 'start_date' | undefined;
-  season?: Season | undefined;
-  year?: number | undefined;
-}): TitleFilters {
+function toSourceFilters(
+  adult: boolean,
+  filters: {
+    format?: string | undefined;
+    status?: string | undefined;
+    genre?: string | undefined;
+    sort?: 'popularity' | 'score' | 'start_date' | undefined;
+    season?: Season | undefined;
+    year?: number | undefined;
+  },
+): TitleFilters {
   return {
     ...(filters.format === undefined ? {} : { kind: filters.format as never }),
     ...(filters.status === undefined ? {} : { status: filters.status as never }),
@@ -119,8 +122,8 @@ function toSourceFilters(filters: {
     ...(filters.sort === undefined
       ? {}
       : { sort: filters.sort === 'start_date' ? ('newest' as const) : filters.sort }),
-    // Adult titles are hidden by default (Q-10); the user setting arrives with the account tasks.
-    includeAdult: false,
+    // Adult titles are hidden unless the user turned them on in Settings (Q-10).
+    includeAdult: adult,
   };
 }
 
@@ -131,11 +134,17 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
   const detailRefreshes = new Map<string, Promise<SourceName | null>>();
   let genreRefresh: Promise<void> | undefined;
 
+  /** Whether this user turned adult-rated titles on (Settings, Q-10). One small read per request. */
+  async function adultFor(userId: string): Promise<boolean> {
+    const user = await db.user.findUnique({ where: { id: userId }, select: { showAdult: true } });
+    return user?.showAdult === true;
+  }
+
   // ── Lists ───────────────────────────────────────────────────────────────────────
 
   /** Resolve what a source returned to Akiba IDs (FR-DISC-008), refreshing stale cards. */
-  async function ingest(items: readonly SourceTitle[]): Promise<string[]> {
-    const visible = items.filter((item) => !item.isAdult);
+  async function ingest(items: readonly SourceTitle[], adult: boolean): Promise<string[]> {
+    const visible = adult ? items : items.filter((item) => !item.isAdult);
     const resolved = await mapLimit(visible, RESOLVE_CONCURRENCY, async (item) => {
       try {
         const result = await resolver.resolve({ externalIds: item.externalIds, title: item });
@@ -191,6 +200,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
 
   async function localList(
     userId: string,
+    adult: boolean,
     ids: (offset: number, take: number) => Promise<string[]>,
     cursor: Cursor | undefined,
     limit: number,
@@ -202,7 +212,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     if (found.length === 0 && offset === 0) throw sourcesUnavailable();
     const page = found.slice(0, perPage);
     return {
-      data: await loadCards(db, page, userId),
+      data: await loadCards(db, page, userId, adult),
       nextCursor:
         found.length > perPage
           ? encodeCursor({ k: 'local', offset: offset + perPage, perPage })
@@ -217,22 +227,23 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
    */
   async function list(
     userId: string,
+    adult: boolean,
     key: string,
     query: { limit: number; cursor?: string | undefined },
     fetchPage: (page: PageRequest) => Promise<Sourced<SourcePage<SourceTitle>>>,
     local: (offset: number, take: number) => Promise<string[]>,
   ): Promise<TitleListResponse> {
     const cursor = decodeCursor(query.cursor);
-    if (cursor?.k === 'local') return localList(userId, local, cursor, query.limit, 0);
+    if (cursor?.k === 'local') return localList(userId, adult, local, cursor, query.limit, 0);
 
     const page = cursor?.page ?? 1;
     const perPage = cursor?.perPage ?? Math.min(query.limit, 50);
-    const cacheKey = `${key}|${page}|${perPage}`;
+    const cacheKey = `${key}|${page}|${perPage}|${adult ? 'adult' : 'safe'}`;
     let cached = cacheGet(cacheKey);
     if (cached === undefined) {
       try {
         const sourced = await fetchPage({ page, perPage });
-        const ids = await ingest(sourced.data.items);
+        const ids = await ingest(sourced.data.items, adult);
         cached = {
           ids,
           hasNextPage: sourced.data.hasNextPage,
@@ -246,11 +257,11 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
           { causes: error.causes.map((cause) => cause.kind) },
           'catalog list served from cache',
         );
-        return localList(userId, local, undefined, query.limit, (page - 1) * perPage);
+        return localList(userId, adult, local, undefined, query.limit, (page - 1) * perPage);
       }
     }
     return {
-      data: await loadCards(db, cached.ids, userId),
+      data: await loadCards(db, cached.ids, userId, adult),
       nextCursor: cached.hasNextPage
         ? encodeCursor({ k: 'remote', page: page + 1, perPage })
         : null,
@@ -274,18 +285,28 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     sort: filters.sort,
   });
 
-  function search(userId: string, query: SearchQuery): Promise<TitleListResponse> {
+  async function search(userId: string, query: SearchQuery): Promise<TitleListResponse> {
+    const adult = await adultFor(userId);
     const filters = { format: query.format };
     return list(
       userId,
+      adult,
       `search|${query.q.toLowerCase()}|${query.format ?? ''}`,
       query,
-      (page) => gateway.search(query.q, toSourceFilters(filters), page),
-      (offset, take) => localSearchIds(db, query.q, localFilters(filters), offset, take),
+      (page) => gateway.search(query.q, toSourceFilters(adult, filters), page),
+      (offset, take) =>
+        localSearchIds(
+          db,
+          query.q,
+          { ...localFilters(filters), includeAdult: adult },
+          offset,
+          take,
+        ),
     );
   }
 
-  function browse(userId: string, query: BrowseQuery): Promise<TitleListResponse> {
+  async function browse(userId: string, query: BrowseQuery): Promise<TitleListResponse> {
+    const adult = await adultFor(userId);
     const filters = {
       format: query.format,
       status: query.status,
@@ -296,10 +317,12 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     };
     return list(
       userId,
+      adult,
       `browse|${JSON.stringify(filters)}`,
       query,
-      (page) => gateway.browse(toSourceFilters(filters), page),
-      (offset, take) => localBrowseIds(db, localFilters(filters), offset, take),
+      (page) => gateway.browse(toSourceFilters(adult, filters), page),
+      (offset, take) =>
+        localBrowseIds(db, { ...localFilters(filters), includeAdult: adult }, offset, take),
     );
   }
 
@@ -309,6 +332,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     seasonName: Season,
     query: SeasonQuery,
   ): Promise<SeasonListResponse> {
+    const adult = await adultFor(userId);
     const filters = {
       format: query.format,
       genre: query.genre,
@@ -318,10 +342,12 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     };
     const result = await list(
       userId,
+      adult,
       `season|${JSON.stringify(filters)}`,
       query,
-      (page) => gateway.browse(toSourceFilters(filters), page),
-      (offset, take) => localBrowseIds(db, localFilters(filters), offset, take),
+      (page) => gateway.browse(toSourceFilters(adult, filters), page),
+      (offset, take) =>
+        localBrowseIds(db, { ...localFilters(filters), includeAdult: adult }, offset, take),
     );
     return { ...result, season: seasonName, seasonYear: year };
   }
@@ -384,9 +410,9 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
   }
 
   /** Load a title, refreshing it first when our copy is missing or old; stale beats nothing. */
-  async function ensureDetail(userId: string, titleId: string) {
+  async function ensureDetail(userId: string, titleId: string, adult: boolean) {
     if (!UUID.test(titleId)) throw notFound();
-    let loaded = await loadDetail(db, titleId, userId, now());
+    let loaded = await loadDetail(db, titleId, userId, now(), adult);
     if (loaded === null) throw notFound();
 
     let meta: CatalogMeta = { stale: loaded.stale, source: 'cache' };
@@ -397,7 +423,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     if (age > detailTtl(loaded.status)) {
       try {
         const source = await refreshDetail(titleId);
-        loaded = (await loadDetail(db, titleId, userId, now())) ?? loaded;
+        loaded = (await loadDetail(db, titleId, userId, now(), adult)) ?? loaded;
         meta = { stale: loaded.stale, source: source ?? 'cache' };
       } catch (error) {
         if (!(error instanceof SourcesUnavailableError)) throw error;
@@ -415,19 +441,20 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
   }
 
   async function detail(userId: string, titleId: string): Promise<TitleDetailResponse> {
-    const { loaded, meta } = await ensureDetail(userId, titleId);
+    const { loaded, meta } = await ensureDetail(userId, titleId, await adultFor(userId));
     return { data: loaded.detail, meta };
   }
 
   async function relations(userId: string, titleId: string): Promise<RelationsResponse> {
-    const { meta } = await ensureDetail(userId, titleId);
+    const adult = await adultFor(userId);
+    const { meta } = await ensureDetail(userId, titleId, adult);
     const rows = await db.titleRelation.findMany({
       where: { fromTitleId: titleId },
       select: { relationType: true, toTitle: { select: { ...cardSelect(userId), isAdult: true } } },
     });
     const byType = new Map<string, ReturnType<typeof toCard>[]>();
     for (const row of rows) {
-      if (row.toTitle.isAdult) continue;
+      if (row.toTitle.isAdult && !adult) continue;
       const list = byType.get(row.relationType) ?? [];
       list.push(toCard(row.toTitle));
       byType.set(row.relationType, list);

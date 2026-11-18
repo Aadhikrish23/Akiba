@@ -70,11 +70,11 @@ All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `
 ## 6. Account, export, sharing
 | Method & path | Purpose |
 |---|---|
-| `GET /me` · `PATCH /me` | Profile and settings |
-| `POST /me/export` | Returns export file (JSON) · `?format=csv` for library CSV |
-| `DELETE /me` | Starts deletion (grace period); `POST /me/restore` within grace |
-| `GET /me/share` · `PUT /me/share` · `DELETE /me/share` | Read, create/regenerate with scope, revoke |
-| `GET /shared/:token` 🔓 | Read-only public list view per scope (rate-limited, no PII) |
+| `GET /me` · `PATCH /me` | Profile and settings: `displayName`, `titleLanguage`, `timeZone`, `libraryView`, `alertsEnabled`, `showAdult` (adult-rated titles, off by default: Q-10) |
+| `POST /me/export` | Returns the export file (JSON, `exportVersion` 1: entries with runs, events, favourites, titles with their external IDs) · `?format=csv` for a library spreadsheet (cells that could run as formulas are neutralised) |
+| `DELETE /me` | `{ password }` → 202. Ends every session and schedules erasure after 14 days. **Restore** is `POST /auth/restore` `{ email, password }` (public: a deleted account cannot sign in), same throttling and one uniform error as login |
+| `GET /me/share` · `PUT /me/share` · `DELETE /me/share` | Status (never the token), create/regenerate with `{ scope: { statuses, showRatings, showReviews } }` (needs a verified email; the response is the only one that carries the token), revoke (idempotent). The old link stops working the moment it is replaced or revoked |
+| `GET /shared/:token` 🔓 | Read-only public list per scope: `{ owner: { displayName }, scope, data, nextCursor }`. 60/min per IP; every bad token is the same 404; `noindex`, `no-referrer`, `no-store`; adult titles and removed entries are left out; ratings and reviews are absent unless the scope shows them |
 
 ## 7. Operations
 `GET /health` (liveness) · `GET /ready` (DB + source-adapter status).

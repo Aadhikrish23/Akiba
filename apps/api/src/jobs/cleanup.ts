@@ -29,3 +29,19 @@ export async function purgeExpiredAuthData(
   });
   return { refreshTokens: refresh.count, oneTimeTokens: oneTime.count };
 }
+
+/**
+ * Erase accounts whose grace period is over (FR-ACCT-002, Q-09): the user and, by cascade, their
+ * library, runs, events, notifications, share link and tokens. The event table is append-only;
+ * this is the one documented exception, opened for this transaction only (`purge` mode).
+ * Idempotent. The scheduler (T23) calls it daily.
+ */
+export async function purgeDeletedAccounts(db: DbClient, now: Date = new Date()): Promise<number> {
+  return db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('akiba.event_maintenance', 'purge', true)`;
+    const result = await tx.user.deleteMany({
+      where: { deletedAt: { not: null }, purgeAfter: { lt: now } },
+    });
+    return result.count;
+  });
+}

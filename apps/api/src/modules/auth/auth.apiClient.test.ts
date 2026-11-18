@@ -140,7 +140,7 @@ describe('api-client against the real API (T7)', () => {
     expect(client.isSignedIn()).toBe(true);
     // The mobile transport: the refresh token is in the client's storage, not in the user object.
     expect(storage.value).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    await expect(client.me()).resolves.toEqual(user);
+    await expect(client.me()).resolves.toMatchObject(user);
   });
 
   it('verifies an email through the emailed link and /me then says so', async () => {

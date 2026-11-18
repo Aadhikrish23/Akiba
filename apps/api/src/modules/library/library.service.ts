@@ -175,8 +175,13 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
 
   async function addOnce(userId: string, request: AddToLibraryRequest): Promise<string> {
     return db.$transaction(async (tx) => {
+      const viewer = await tx.user.findUnique({
+        where: { id: userId },
+        select: { showAdult: true },
+      });
       const title = await tx.title.findFirst({
-        where: { id: request.titleId, isAdult: false },
+        // An adult-rated title can be added only by someone who turned adult titles on (Q-10).
+        where: { id: request.titleId, ...(viewer?.showAdult === true ? {} : { isAdult: false }) },
         select: { id: true, episodesTotal: true },
       });
       if (title === null) throw notFound();

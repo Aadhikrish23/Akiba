@@ -6,6 +6,7 @@ import type {
   RegisterRequest,
   ResetPasswordRequest,
 } from '@akiba/shared';
+import type { Profile } from '@akiba/shared';
 import { EMAIL_BUDGET } from '../../config/constants.js';
 import { Prisma, type DbClient } from '../../db/index.js';
 import type { BackgroundTasks } from '../../lib/backgroundTasks.js';
@@ -54,6 +55,16 @@ export interface AuthService {
   /** Resolve an access token to its user and live session, or `null`. */
   authenticate(accessToken: string): Promise<AuthContext | null>;
   getUser(userId: string): Promise<AuthUser | null>;
+  /** Identity plus settings, for `GET /me`. */
+  getProfile(userId: string): Promise<Profile | null>;
+  /**
+   * Start account deletion (FR-ACCT-002): asks for the password again, ends every session and
+   * schedules the erasure after the grace period. The account can no longer sign in, but
+   * {@link AuthService.restoreAccount} brings it back until then.
+   */
+  deleteAccount(userId: string, password: string): Promise<{ readonly purgeAfter: Date }>;
+  /** Undo a deletion inside the grace period. Fails like a wrong password for every other case. */
+  restoreAccount(input: LoginRequest): Promise<void>;
 
   /**
    * Use a verification link (FR-AUTH-006). Throws the one generic invalid-token error for every
@@ -106,6 +117,9 @@ export interface AuthServiceDependencies {
   readonly logger: Logger;
   readonly now: () => Date;
 }
+
+/** How long a deleted account can still be restored before it is erased (Q-09). */
+export const DELETION_GRACE_DAYS = 14;
 
 const USER_FIELDS = { id: true, email: true, displayName: true, emailVerifiedAt: true } as const;
 
@@ -299,6 +313,96 @@ export function createAuthService(dependencies: AuthServiceDependencies): AuthSe
         select: USER_FIELDS,
       });
       return user === null ? null : toAuthUser(user);
+    },
+
+    async getProfile(userId) {
+      const user = await db.user.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: {
+          ...USER_FIELDS,
+          titleLanguage: true,
+          timeZone: true,
+          libraryView: true,
+          alertsEnabled: true,
+          showAdult: true,
+          createdAt: true,
+        },
+      });
+      if (user === null) return null;
+      return {
+        ...toAuthUser(user),
+        titleLanguage: user.titleLanguage,
+        timeZone: user.timeZone,
+        libraryView: user.libraryView,
+        alertsEnabled: user.alertsEnabled,
+        showAdult: user.showAdult,
+        createdAt: user.createdAt.toISOString(),
+      };
+    },
+
+    async deleteAccount(userId, password) {
+      const user = await db.user.findFirst({
+        where: { id: userId, deletedAt: null },
+        select: { id: true, email: true, passwordHash: true },
+      });
+      if (user === null) throw unauthenticated();
+      // A stolen access token must not be enough to erase an account, and guessing the password
+      // here counts against the same backoff as guessing it at login.
+      const key = throttleKey(user.email);
+      const decision = await loginThrottle.attempt(key, now().getTime());
+      if (!decision.allowed) {
+        throw rateLimited(Math.max(1, Math.ceil(decision.retryAfterMs / 1000)));
+      }
+      const matches = await hasher.verify(user.passwordHash ?? dummyHash, password);
+      if (user.passwordHash === null || !matches) {
+        log.info({ event: 'account_delete_refused', userId }, 'account deletion: password wrong');
+        throw reauthenticationFailed();
+      }
+      await loginThrottle.succeed(key);
+
+      const at = now();
+      const purgeAfter = new Date(at.getTime() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+      await db.$transaction(async (tx) => {
+        await tx.user.update({ where: { id: userId }, data: { deletedAt: at, purgeAfter } });
+        // Sessions end, and so do the links that would act on the account's behalf.
+        await tx.refreshToken.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: at },
+        });
+        await tx.oneTimeToken.deleteMany({ where: { userId } });
+        await tx.shareLink.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: at },
+        });
+      });
+      log.info({ event: 'account_deletion_scheduled', userId }, 'account deletion scheduled');
+      return { purgeAfter };
+    },
+
+    async restoreAccount(input) {
+      const key = throttleKey(input.email);
+      const decision = await loginThrottle.attempt(key, now().getTime());
+      if (!decision.allowed) {
+        throw rateLimited(Math.max(1, Math.ceil(decision.retryAfterMs / 1000)));
+      }
+      const user = await db.user.findUnique({
+        where: { email: input.email },
+        select: { id: true, passwordHash: true, deletedAt: true, purgeAfter: true },
+      });
+      // As at login: exactly one verification whatever the account's state, and one answer for
+      // "unknown", "not deleted", "grace period over" and "wrong password".
+      const restorable =
+        user !== null &&
+        user.passwordHash !== null &&
+        user.deletedAt !== null &&
+        user.purgeAfter !== null &&
+        user.purgeAfter.getTime() > now().getTime();
+      const storedHash = restorable && user.passwordHash !== null ? user.passwordHash : dummyHash;
+      const matches = await hasher.verify(storedHash, input.password);
+      if (!restorable || !matches) throw invalidCredentials();
+      await loginThrottle.succeed(key);
+      await db.user.update({ where: { id: user.id }, data: { deletedAt: null, purgeAfter: null } });
+      log.info({ event: 'account_restored', userId: user.id }, 'account restored');
     },
 
     async verifyEmail(token) {
