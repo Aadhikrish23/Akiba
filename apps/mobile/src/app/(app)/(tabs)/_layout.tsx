@@ -1,9 +1,11 @@
 import { Tabs } from 'expo-router';
+import { useInbox } from '../../../lib/inbox';
 import { MIN_TARGET, useTheme } from '../../../theme/theme';
 
 /** The five destinations of doc 08 §4: Home · Discover · Library · Inbox · Me. */
 export default function TabsLayout() {
   const theme = useTheme();
+  const { unread } = useInbox();
   return (
     <Tabs
       screenOptions={{
@@ -26,7 +28,17 @@ export default function TabsLayout() {
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
       <Tabs.Screen name="discover" options={{ title: 'Discover' }} />
       <Tabs.Screen name="library" options={{ title: 'Library' }} />
-      <Tabs.Screen name="inbox" options={{ title: 'Inbox' }} />
+      <Tabs.Screen
+        name="inbox"
+        options={{
+          title: 'Inbox',
+          // The count is part of the label, in words and digits, so it needs no badge widget and is
+          // spoken with the tab: "Inbox 3".
+          ...(unread !== null && unread > 0
+            ? { tabBarLabel: `Inbox ${unread > 99 ? '99+' : unread}` }
+            : {}),
+        }}
+      />
       <Tabs.Screen name="me" options={{ title: 'Me' }} />
     </Tabs>
   );

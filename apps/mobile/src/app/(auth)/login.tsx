@@ -53,6 +53,7 @@ export default function LoginScreen() {
       <Button label="Log in" variant="primary" busy={form.busy} onPress={submit} />
       <TextLink href="/forgot-password">Forgot your password?</TextLink>
       <TextLink href="/register">Create an account</TextLink>
+      <TextLink href="/restore">Deleted your account recently? Restore it</TextLink>
     </Screen>
   );
 }

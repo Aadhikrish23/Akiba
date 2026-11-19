@@ -22,6 +22,9 @@ interface AuthValue {
   /** The signed-in user's settings; null until they have been read (right after logging in). */
   readonly profile: Profile | null;
   readonly setUser: (user: AuthUser) => void;
+  /** True while the user is deleting their account: the session ends on purpose, so the frame must not bounce them to log-in first. */
+  readonly deleting: boolean;
+  readonly setDeleting: (value: boolean) => void;
   /** Re-read the signed-in user. */
   readonly refresh: () => Promise<void>;
   /** Change settings; the screen reflects the saved result. */
@@ -39,6 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const client = useApi();
   const [state, setState] = useState<AuthState>({ status: 'loading' });
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const restored = useRef(false);
 
   useEffect(() => {
@@ -90,6 +94,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       state,
       client,
       profile,
+      deleting,
+      setDeleting,
       setUser: (user) => {
         setState({ status: 'signed-in', user });
       },
@@ -104,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return next;
       },
     }),
-    [state, client, profile],
+    [state, client, profile, deleting],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
