@@ -76,12 +76,12 @@
 ## 9. Security checklist (gate for M1 and each release)
 - [x] argon2id params verified; unit tests for hashing and policy (not yet tuned on target hardware)
 - [x] Token rotation + reuse-detection test passes
-- [ ] No endpoint returns another user's data (IDOR suite green) — n/a until M3 (T20)
+- [x] No endpoint returns another user's data: the access-control suite is generated from the route table (T20; every private route 401 without a token, every entry/notification ID route 404 for another user with nothing changed, an unclassified route or path parameter fails the build)
 - [x] Rate limits active on auth and writes (per process)
 - [x] CSP/headers verified; no `localStorage` tokens; cookies flags correct (web host must add frame-ancestors/HSTS at deployment)
 - [ ] OAuth state/nonce/PKCE tests — deferred: separate auth module
 - [ ] Logs reviewed for secrets/PII — asserted by tests; no human review yet
-- [x] Dependency audit clean or exceptions documented (see sprints/m1-status.md)
+- [x] Dependency audit clean or exceptions documented (see sprints/m1-status.md). 2026-11-19: `pnpm audit --prod` reports one moderate finding, `minimatch` (DoS through glob amplification) under `expo > @expo/fingerprint`, which is developer tooling that never ships in the app bundle; accepted until Expo updates it
 - [ ] Electron hardening checklist (M7)
 - [ ] Independent code review of the auth module by the product owner/reviewer before M1 sign-off
 

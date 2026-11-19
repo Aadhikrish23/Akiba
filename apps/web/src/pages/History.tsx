@@ -5,7 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { Button, Notice, Select } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { usePageTitle } from '../lib/page';
-import { ENTRY_LABEL, displayTitle } from '../lib/titles';
+import { displayTitle } from '../lib/titles';
 
 const TYPE_LABEL: Record<EventType, string> = {
   entry_added: 'Added to library',
