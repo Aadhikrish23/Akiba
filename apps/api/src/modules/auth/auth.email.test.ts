@@ -525,7 +525,8 @@ describe('auth email flows (T5): verification, password reset, password change',
       // Both requests were answered by the same code path: the request log shows two completed
       // requests, and the hanging delivery is still pending in the background.
       await expect.poll(() => t.emails.sent.length, { timeout: 5000 }).toBe(1);
-      expect(t.auth.background.pending).toBe(1);
+      // The unknown address's lookup finishes (nothing to send); only the hanging delivery is left.
+      await expect.poll(() => t.auth.background.pending, { timeout: 5000 }).toBe(1);
       expect(t.logs.lines.length).toBeGreaterThan(logsBefore);
     });
 
