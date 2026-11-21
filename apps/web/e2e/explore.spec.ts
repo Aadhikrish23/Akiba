@@ -68,6 +68,8 @@ test('journey: title → franchise, with my status on each entry (FR-EXP-001, FR
   const rows = page
     .getByRole('list', { name: 'Titles in this franchise, oldest first' })
     .getByRole('article');
+  // `count()` does not wait: let the page load first, then count.
+  await expect(rows.first()).toBeVisible();
   expect(await rows.count()).toBeGreaterThan(3);
   await expect(page.getByRole('status')).toContainText('1 on your shelf, 0 completed.');
   // The one I added says so; the others do not, and each row says how it relates.
