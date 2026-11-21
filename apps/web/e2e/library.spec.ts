@@ -56,7 +56,10 @@ test('journey 1: search, add to Watching, +1 three times, rate, see it in histor
 
   // It is on the shelf and on Home.
   await page.getByRole('link', { name: 'Library' }).click();
-  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin' })).toBeVisible();
+  // Wait for the Library itself first: until then the title page is still showing, with related
+  // titles whose names also contain this one (an exact match avoids the strict-mode clash).
+  await expect(page.getByRole('heading', { level: 1, name: 'Library' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Home' }).click();
   await expect(page.getByRole('heading', { name: 'Continue watching' })).toBeVisible();
   await expect(page.getByTestId('episode-count')).toHaveText('3 / 25');

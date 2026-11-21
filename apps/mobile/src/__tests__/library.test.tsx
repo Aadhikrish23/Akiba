@@ -564,9 +564,12 @@ describe('History (FR-REM-003)', () => {
     expect(await screen.findByText('Watched episode 3')).toBeTruthy();
     expect(screen.getByText('Rated 9 out of 10')).toBeTruthy();
     expect(screen.getByText('Added to your library as Watching')).toBeTruthy();
-    expect(
-      screen.getAllByRole('header').filter((h) => /Nov 2026/.test(String(h.props.children))),
-    ).toHaveLength(2);
+    // One header per day (the date's format depends on the device's locale; the year does not).
+    const days = screen
+      .getAllByRole('header')
+      .map((header) => JSON.stringify(header.props.children))
+      .filter((text) => text.includes('2026'));
+    expect(days).toHaveLength(2);
     expect(screen.getAllByRole('link', { name: /^Show 1: / }).length).toBeGreaterThanOrEqual(3);
   });
 

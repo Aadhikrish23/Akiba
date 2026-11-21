@@ -201,13 +201,16 @@ test('delete the account, then restore it within the grace period', async ({ pag
   await expect(page.getByRole('alert')).toHaveText('The email or password is incorrect.');
   // …until it is restored.
   await page.getByRole('link', { name: 'Restore it' }).click();
+  // Fill only once the form is on screen, and check the value took (a re-render can clear it).
+  await expect(page.getByRole('heading', { name: 'Restore your account' })).toBeVisible();
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
+  await expect(page.getByLabel('Email')).toHaveValue(email);
   await page.getByRole('button', { name: 'Restore account' }).click();
   await expect(page.getByRole('heading', { name: 'Account restored' })).toBeVisible();
   await loggedIn(page, email);
   await page.goto('/library');
-  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true })).toBeVisible();
 });
 
 for (const scheme of ['light', 'dark'] as const) {
