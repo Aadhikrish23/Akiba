@@ -216,6 +216,76 @@ export const notReady = (checks: Readonly<Record<string, string>>): HttpError =>
     extensions: { checks },
   });
 
+/** No metadata source answered and Akiba has no stored copy to serve (FR-DISC-010). */
+export const sourcesUnavailable = (): HttpError =>
+  new HttpError({
+    status: 503,
+    code: 'SOURCES_UNAVAILABLE',
+    slug: 'sources-unavailable',
+    title: 'Catalog temporarily unavailable',
+    detail:
+      'The anime catalog could not be reached and there is no saved copy of this yet. Try again in a moment.',
+    headers: { 'Retry-After': '30' },
+  });
+
+export const invalidCursor = (): HttpError =>
+  validationFailed([{ path: 'cursor', message: 'is not valid' }]);
+
+/** The title is already on the user's shelf (FR-LIB-006). Carries the entry so a client can open it. */
+export const alreadyInLibrary = (entryId: string): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'ALREADY_IN_LIBRARY',
+    slug: 'already-in-library',
+    title: 'Already in your library',
+    detail: 'This title is already in your library.',
+    extensions: { entryId },
+  });
+
+/** Progress cannot pass a known total (FR-TRK-007): raise the override first. */
+export const progressExceedsTotal = (total: number): HttpError =>
+  new HttpError({
+    status: 422,
+    code: 'PROGRESS_EXCEEDS_TOTAL',
+    slug: 'progress-exceeds-total',
+    title: 'Progress exceeds the episode count',
+    detail: `This title has ${total} episodes. Raise the episode count first if it is wrong.`,
+    extensions: { total },
+  });
+
+export const progressBelowZero = (): HttpError =>
+  validationFailed([{ path: 'delta', message: 'would take progress below 0' }]);
+
+/** A completed entry's run is closed; progress changes need a rewatch or a status change first. */
+export const entryCompleted = (): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'ENTRY_COMPLETED',
+    slug: 'entry-completed',
+    title: 'Entry is completed',
+    detail: 'This entry is completed. Start a rewatch, or change its status, to log episodes.',
+  });
+
+export const notCompleted = (): HttpError =>
+  new HttpError({
+    status: 409,
+    code: 'NOT_COMPLETED',
+    slug: 'not-completed',
+    title: 'Entry is not completed',
+    detail: 'Only a completed entry can be rewatched.',
+  });
+
+/** The episode count cannot go below what the user has already watched. */
+export const totalBelowProgress = (progress: number): HttpError =>
+  new HttpError({
+    status: 422,
+    code: 'TOTAL_BELOW_PROGRESS',
+    slug: 'total-below-progress',
+    title: 'Episode count is below your progress',
+    detail: `You have watched ${progress} episodes. Lower your progress first, or choose a higher count.`,
+    extensions: { progress },
+  });
+
 export const internalError = (detail = 'An unexpected error occurred.'): HttpError =>
   new HttpError({
     status: 500,

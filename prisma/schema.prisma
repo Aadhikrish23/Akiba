@@ -163,6 +163,8 @@ model User {
   timeZone        String        @default("UTC") @map("time_zone")
   libraryView     LibraryView   @default(grid) @map("library_view")
   alertsEnabled   Boolean       @default(true) @map("alerts_enabled")
+  /// Show adult-rated titles in discovery and let them be added (Q-10: off by default).
+  showAdult       Boolean       @default(false) @map("show_adult")
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   /// Soft delete: set when the user asks for deletion; the row is purged after `purgeAfter`.
   deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(3)
@@ -267,6 +269,8 @@ model Title {
   franchiseId     String?                  @map("franchise_id") @db.Uuid
   sourceUpdatedAt DateTime?                @map("source_updated_at") @db.Timestamptz(3)
   fetchedAt       DateTime?                @map("fetched_at") @db.Timestamptz(3)
+  /// When studios, relations and the next airing were last fetched; null = only card data so far.
+  detailFetchedAt DateTime?                @map("detail_fetched_at") @db.Timestamptz(3)
   stale           Boolean                  @default(false)
   /// Generated column (see the migration): weighted tsvector over the titles and synonyms.
   /// Read-only, and invisible to the Prisma client; query it with raw SQL.
@@ -383,9 +387,38 @@ model Character {
   description String?
   externalIds Json    @default("{}") @map("external_ids")
 
-  titles TitleCharacter[]
+  titles       TitleCharacter[]
+  voiceActors  CharacterVoiceActor[]
 
   @@map("character")
+}
+
+/// A person who voices characters. `external_ids` is `{"anilist": "95000"}`; a unique expression index
+/// on the AniList ID (migration SQL) keeps one row per person.
+model VoiceActor {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  nativeName  String? @map("native_name")
+  imageUrl    String? @map("image_url")
+  externalIds Json    @default("{}") @map("external_ids")
+
+  characters CharacterVoiceActor[]
+
+  @@map("voice_actor")
+}
+
+/// Who voices a character, per language (the voice does not change between the character's titles).
+model CharacterVoiceActor {
+  characterId  String @map("character_id") @db.Uuid
+  voiceActorId String @map("voice_actor_id") @db.Uuid
+  language     String
+
+  character  Character  @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  voiceActor VoiceActor @relation(fields: [voiceActorId], references: [id], onDelete: Cascade)
+
+  @@id([characterId, voiceActorId, language])
+  @@index([voiceActorId])
+  @@map("character_voice_actor")
 }
 
 model TitleCharacter {
@@ -434,6 +467,19 @@ model MappingConflict {
 }
 
 /// Manual mapping decisions; they win over the dataset.
+/// One row of the community ID-mapping dataset (doc 05 §5): the IDs one title has at each source.
+/// Imported weekly; read when a title is resolved for the first time. At least two IDs per row
+/// (a CHECK in the migration): a row with one ID maps nothing.
+model MappingDatasetEntry {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  anilistId  String?  @unique @map("anilist_id")
+  malId      String?  @unique @map("mal_id")
+  kitsuId    String?  @unique @map("kitsu_id")
+  importedAt DateTime @default(now()) @map("imported_at") @db.Timestamptz(3)
+
+  @@map("mapping_dataset_entry")
+}
+
 model MappingOverride {
   source     ExternalSource
   externalId String         @map("external_id")
@@ -516,14 +562,17 @@ model Event {
   /// When it happened for the user; `createdAt` is when the row was written.
   occurredAt DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(3)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Total order of writing (a database sequence): breaks ties between events with the same
+  /// `occurredAt`, so the timeline never reorders what happened in one request.
+  seq        BigInt    @default(autoincrement())
 
   user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   entry LibraryEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   title Title        @relation(fields: [titleId], references: [id], onDelete: Restrict)
   run   ViewingRun?  @relation(fields: [runId], references: [id], onDelete: Cascade)
 
-  @@index([userId, occurredAt(sort: Desc)])
-  @@index([entryId, occurredAt])
+  @@index([userId, occurredAt(sort: Desc), seq(sort: Desc)])
+  @@index([entryId, occurredAt, seq])
   @@index([titleId])
   @@index([runId])
   @@map("event")

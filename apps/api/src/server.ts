@@ -6,6 +6,12 @@ import { createLogger } from './lib/logger.js';
 import { createShutdown } from './lib/shutdown.js';
 import { MemoryRateLimitStore } from './middleware/rateLimit.js';
 import { createAuthModule } from './modules/auth/index.js';
+import { createAccountModule } from './modules/account/index.js';
+import { createJobScheduler } from './jobs/index.js';
+import { createInboxModule } from './modules/inbox/index.js';
+import { createLibraryModule } from './modules/library/index.js';
+import { createTitlesModule } from './modules/titles/index.js';
+import { composeV1 } from './modules/v1.js';
 
 /** How long shutdown waits for emails that are still on their way out. */
 const BACKGROUND_DRAIN_MS = 5_000;
@@ -47,12 +53,61 @@ if (auth === undefined) {
   logger.warn('DATABASE_URL is not set: the /v1 routes are not available');
 }
 
+const titles =
+  db === undefined || auth === undefined
+    ? undefined
+    : createTitlesModule({ config, db: db.client, logger, authenticated: auth.authenticated });
+
+const library =
+  db === undefined || auth === undefined
+    ? undefined
+    : createLibraryModule({ db: db.client, authenticated: auth.authenticated });
+
+const inbox =
+  db === undefined || auth === undefined
+    ? undefined
+    : createInboxModule({ db: db.client, authenticated: auth.authenticated });
+
+// Background jobs (airing sync, inbox fan-out, metadata refresh, cleanup). One scheduler per
+// process; an advisory lock per job keeps several processes from running the same one.
+const scheduler =
+  db === undefined || titles === undefined || !config.jobs.enabled
+    ? undefined
+    : createJobScheduler({
+        db: db.client,
+        gateway: titles.gateway,
+        titles: titles.service,
+        logger,
+      });
+scheduler?.start();
+
+const account =
+  db === undefined || auth === undefined
+    ? undefined
+    : createAccountModule({ config, db: db.client, auth, rateLimitStore });
+
 const app = createApp({
   config,
   logger,
   rateLimitStore,
   checkDb: db === undefined ? dbNotConfigured : createDbCheck(db),
-  ...(auth === undefined ? {} : { v1Router: auth.router }),
+  ...(titles === undefined
+    ? {}
+    : {
+        checkSources: () =>
+          titles.gateway.status().primary.breaker === 'closed' ? 'ok' : 'degraded',
+      }),
+  ...(auth === undefined
+    ? {}
+    : {
+        v1Router: composeV1(
+          auth.router,
+          ...(titles === undefined ? [] : [titles.router]),
+          ...(library === undefined ? [] : [library.router]),
+          ...(inbox === undefined ? [] : [inbox.router]),
+          ...(account === undefined ? [] : [account.router]),
+        ),
+      }),
 });
 
 const server = app.listen(config.port, () => {
@@ -72,6 +127,8 @@ const shutdown = createShutdown({
     ? {}
     : {
         onClose: async () => {
+          // Let a job that is mid-run finish (bounded), and start no more.
+          await scheduler?.stop();
           // Let emails that are on their way out finish before the pool goes away.
           // Bounded: a provider that never answers must not keep the process alive.
           if (auth !== undefined && !(await auth.background.idle(BACKGROUND_DRAIN_MS))) {

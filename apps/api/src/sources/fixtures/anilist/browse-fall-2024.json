@@ -1,0 +1,189 @@
+{
+  "recordedAt": "2026-11-18T11:00:11.138Z",
+  "request": {
+    "variables": {
+      "page": 1,
+      "perPage": 4,
+      "season": "FALL",
+      "seasonYear": 2024,
+      "isAdult": false,
+      "sort": ["POPULARITY_DESC"]
+    }
+  },
+  "status": 200,
+  "response": {
+    "data": {
+      "Page": {
+        "pageInfo": {
+          "currentPage": 1,
+          "hasNextPage": true
+        },
+        "media": [
+          {
+            "id": 171018,
+            "idMal": 57334,
+            "title": {
+              "romaji": "Dandadan",
+              "english": "DAN DA DAN",
+              "native": "ダンダダン"
+            },
+            "synonyms": ["ดันดาดัน", "膽大黨", "DAN DA DAN: FIRST ENCOUNTER", "Дандадан"],
+            "description": "This is a story about Momo, a high school girl who comes from a family of spirit mediums, and her classmate Okarun, an occult fanatic. After Momo rescues Okarun from being bullied, they begin talking. However, an argument ensues between them since Momo believes in ghosts but denies aliens exist, and Okarun believes in aliens but denies ghosts exist.\n<br><br>\nTo prove to each other what they believe in is real, Momo goes to an abandoned hospital where a UFO has been spotted and Okarun goes to a tunnel rumored to be haunted. To their surprise, they each encounter overwhelming paranormal activities that transcend comprehension. Amid these predicaments, Momo awakens her hidden power and Okarun gains the power of a curse to overcome these new dangers! Their fateful love begins as well!?\n<br><br>\nThe story of the occult battle and adolescence starts!<br><br>\n(Source: Crunchyroll) <br><br>\n\n<i>Notes: <br>\n- Worldwide premiere of Episode 1 before the Japanese television premiere occurred at Anime Expo July 6, 2024. <br>\n- Episodes 1-3 titled as <b>DAN DA DAN: FIRST ENCOUNTER</b> was pre-screened in advance in theaters on August 31, 2024 in Asia, September 7, 2024 in Europe and September 13, 2024 in North America. The regular TV broadcast began October 4, 2024.</i>",
+            "coverImage": {
+              "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx171018-60q1B6GK2Ghb.jpg",
+              "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx171018-60q1B6GK2Ghb.jpg"
+            },
+            "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/171018-SpwPNAduszXl.jpg",
+            "format": "TV",
+            "status": "FINISHED",
+            "episodes": 12,
+            "duration": 24,
+            "season": "FALL",
+            "seasonYear": 2024,
+            "startDate": {
+              "year": 2024,
+              "month": 10,
+              "day": 4
+            },
+            "endDate": {
+              "year": 2024,
+              "month": 12,
+              "day": 20
+            },
+            "averageScore": 83,
+            "popularity": 400290,
+            "isAdult": false,
+            "genres": ["Action", "Comedy", "Drama", "Romance", "Sci-Fi", "Supernatural"],
+            "updatedAt": 1794996041
+          },
+          {
+            "id": 163134,
+            "idMal": 54857,
+            "title": {
+              "romaji": "Re:Zero kara Hajimeru Isekai Seikatsu 3rd Season",
+              "english": "Re:ZERO -Starting Life in Another World- Season 3",
+              "native": "Re:ゼロから始める異世界生活 3rd season"
+            },
+            "synonyms": ["Re:ZERO – Жизнь с нуля в альтернативном мире 3"],
+            "description": "A year has passed since Subaru’s victory at the Sanctuary. He savors a life of fulfillment while Emilia’s camp stands united for the royal selection—until a fateful letter arrives. Anastasia, a royal selection candidate, has invited Emilia to the Watergate City of Priestella. But as the party begins its journey, crisis stirs beneath the surface and Subaru meets a cruel fate once again.<br><br>\n(Source: Crunchyroll) <br><br>\n\n<i>Note: The first episode has an extended runtime of ~90 minutes, and received an early premiere at Anime Expo on July 5, 2024.</i>",
+            "coverImage": {
+              "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx163134-yieRFbvUOH9a.jpg",
+              "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx163134-yieRFbvUOH9a.jpg"
+            },
+            "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/163134-CqaXjXVivwJ5.jpg",
+            "format": "TV",
+            "status": "FINISHED",
+            "episodes": 16,
+            "duration": 24,
+            "season": "FALL",
+            "seasonYear": 2024,
+            "startDate": {
+              "year": 2024,
+              "month": 10,
+              "day": 2
+            },
+            "endDate": {
+              "year": 2025,
+              "month": 3,
+              "day": 26
+            },
+            "averageScore": 84,
+            "popularity": 206584,
+            "isAdult": false,
+            "genres": [
+              "Action",
+              "Adventure",
+              "Drama",
+              "Fantasy",
+              "Psychological",
+              "Romance",
+              "Thriller"
+            ],
+            "updatedAt": 1794996560
+          },
+          {
+            "id": 170942,
+            "idMal": 57181,
+            "title": {
+              "romaji": "Ao no Hako",
+              "english": "Blue Box",
+              "native": "アオのハコ"
+            },
+            "synonyms": [
+              "الصندوق الأزرق",
+              "青之箱",
+              "푸른 상자",
+              "La caja azul",
+              "กล่องรักวัยใส",
+              "Niebieskie pudełko"
+            ],
+            "description": "<i>Do these sports-crossed lovers have a chance?</i>\n<br><br>\nTaiki Inomata loves badminton, but he has a long way to go before he can reach nationals. When Taiki sees upperclassman Chinatsu Kano practicing her heart out on the girls’ basketball team, he falls for her hard. After an unexpected turn of events brings the two closer together, sports might not be the first thing on their minds anymore!<br><br>(Source: TMS Anime)<br><br>\n<i>Note: The series streamed a week in advance on Netflix Japan starting with episode 2 released alongside episode 1.</i>",
+            "coverImage": {
+              "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx170942-KKcLfQzV57nG.jpg",
+              "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx170942-KKcLfQzV57nG.jpg"
+            },
+            "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/170942-v2GO5YNO0Q5I.jpg",
+            "format": "ONA",
+            "status": "FINISHED",
+            "episodes": 25,
+            "duration": 24,
+            "season": "FALL",
+            "seasonYear": 2024,
+            "startDate": {
+              "year": 2024,
+              "month": 10,
+              "day": 3
+            },
+            "endDate": {
+              "year": 2025,
+              "month": 3,
+              "day": 20
+            },
+            "averageScore": 81,
+            "popularity": 158311,
+            "isAdult": false,
+            "genres": ["Romance", "Slice of Life", "Sports"],
+            "updatedAt": 1794996023
+          },
+          {
+            "id": 163146,
+            "idMal": 54865,
+            "title": {
+              "romaji": "Blue Lock VS. U-20 JAPAN",
+              "english": "BLUE LOCK Season 2",
+              "native": "ブルーロック VS. U-20 JAPAN"
+            },
+            "synonyms": ["ブルーロック第2期", "Blue Lock 2nd Season"],
+            "description": "The hottest soccer matches start again as the U-20 Japan National Team makes their debut!<br><br>\n(Source: Crunchyroll News)",
+            "coverImage": {
+              "extraLarge": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx163146-BVZPgyzkqi82.png",
+              "large": "https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx163146-BVZPgyzkqi82.png"
+            },
+            "bannerImage": "https://s4.anilist.co/file/anilistcdn/media/anime/banner/163146-HIz04v1Or7He.jpg",
+            "format": "TV",
+            "status": "FINISHED",
+            "episodes": 14,
+            "duration": 24,
+            "season": "FALL",
+            "seasonYear": 2024,
+            "startDate": {
+              "year": 2024,
+              "month": 10,
+              "day": 5
+            },
+            "endDate": {
+              "year": 2024,
+              "month": 12,
+              "day": 29
+            },
+            "averageScore": 75,
+            "popularity": 148106,
+            "isAdult": false,
+            "genres": ["Action", "Drama", "Sports"],
+            "updatedAt": 1794996554
+          }
+        ]
+      }
+    }
+  }
+}

@@ -7,11 +7,13 @@ import { runPrisma } from '../testing/prismaCli.js';
 const DOC_06_TABLES = [
   'airing_episode',
   'character',
+  'character_voice_actor',
   'event',
   'franchise',
   'genre',
   'library_entry',
   'mapping_conflict',
+  'mapping_dataset_entry',
   'mapping_override',
   'notification',
   'oauth_account',
@@ -27,6 +29,7 @@ const DOC_06_TABLES = [
   'title_studio',
   'user',
   'viewing_run',
+  'voice_actor',
 ];
 
 const DRIFT_ARGS = [
@@ -124,8 +127,14 @@ describe('indexes and search (doc 06 §5)', () => {
       'library_entry_user_id_title_id_key',
       'UNIQUE INDEX library_entry_user_id_title_id_key ON public.library_entry USING btree (user_id, title_id)',
     ],
-    ['event_user_id_occurred_at_idx', 'ON public.event USING btree (user_id, occurred_at DESC)'],
-    ['event_entry_id_occurred_at_idx', 'ON public.event USING btree (entry_id, occurred_at)'],
+    [
+      'event_user_id_occurred_at_seq_idx',
+      'ON public.event USING btree (user_id, occurred_at DESC, seq DESC)',
+    ],
+    [
+      'event_entry_id_occurred_at_seq_idx',
+      'ON public.event USING btree (entry_id, occurred_at, seq)',
+    ],
     [
       'notification_user_id_read_at_created_at_idx',
       'ON public.notification USING btree (user_id, read_at, created_at DESC)',

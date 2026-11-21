@@ -1,4 +1,4 @@
-import type { Express } from 'express';
+import type { Express, Router } from 'express';
 import request from 'supertest';
 import { createApp } from '../app.js';
 import type { AppConfig, Ed25519Jwk } from '../config/env.js';
@@ -8,6 +8,7 @@ import { MemoryRateLimitStore } from '../middleware/rateLimit.js';
 import { generateSigningJwk } from '../modules/auth/accessTokens.js';
 import type { BreachedPasswordChecker } from '../modules/auth/breachedPasswords.js';
 import { createAuthModule, type AuthModule } from '../modules/auth/index.js';
+import { composeV1 } from '../modules/v1.js';
 import { MemoryEmailSender } from '../modules/email/index.js';
 import { Argon2idHasher, type PasswordHasher } from '../modules/auth/password.js';
 import { LogSink, testConfig } from './harness.js';
@@ -85,6 +86,11 @@ export interface AuthTestAppOptions {
   readonly env?: Record<string, string>;
   readonly clock?: TestClock;
   readonly breachedPasswords?: BreachedPasswordChecker;
+  /** More routers to serve under /v1 after the auth routes (the module under test). */
+  readonly extraRouters?: (
+    auth: AuthModule,
+    context: { readonly config: AppConfig; readonly rateLimitStore: MemoryRateLimitStore },
+  ) => readonly Router[];
 }
 
 /**
@@ -127,7 +133,11 @@ export async function buildAuthTestApp(options: AuthTestAppOptions): Promise<Aut
       ? {}
       : { breachedPasswords: options.breachedPasswords }),
   });
-  const app = createApp({ config, logger, rateLimitStore, v1Router: auth.router });
+  const v1Router = composeV1(
+    auth.router,
+    ...(options.extraRouters?.(auth, { config, rateLimitStore }) ?? []),
+  );
+  const app = createApp({ config, logger, rateLimitStore, v1Router });
   return {
     app,
     auth,

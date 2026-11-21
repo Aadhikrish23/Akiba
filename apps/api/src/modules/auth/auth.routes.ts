@@ -116,6 +116,14 @@ export function createAuthRouter(options: AuthRoutesOptions): Router {
     res.status(204).end();
   });
 
+  // Public, like login: a deleted account cannot sign in, so this is the way back in during the
+  // grace period. Same throttling and the same single answer for every failure.
+  const restoreSchemas = { body: loginRequestSchema };
+  router.post('/restore', guard, validate(restoreSchemas), async (_req, res) => {
+    await service.restoreAccount(getValidated(res, restoreSchemas).body);
+    res.status(200).json({ status: 'restored' });
+  });
+
   // Authenticated by the access token (a header a hostile page cannot set), so no cookie guard.
   router.post('/logout-all', guard, ...options.authenticated, async (req, res) => {
     await service.logoutAll(getAuth(res).userId);
@@ -200,7 +208,7 @@ export function createMeRouter(options: {
 }): Router {
   const router = Router();
   router.get('/me', ...options.authenticated, noStore, async (_req, res) => {
-    const user = await options.service.getUser(getAuth(res).userId);
+    const user = await options.service.getProfile(getAuth(res).userId);
     if (user === null) throw unauthenticated();
     const body: MeResponse = user;
     res.status(200).json(body);

@@ -508,6 +508,9 @@ describe('auth email flows (T5): verification, password reset, password change',
 
     it('FR-AUTH-005 / S-AUTH-3: the response does not wait for the account lookup, the token or the email', async () => {
       const known = await registered();
+      // Registration's own verification email is still on its way under load: let it finish, so
+      // the only delivery pending below is the one this test makes hang.
+      await t.settle();
       // A provider that never answers, and a database call that has not been made yet when the
       // response is produced: the handler answers first and works afterwards.
       t.emails.hang = true;
@@ -522,7 +525,8 @@ describe('auth email flows (T5): verification, password reset, password change',
       // Both requests were answered by the same code path: the request log shows two completed
       // requests, and the hanging delivery is still pending in the background.
       await expect.poll(() => t.emails.sent.length, { timeout: 5000 }).toBe(1);
-      expect(t.auth.background.pending).toBe(1);
+      // The unknown address's lookup finishes (nothing to send); only the hanging delivery is left.
+      await expect.poll(() => t.auth.background.pending, { timeout: 5000 }).toBe(1);
       expect(t.logs.lines.length).toBeGreaterThan(logsBefore);
     });
 

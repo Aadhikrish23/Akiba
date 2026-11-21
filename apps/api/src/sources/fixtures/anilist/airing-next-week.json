@@ -1,0 +1,35 @@
+{
+  "recordedAt": "2026-11-18T11:00:22.660Z",
+  "request": {
+    "variables": {
+      "ids": [21, 195516, 195604],
+      "from": 1794999622,
+      "to": 1795604422,
+      "page": 1,
+      "perPage": 50
+    }
+  },
+  "status": 200,
+  "response": {
+    "data": {
+      "Page": {
+        "pageInfo": {
+          "currentPage": 1,
+          "hasNextPage": false
+        },
+        "airingSchedules": [
+          {
+            "episode": 8,
+            "airingAt": 1795183200,
+            "mediaId": 195516
+          },
+          {
+            "episode": 8,
+            "airingAt": 1795269600,
+            "mediaId": 195604
+          }
+        ]
+      }
+    }
+  }
+}

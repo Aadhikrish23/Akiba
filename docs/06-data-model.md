@@ -26,7 +26,7 @@ erDiagram
 ## 2. Tables
 
 ### Identity and auth
-**user**: `id`, `email` (citext, unique), `email_verified_at`, `password_hash` (nullable for OAuth-only), `display_name`, `title_language` (`romaji|english|native`), `time_zone`, `library_view` (`grid|list`), `alerts_enabled`, `created_at`, `deleted_at` (soft-delete during grace), `purge_after`.
+**user**: `id`, `email` (citext, unique), `email_verified_at`, `password_hash` (nullable for OAuth-only), `display_name`, `title_language` (`romaji|english|native`), `time_zone`, `library_view` (`grid|list`), `alerts_enabled`, `show_adult` (default false: adult-rated titles hidden, Q-10), `created_at`, `deleted_at` (soft-delete during grace), `purge_after`.
 **oauth_account**: `id`, `user_id`, `provider` (`google|apple`), `provider_user_id`, `created_at`; unique (`provider`, `provider_user_id`).
 **refresh_token**: `id`, `user_id`, `family_id`, `token_hash` (unique), `expires_at`, `revoked_at`, `replaced_by_id`, `user_agent`, `created_at`.
 **one_time_token**: `id`, `user_id`, `purpose` (`verify_email|reset_password`), `token_hash`, `sent_to` (the address the link was emailed to), `expires_at`, `used_at`.
@@ -35,19 +35,20 @@ erDiagram
 **title** (the Akiba ID): `id`, `kind` (`tv|movie|ova|ona|special|tv_short|music`), `title_romaji`, `title_english`, `title_native`, `synonyms[]`, `synopsis`, `cover_url`, `banner_url`, `format`, `status` (`finished|releasing|not_yet_released|cancelled|hiatus`), `episodes_total` (source), `duration_min`, `season`, `season_year`, `start_date`, `end_date`, `average_score`, `popularity`, `is_adult`, `franchise_id`, `source_updated_at`, `fetched_at`, `stale`.
 **title_external_id**: `id`, `title_id`, `source` (`anilist|mal|kitsu`), `external_id`; unique (`source`,`external_id`).
 **title_relation**: `from_title_id`, `to_title_id`, `relation_type` (`prequel|sequel|side_story|spin_off|parent_story|alternative|adaptation|summary|other`); PK of the three.
-**franchise**: `id`, `name` (derived via connected components of `title_relation`; recomputed on relation changes).
+**franchise**: `id`, `name` (derived via connected components of `title_relation`; recomputed on relation changes). Titles are joined by `prequel`, `sequel`, `side_story`, `spin_off`, `parent_story`, `alternative` and `summary` (either direction); `other` and `adaptation` never join. A group of 2…120 titles is a franchise, named after its earliest-starting title; a larger group is re-split on the main line (prequel/sequel/parent story) only, and a piece still above 120 gets no franchise (`title.franchise_id` null). A title with no related titles has none either. Franchise IDs are kept as groups grow, merge (the larger keeps its ID) or split (the larger half keeps it); a franchise with no titles is deleted.
 **studio**: `id`, `name`, `external_ids` (jsonb), `is_animation_studio`.
 **title_studio**: (`title_id`, `studio_id`, `is_main`).
 **genre**: `id`, `name`; **title_genre**: (`title_id`, `genre_id`). **tag** optional later.
-**character**: `id`, `name`, `native_name`, `image_url`, `description`, `external_ids`; **title_character**: (`title_id`, `character_id`, `role`), **voice_actor** + link optional.
+**character**: `id`, `name`, `native_name`, `image_url`, `description` (plain text, spoilers removed, ≤ 2000 characters), `external_ids`; **title_character**: (`title_id`, `character_id`, `role`); **voice_actor**: `id`, `name`, `native_name`, `image_url`, `external_ids`; **character_voice_actor**: (`character_id`, `voice_actor_id`, `language`). A character and a voice actor are each one row per AniList ID (unique expression index on `external_ids ->> 'anilist'`, in migration SQL), however many titles they appear in. Only AniList supplies casts (Jikan's detail has none); a refresh through Jikan leaves the stored cast alone.
 **airing_episode**: `id`, `title_id`, `episode_number`, `airs_at`, `source`, `aired_processed_at`; unique (`title_id`,`episode_number`).
 **mapping_conflict**: `id`, `source_a`, `id_a`, `source_b`, `id_b`, `reason`, `resolved_at`.
 **mapping_override**: manual wins; (`source`, `external_id`, `title_id`).
+**mapping_dataset_entry**: `id`, `anilist_id`, `mal_id`, `kitsu_id` (each unique, nullable; at least two non-null), `imported_at`. One row of the community ID-mapping dataset, imported weekly (T9); read when a title is first resolved.
 
 ### User data
 **library_entry**: `id`, `user_id`, `title_id`, `status` (`watching|completed|planned|on_hold|dropped`), `progress` (int ≥ 0), `episodes_total_override` (nullable int ≥ 1), `rating` (nullable smallint 1–10), `review` (text, nullable), `is_favorite`, `alerts_enabled` (nullable override of user setting), `notes`, `started_at`, `completed_at`, `added_at`, `updated_at`; **unique (`user_id`,`title_id`)**.
 **viewing_run**: `id`, `entry_id`, `run_number` (1,2,…), `started_at`, `finished_at`, `rating` (nullable), `progress_at_end`; unique (`entry_id`,`run_number`). The *current* run is the one with `finished_at IS NULL`. `library_entry.progress` mirrors the current run's progress.
-**event** (append-only): `id`, `user_id`, `entry_id`, `title_id`, `run_id` (nullable), `type`, `payload` (jsonb), `occurred_at`, `created_at`.
+**event** (append-only): `id`, `seq` (database sequence: write order, the tie-break for events with equal `occurred_at`), `user_id`, `entry_id`, `title_id`, `run_id` (nullable), `type`, `payload` (jsonb), `occurred_at`, `created_at`.
 **notification**: `id`, `user_id`, `kind` (`episode_aired`), `title_id`, `episode_id`, `created_at`, `read_at`; **unique (`user_id`,`episode_id`)**.
 **share_link**: `id`, `user_id` (unique), `token_hash` (unique), `scope` (jsonb: statuses[], show_ratings, show_reviews), `created_at`, `revoked_at`.
 

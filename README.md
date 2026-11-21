@@ -8,8 +8,10 @@ Anime discovery and personal library management. Product and engineering documen
 ```
 apps/
   api/            Express server: config, logging, errors, validation, rate limiting, health,
-                  database module (src/db) and seed
-  web/            React + Vite + Tailwind (placeholder until T10)
+                  database (src/db) and seed, auth, titles and sources, mapping (Akiba IDs),
+                  library, account, explore, inbox, and the background jobs (src/jobs)
+  web/            React + Vite + Tailwind web app, with Playwright browser tests (e2e/)
+  mobile/         Expo (React Native) app: see apps/mobile/README.md
 packages/
   shared/         Types, enums and constants shared by every app
   api-client/     Typed client for the API
@@ -47,6 +49,12 @@ pnpm --filter @akiba/web dev          # Vite dev server
 pnpm --filter @akiba/api build && pnpm --filter @akiba/api start   # listens on $PORT (default 3000)
 ```
 
+## Status
+
+The MVP tasks T1–T29 are built and committed locally; what was and was not verified is in
+[`docs/sprints/mvp-status.md`](docs/sprints/mvp-status.md). Read that before trusting any claim
+here.
+
 ## API
 
 `apps/api` validates its environment at boot and exits with a list of problems if anything is
@@ -64,6 +72,12 @@ Errors are RFC 9457 `application/problem+json` documents with a `requestId` that
 `X-Request-Id` response header and the log lines for that request. `/ready` runs `SELECT 1`
 through the database module and answers 503 when that fails (server down, wrong credentials,
 missing database); `/health` never touches the database.
+
+### Background jobs
+
+Airing sync, inbox fan-out, metadata refresh and account cleanup run in the API process on timers,
+each under a PostgreSQL advisory lock (`JOBS_ENABLED`, default on in production only). Run one by
+hand with `pnpm jobs:run <airing-sync|inbox-fanout|metadata-refresh|account-cleanup>`.
 
 ### Authentication
 

@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Akiba",
+    "slug": "akiba",
+    "scheme": "akiba",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": { "supportsTablet": false, "bundleIdentifier": "app.akiba.mobile" },
+    "android": { "package": "app.akiba.mobile" },
+    "web": { "bundler": "metro", "output": "single" },
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": { "typedRoutes": false }
+  }
+}

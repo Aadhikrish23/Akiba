@@ -20,7 +20,10 @@
     "auth:gen-key": "node scripts/gen-jwt-key.mjs",
     "db:seed": "pnpm --filter @akiba/api run build && node apps/api/dist/db/seedCli.js",
     "format": "prettier --write .",
-    "clean": "pnpm -r exec rm -rf dist .tsbuildinfo"
+    "clean": "pnpm -r exec rm -rf dist .tsbuildinfo",
+    "mapping:import": "pnpm --filter @akiba/api run build && node apps/api/dist/mapping/cli.js import",
+    "jobs:run": "pnpm --filter @akiba/api run build && node apps/api/dist/jobs/cli.js",
+    "mapping:merge": "pnpm --filter @akiba/api run build && node apps/api/dist/mapping/cli.js merge"
   },
   "prettier": "@akiba/config/prettier",
   "devDependencies": {

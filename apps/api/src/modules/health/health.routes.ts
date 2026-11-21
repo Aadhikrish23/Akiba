@@ -9,6 +9,8 @@ export interface HealthRouterOptions {
   readonly checkDb: DbCheck;
   readonly logger: Logger;
   readonly timeoutMs?: number;
+  /** State of the metadata sources: `degraded` = the primary is shut out (fallback in use). */
+  readonly checkSources?: () => 'ok' | 'degraded' | 'not_configured';
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -59,7 +61,8 @@ export function createHealthRouter(options: HealthRouterOptions): Router {
       );
       database = 'unavailable';
     }
-    const checks = { database, sources: 'not_configured' } as const;
+    const sources = options.checkSources?.() ?? 'not_configured';
+    const checks = { database, sources } as const;
     if (database === 'unavailable') {
       throw notReady(checks);
     }
