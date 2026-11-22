@@ -1,6 +1,6 @@
 import { useId, type ComponentPropsWithoutRef, type ReactNode } from 'react';
 
-/** Shelf form controls (doc 08 §3): hairline borders, near-square corners, ink for the primary action. */
+/** Form controls (doc 08 §3): hairline borders, soft corners, the mint accent for the primary action. */
 
 interface FieldProps extends Omit<ComponentPropsWithoutRef<'input'>, 'id'> {
   readonly label: string;
@@ -26,7 +26,7 @@ export function Field({ label, error, hint, ...input }: FieldProps) {
         {...input}
         aria-invalid={error === undefined ? undefined : true}
         aria-describedby={describedBy === '' ? undefined : describedBy}
-        className="border-rule bg-raised text-ink h-11 w-full rounded-sm border px-3 text-base aria-[invalid=true]:border-accent"
+        className="border-rule bg-raised text-ink h-11 w-full rounded-md border px-3 text-base aria-[invalid=true]:border-danger"
       />
       {hint !== undefined && (
         <p id={hintId} className="text-mute text-sm">
@@ -34,7 +34,7 @@ export function Field({ label, error, hint, ...input }: FieldProps) {
         </p>
       )}
       {error !== undefined && (
-        <p id={errorId} className="text-accent text-sm font-medium">
+        <p id={errorId} className="text-danger text-sm font-medium">
           {error}
         </p>
       )}
@@ -53,15 +53,16 @@ export function Button({
   children,
   disabled,
   onClick,
+  className,
   ...rest
 }: ButtonProps) {
   const style =
     variant === 'primary'
-      ? 'h-11 rounded-sm px-5 border border-ink bg-ink text-paper'
+      ? 'h-11 rounded-full px-5 bg-accent text-on-accent font-bold'
       : variant === 'outline'
-        ? 'h-11 rounded-sm px-5 border border-ink text-ink'
+        ? 'h-11 rounded-full px-5 border-[1.5px] border-rule text-ink hover:border-ink'
         : 'underline underline-offset-4';
-  const base = 'text-base font-medium disabled:opacity-60';
+  const base = 'text-base font-medium disabled:opacity-60 cursor-pointer';
   return (
     <button
       {...rest}
@@ -71,7 +72,7 @@ export function Button({
       aria-disabled={busy || undefined}
       aria-busy={busy || undefined}
       onClick={busy ? undefined : onClick}
-      className={`${base} ${style}`}
+      className={`${base} ${style} ${className ?? ''}`}
     >
       {children}
     </button>
@@ -94,8 +95,8 @@ export function Notice({
       ref={focusRef}
       tabIndex={-1}
       role={role}
-      className={`rounded-sm border px-4 py-3 text-sm ${
-        tone === 'error' ? 'border-accent text-ink' : 'border-rule text-ink'
+      className={`rounded-md border px-4 py-3 text-sm ${
+        tone === 'error' ? 'border-danger text-ink' : 'border-rule text-ink'
       }`}
     >
       {children}
@@ -121,7 +122,7 @@ export function Select({ label, options, anyLabel, ...select }: SelectProps) {
       <select
         id={id}
         {...select}
-        className="border-rule bg-raised text-ink h-11 w-full rounded-sm border px-3 text-base disabled:opacity-60"
+        className="border-rule bg-raised text-ink h-11 w-full rounded-md border px-3 text-base disabled:opacity-60"
       >
         {anyLabel !== '' && <option value="">{anyLabel}</option>}
         {options.map((option) => (

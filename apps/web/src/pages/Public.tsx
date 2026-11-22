@@ -50,7 +50,7 @@ function SharedRow({
         />
       )}
       <div>
-        <p className="font-serif font-semibold">{displayTitle(entry.title)}</p>
+        <p className="h-item">{displayTitle(entry.title)}</p>
         <p className="text-mute text-sm tabular-nums">
           {ENTRY_LABEL[entry.status]} · {entry.progress} / {entry.effectiveTotal ?? '?'} ·{' '}
           {metaLine(entry.title)}
@@ -100,7 +100,7 @@ export function SharedPage() {
   return (
     <div className="min-h-dvh">
       <header className="border-rule border-b" style={{ padding: '14px var(--gutter)' }}>
-        <span className="font-serif text-lg font-semibold tracking-tight">
+        <span className="h-item">
           Akiba <span lang="ja">秋葉</span>
         </span>
       </header>
@@ -116,7 +116,7 @@ export function SharedPage() {
         )}
         {result === 'missing' && (
           <>
-            <h1 className="font-serif text-2xl font-semibold">This list is not available</h1>
+            <h1 className="h-title">This list is not available</h1>
             <p className="text-mute mt-2">
               The link may have been turned off, or it is not correct.
             </p>
@@ -127,7 +127,7 @@ export function SharedPage() {
         )}
         {result !== null && result !== 'missing' && result !== 'error' && (
           <>
-            <h1 className="font-serif text-2xl font-semibold tracking-tight">
+            <h1 className="h-title">
               {result.owner.displayName === null
                 ? 'A shared list'
                 : `${result.owner.displayName}'s list`}

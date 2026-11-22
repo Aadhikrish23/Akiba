@@ -93,7 +93,7 @@ export function DiscoverPage() {
   return (
     <div className="grid gap-8">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Discover</h1>
+        <h1 className="h-title">Discover</h1>
         <Link to="/discover/season" className="text-sm underline underline-offset-4">
           Seasonal chart
         </Link>
@@ -184,7 +184,7 @@ export function DiscoverPage() {
       </form>
 
       <section aria-labelledby="results-heading" className="grid gap-4">
-        <h2 id="results-heading" className="font-serif text-xl font-semibold">
+        <h2 id="results-heading" className="h-section">
           {searching ? `Results for “${q}”` : 'Browse'}
         </h2>
         <TitleResults

@@ -37,9 +37,7 @@ function Unavailable<T>({
   if (state.phase === 'missing') {
     return (
       <div className="grid max-w-prose gap-3">
-        <h1 className="font-serif text-2xl font-semibold">
-          {what.charAt(0).toUpperCase() + what.slice(1)} not found
-        </h1>
+        <h1 className="h-title">{what.charAt(0).toUpperCase() + what.slice(1)} not found</h1>
         <p className="text-mute">This {what} does not exist, or it is not available.</p>
         <p>
           <Link to="/discover" className="underline underline-offset-4">
@@ -84,9 +82,7 @@ function FranchiseView({ franchise }: { franchise: Franchise }) {
     <div className="grid max-w-4xl gap-8">
       <header className="grid gap-2">
         <p className="text-mute text-sm font-medium tracking-wide uppercase">Franchise</p>
-        <h1 className="font-serif text-2xl leading-tight font-semibold tracking-tight">
-          {franchise.name}
-        </h1>
+        <h1 className="h-title">{franchise.name}</h1>
         <p role="status">
           {totals.titles} {totals.titles === 1 ? 'title' : 'titles'}.{' '}
           {totals.inLibrary === 0
@@ -103,7 +99,7 @@ function FranchiseView({ franchise }: { franchise: Franchise }) {
               <article className="has-[:focus-visible]:outline-accent border-rule relative grid grid-cols-[72px_1fr] gap-4 border-t pt-4 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4">
                 <div className="bg-raised border-rule aspect-[2/3] overflow-hidden rounded-sm border">
                   {title.coverUrl === null ? (
-                    <div className="text-mute font-serif grid h-full place-items-center p-1 text-center text-xs">
+                    <div className="text-mute grid h-full place-items-center p-1 text-center text-xs font-display font-extrabold uppercase">
                       {name}
                     </div>
                   ) : (
@@ -117,7 +113,7 @@ function FranchiseView({ franchise }: { franchise: Franchise }) {
                   )}
                 </div>
                 <div className="grid content-start gap-1">
-                  <h2 className="font-serif text-lg leading-snug font-semibold">
+                  <h2 className="h-sub">
                     <Link
                       to={`/title/${title.id}`}
                       className="focus-visible:outline-none after:absolute after:inset-0"
@@ -197,16 +193,14 @@ export function StudioPage() {
         <div className="grid gap-8">
           <header className="grid max-w-prose gap-2">
             <p className="text-mute text-sm font-medium tracking-wide uppercase">Studio</p>
-            <h1 className="font-serif text-2xl leading-tight font-semibold tracking-tight">
-              {response.data.name}
-            </h1>
+            <h1 className="h-title">{response.data.name}</h1>
             <p>
               {response.data.titleCount} {response.data.titleCount === 1 ? 'work' : 'works'} saved
               in Akiba. The list grows as titles are opened.
             </p>
           </header>
           <section aria-labelledby="works-heading" className="grid gap-4">
-            <h2 id="works-heading" className="font-serif text-xl font-semibold">
+            <h2 id="works-heading" className="h-section">
               Works
             </h2>
             <StudioWorks studioId={studioId} />
@@ -233,7 +227,7 @@ export function CharacterPage() {
           <div className="grid gap-6 min-[560px]:grid-cols-[200px_1fr]">
             <div className="bg-raised border-rule aspect-[2/3] overflow-hidden rounded-sm border">
               {character.imageUrl === null ? (
-                <div className="text-mute font-serif grid h-full place-items-center p-4 text-center text-xl">
+                <div className="text-mute grid h-full place-items-center p-4 text-center text-xl font-display font-extrabold uppercase">
                   {character.name}
                 </div>
               ) : (
@@ -247,9 +241,7 @@ export function CharacterPage() {
             <div className="grid content-start gap-4">
               <div>
                 <p className="text-mute text-sm font-medium tracking-wide uppercase">Character</p>
-                <h1 className="font-serif text-2xl leading-tight font-semibold tracking-tight">
-                  {character.name}
-                </h1>
+                <h1 className="h-title">{character.name}</h1>
                 {character.nativeName !== null && (
                   <p lang="ja" className="text-mute">
                     {character.nativeName}
@@ -285,7 +277,7 @@ export function CharacterPage() {
             </div>
           </div>
           <section aria-labelledby="appearances-heading" className="grid gap-4">
-            <h2 id="appearances-heading" className="font-serif text-xl font-semibold">
+            <h2 id="appearances-heading" className="h-section">
               Appears in
             </h2>
             <PosterGrid label="Appearances">

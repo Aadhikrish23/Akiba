@@ -1,28 +1,102 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { InboxProvider, badgeText, useInbox } from '../lib/inbox';
 
-/** Primary destinations. Each later milestone adds its own entry here (Discover, Library, …). */
-const NAV: readonly { readonly to: string; readonly label: string; readonly end?: boolean }[] = [
-  { to: '/', label: 'Home', end: true },
-  { to: '/discover', label: 'Discover' },
-  { to: '/library', label: 'Library' },
-  { to: '/inbox', label: 'Inbox' },
-  { to: '/history', label: 'History' },
-  { to: '/settings', label: 'Settings' },
+interface NavItem {
+  readonly to: string;
+  readonly label: string;
+  readonly end?: boolean;
+  readonly icon: ReactNode;
+}
+
+/** One stroke width and one set of caps for every icon (doc 08 §2: icons are drawn, not glyphs). */
+function Icon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="size-6 shrink-0 fill-none stroke-current"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  );
+}
+
+/** Primary destinations. Each later milestone adds its own entry here (Schedule, …). */
+const NAV: readonly NavItem[] = [
+  {
+    to: '/',
+    label: 'Home',
+    end: true,
+    icon: (
+      <Icon>
+        <path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />
+      </Icon>
+    ),
+  },
+  {
+    to: '/discover',
+    label: 'Discover',
+    icon: (
+      <Icon>
+        <circle cx="12" cy="12" r="9" />
+        <path d="m15.5 8.5-2 5-5 2 2-5z" />
+      </Icon>
+    ),
+  },
+  {
+    to: '/library',
+    label: 'Library',
+    icon: (
+      <Icon>
+        <rect x="4" y="4" width="4.5" height="16" rx="1" />
+        <rect x="10" y="4" width="4.5" height="16" rx="1" />
+        <path d="m16.5 6 3.5 1-3 13-3.5-1" />
+      </Icon>
+    ),
+  },
+  {
+    to: '/inbox',
+    label: 'Inbox',
+    icon: (
+      <Icon>
+        <path d="M4 13h4l1.5 3h5L16 13h4" />
+        <path d="M5.5 5h13L20 13v6H4v-6z" />
+      </Icon>
+    ),
+  },
+  {
+    to: '/history',
+    label: 'History',
+    icon: (
+      <Icon>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </Icon>
+    ),
+  },
+  {
+    to: '/settings',
+    label: 'Settings',
+    icon: (
+      <Icon>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" />
+      </Icon>
+    ),
+  },
 ];
 
-const navClass = ({ isActive }: { isActive: boolean }): string =>
-  `block py-2 text-base ${
-    isActive ? 'border-accent border-b-2 font-medium' : 'border-b-2 border-transparent'
-  }`;
-
 /**
- * The signed-in frame (doc 08 §4): sidebar from 880 px up, a top bar below it. Everything that is
- * not signed in is bounced to the log-in screen, remembering where it was headed.
+ * The signed-in frame (doc 08 §4): a left rail from 880 px up, a slim top bar and a bottom tab bar
+ * below it. It is one `nav`, restyled by width, so there is one set of links to read and test.
+ * Everything that is not signed in is bounced to the log-in screen, remembering where it was headed.
  */
 export function AppShell() {
   const { state, client, deleting } = useAuth();
@@ -52,47 +126,66 @@ export function AppShell() {
 
   return (
     <InboxProvider>
-      <div className="min-h-dvh min-[880px]:grid min-[880px]:grid-cols-[220px_1fr]">
+      <div className="min-h-dvh min-[880px]:grid min-[880px]:grid-cols-[104px_1fr]">
         <a
           href="#main"
-          className="bg-ink text-paper absolute -top-20 left-2 z-10 rounded-sm px-4 py-2 focus:top-2"
+          className="bg-ink text-paper absolute -top-20 left-2 z-50 rounded-sm px-4 py-2 focus:top-2"
         >
           Skip to content
         </a>
         <header
-          className="border-rule flex flex-wrap items-center gap-x-6 gap-y-2 border-b min-[880px]:flex-col min-[880px]:items-start min-[880px]:justify-start min-[880px]:border-r min-[880px]:border-b-0"
-          style={{ padding: '14px var(--gutter)' }}
+          className="border-rule flex items-center gap-x-4 border-b min-[880px]:sticky min-[880px]:top-0 min-[880px]:h-dvh min-[880px]:flex-col min-[880px]:items-center min-[880px]:justify-start min-[880px]:gap-1 min-[880px]:border-r min-[880px]:border-b-0 min-[880px]:py-5"
+          style={{ padding: '10px var(--gutter)' }}
         >
-          <Link to="/" className="font-serif text-lg font-semibold tracking-tight">
-            Akiba <span lang="ja">秋葉</span>
+          <Link
+            to="/"
+            aria-label="Akiba"
+            className="bg-accent text-on-accent grid size-11 shrink-0 -rotate-3 place-items-center rounded-md font-display text-3xl leading-none font-black min-[880px]:mb-5 min-[880px]:size-[52px]"
+          >
+            <span lang="ja" aria-hidden="true">
+              秋
+            </span>
           </Link>
           <nav
             aria-label="Main"
-            className="flex flex-wrap gap-x-5 min-[880px]:mt-6 min-[880px]:flex-col min-[880px]:gap-1"
+            className="border-rule bg-paper fixed inset-x-0 bottom-0 z-40 flex justify-around border-t px-1.5 pt-1.5 pb-[calc(6px+env(safe-area-inset-bottom))] min-[880px]:static min-[880px]:z-auto min-[880px]:flex-col min-[880px]:items-center min-[880px]:justify-start min-[880px]:gap-1 min-[880px]:border-0 min-[880px]:bg-transparent min-[880px]:p-0"
           >
             {NAV.map((item) => (
-              <NavLink key={item.to} to={item.to} end={item.end === true} className={navClass}>
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end === true}
+                className={({ isActive }) =>
+                  `relative flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-2 text-xs font-medium min-[880px]:w-[76px] min-[880px]:flex-none ${
+                    isActive ? 'bg-raised text-accent' : 'text-mute hover:text-ink'
+                  }`
+                }
+              >
+                {item.icon}
                 {item.to === '/inbox' ? <InboxLabel label={item.label} /> : item.label}
               </NavLink>
             ))}
           </nav>
-          <div className="ml-auto grid gap-1 text-sm min-[880px]:mt-auto min-[880px]:ml-0">
-            <span className="text-mute" data-testid="account-name">
+          <div className="ml-auto grid justify-items-end gap-0.5 text-sm min-[880px]:mt-auto min-[880px]:ml-0 min-[880px]:justify-items-center min-[880px]:text-center">
+            <span
+              className="text-mute max-w-[8rem] truncate text-xs min-[880px]:max-w-[88px]"
+              data-testid="account-name"
+            >
               {state.user.displayName ?? state.user.email}
             </span>
-            <Button variant="link" onClick={signOut}>
+            <Button variant="link" onClick={signOut} className="whitespace-nowrap">
               Log out
             </Button>
           </div>
         </header>
-        <div>
+        <div className="min-w-0 pb-24 min-[880px]:pb-0">
           {!state.user.emailVerified && <VerifyBanner />}
           {signOutError !== null && (
             <div style={{ padding: '16px var(--gutter) 0' }}>
               <Notice tone="error">{signOutError}</Notice>
             </div>
           )}
-          <main id="main" tabIndex={-1} style={{ padding: '32px var(--gutter)' }}>
+          <main id="main" tabIndex={-1} style={{ padding: '28px var(--gutter)' }}>
             <Outlet />
           </main>
         </div>
@@ -108,7 +201,7 @@ function InboxLabel({ label }: { label: string }) {
     <>
       {label}{' '}
       {unread !== null && unread > 0 && (
-        <span className="bg-ink text-paper ml-2 inline-block min-w-5 rounded-sm px-1.5 text-center text-xs leading-5 font-medium">
+        <span className="bg-accent text-on-accent absolute top-0.5 right-2 inline-grid h-5 min-[880px]:right-3 min-w-5 place-items-center rounded-full px-1.5 text-xs leading-none font-bold">
           {badgeText(unread)} <span className="sr-only">unread</span>
         </span>
       )}
@@ -133,7 +226,7 @@ function VerifyBanner() {
   };
   return (
     <div
-      className="border-rule flex flex-wrap items-center gap-x-4 gap-y-1 border-b text-sm"
+      className="border-rule bg-raised flex flex-wrap items-center gap-x-4 gap-y-1 border-b text-sm"
       style={{ padding: '10px var(--gutter)' }}
     >
       <p>Verify your email address to enable sharing. We sent you a link when you signed up.</p>

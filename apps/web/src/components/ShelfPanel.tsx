@@ -76,8 +76,11 @@ export function ShelfPanel({ title }: { title: TitleDetail }) {
 
   if (entryId === null || entry === null) {
     return (
-      <section aria-labelledby="shelf-heading" className="border-rule grid gap-3 border-y py-4">
-        <h2 id="shelf-heading" className="font-serif text-lg font-semibold">
+      <section
+        aria-labelledby="shelf-heading"
+        className="border-rule bg-raised grid gap-3 rounded-lg border p-5"
+      >
+        <h2 id="shelf-heading" className="h-sub">
           Add to your library
         </h2>
         {error !== null && <Notice tone="error">{error}</Notice>}
@@ -107,8 +110,11 @@ export function ShelfPanel({ title }: { title: TitleDetail }) {
     run(() => client.library.update(entry.id, changes));
 
   return (
-    <section aria-labelledby="shelf-heading" className="border-rule grid gap-5 border-y py-4">
-      <h2 id="shelf-heading" className="font-serif text-lg font-semibold">
+    <section
+      aria-labelledby="shelf-heading"
+      className="border-rule bg-raised grid gap-5 rounded-lg border p-5"
+    >
+      <h2 id="shelf-heading" className="h-sub">
         On your shelf
       </h2>
       {error !== null && <Notice tone="error">{error}</Notice>}
@@ -176,7 +182,7 @@ export function ShelfPanel({ title }: { title: TitleDetail }) {
       <div className="grid gap-2 text-sm">
         {entry.totalOverridden && (
           <p>
-            <span className="border-ink rounded-sm border px-1.5 py-0.5 font-medium">Edited</span>{' '}
+            <span className="border-ink rounded-full border px-2.5 py-0.5 font-medium">Edited</span>{' '}
             The episode count is your own: {entry.effectiveTotal}.{' '}
             <Button
               variant="link"

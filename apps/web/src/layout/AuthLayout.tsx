@@ -19,16 +19,12 @@ export function AuthLayout({
   return (
     <div className="min-h-dvh">
       <header className="border-rule border-b" style={{ padding: '14px var(--gutter)' }}>
-        <Link to="/login" className="font-serif text-lg font-semibold tracking-tight">
+        <Link to="/login" className="h-sub">
           Akiba <span lang="ja">秋葉</span>
         </Link>
       </header>
       <main id="main" className="mx-auto w-full max-w-md" style={{ padding: '48px var(--gutter)' }}>
-        <h1
-          ref={heading}
-          tabIndex={-1}
-          className="font-serif text-2xl font-semibold tracking-tight outline-none"
-        >
+        <h1 ref={heading} tabIndex={-1} className="h-title outline-none">
           {title}
         </h1>
         {intro !== undefined && <p className="text-mute mt-2 text-base">{intro}</p>}

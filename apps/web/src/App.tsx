@@ -26,7 +26,7 @@ function NotFoundPage() {
   usePageTitle('Page not found');
   return (
     <main id="main" className="mx-auto max-w-md" style={{ padding: '64px var(--gutter)' }}>
-      <h1 className="font-serif text-2xl font-semibold">Page not found</h1>
+      <h1 className="h-title">Page not found</h1>
       <p className="text-mute mt-2">There is nothing at this address.</p>
       <p className="mt-6">
         <Link to="/" className="underline underline-offset-4">

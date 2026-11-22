@@ -2,6 +2,7 @@ import type { LibraryEntry } from '@akiba/shared';
 import { Link } from 'react-router';
 import { useEntryProgress } from '../lib/progress';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
+import { stockFor } from './Ticket';
 import { Button, Notice } from './ui';
 
 /** A 4 px bar on a track that is visible on its own (doc 08 §6: the track has contrast). */
@@ -22,7 +23,7 @@ export function ProgressMeter({
       aria-valuemin={0}
       aria-valuemax={total ?? undefined}
       aria-valuenow={progress}
-      className="bg-rule h-1 w-full overflow-hidden rounded-sm"
+      className="bg-raised-2 h-1.5 w-full overflow-hidden"
     >
       <div className="bg-accent h-full" style={{ width: `${percent}%` }} />
     </div>
@@ -32,7 +33,7 @@ export function ProgressMeter({
 /** `16 / 28` in a serif, tabular figures (doc 08 §8). */
 export function EpisodeCount({ progress, total }: { progress: number; total: number | null }) {
   return (
-    <span className="font-serif text-xl tabular-nums" data-testid="episode-count">
+    <span className="font-display text-2xl font-bold tabular-nums" data-testid="episode-count">
       {progress}
       <span className="text-mute"> / {total ?? '?'}</span>
     </span>
@@ -66,7 +67,11 @@ export function PlusOne({ entry, name }: { entry: LibraryEntry; name: string }) 
       <div className="flex flex-wrap items-center gap-3">
         <EpisodeCount progress={track.progress} total={entry.effectiveTotal} />
         {track.canAdvance && (
-          <Button onClick={() => void track.plusOne()} aria-label={`+1 episode of ${name}`}>
+          <Button
+            variant="primary"
+            onClick={() => void track.plusOne()}
+            aria-label={`+1 episode of ${name}`}
+          >
             +1 episode
           </Button>
         )}
@@ -102,7 +107,7 @@ export function ContinueCard({ entry }: { entry: LibraryEntry }) {
     <article className="border-rule flex gap-4 border-b py-4">
       <Cover entry={entry} size="h-24 w-16" />
       <div className="grid min-w-0 flex-1 content-start gap-2">
-        <h3 className="font-serif text-base font-semibold">
+        <h3 className="h-item">
           <Link to={`/title/${entry.title.id}`} className="underline-offset-4 hover:underline">
             {name}
           </Link>
@@ -120,10 +125,7 @@ export function LibraryRow({ entry }: { entry: LibraryEntry }) {
     <li className="border-rule grid grid-cols-[44px_1fr] items-start gap-x-4 gap-y-2 border-b py-3 min-[880px]:grid-cols-[44px_minmax(0,2fr)_minmax(0,3fr)_5rem]">
       <Cover entry={entry} size="h-16 w-11" />
       <div className="min-w-0">
-        <Link
-          to={`/title/${entry.title.id}`}
-          className="font-serif font-semibold underline-offset-4 hover:underline"
-        >
+        <Link to={`/title/${entry.title.id}`} className="h-item underline-offset-4 hover:underline">
           {name}
         </Link>
         <p className="text-mute text-sm">
@@ -146,20 +148,22 @@ export function LibraryRow({ entry }: { entry: LibraryEntry }) {
 /** A poster in the library grid, with progress on the cover's bottom edge. */
 export function LibraryPoster({ entry }: { entry: LibraryEntry }) {
   const name = displayTitle(entry.title);
+  const stock = stockFor(entry.title.id);
   return (
-    <article className="has-[:focus-visible]:outline-accent relative grid content-start gap-2 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4">
-      <div className="bg-raised border-rule relative aspect-[2/3] overflow-hidden rounded-sm border">
+    <article
+      className="poster has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4"
+      style={{ '--stock': stock } as React.CSSProperties}
+    >
+      <div className="poster__cover">
         {entry.title.coverUrl === null ? (
-          <div className="text-mute font-serif grid h-full place-items-center p-3 text-center text-lg">
+          <div
+            className="font-display text-stub-ink grid h-full place-items-center p-3 text-center text-xl leading-none font-extrabold uppercase"
+            style={{ background: stock }}
+          >
             {name}
           </div>
         ) : (
-          <img
-            src={entry.title.coverUrl}
-            alt=""
-            loading="lazy"
-            className="size-full object-cover"
-          />
+          <img src={entry.title.coverUrl} alt="" loading="lazy" decoding="async" />
         )}
         <div className="absolute inset-x-0 bottom-0">
           <ProgressMeter
@@ -169,17 +173,19 @@ export function LibraryPoster({ entry }: { entry: LibraryEntry }) {
           />
         </div>
       </div>
-      <h3 className="font-serif text-base leading-snug font-semibold">
-        <Link
-          to={`/title/${entry.title.id}`}
-          className="focus-visible:outline-none after:absolute after:inset-0"
-        >
-          {name}
-        </Link>
-      </h3>
-      <p className="text-mute text-sm tabular-nums">
-        {ENTRY_LABEL[entry.status]} · {entry.progress} / {entry.effectiveTotal ?? '?'}
-      </p>
+      <div className="poster__stub">
+        <h3 className="h-item">
+          <Link
+            to={`/title/${entry.title.id}`}
+            className="focus-visible:outline-none after:absolute after:inset-0"
+          >
+            {name}
+          </Link>
+        </h3>
+        <p className="text-mute text-sm tabular-nums">
+          {ENTRY_LABEL[entry.status]} · {entry.progress} / {entry.effectiveTotal ?? '?'}
+        </p>
+      </div>
     </article>
   );
 }

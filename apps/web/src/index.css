@@ -23,6 +23,11 @@
   :focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 3px;
+    border-radius: 4px;
+  }
+  /* Scrollbars belong to the palette too (doc 08 §2). */
+  * {
+    scrollbar-color: var(--raised-2) var(--paper);
   }
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -31,5 +36,527 @@
       transition-duration: 0ms !important;
       animation-duration: 0ms !important;
     }
+  }
+}
+
+@layer components {
+  /* ── Headings: Big Shoulders Display, upper case (doc 08 §2) ─────────────────────────── */
+  .h-page,
+  .h-title,
+  .h-section,
+  .h-sub,
+  .h-item {
+    font-family: var(--display);
+    font-weight: 800;
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+  .h-page {
+    font-size: clamp(2.5rem, 7vw + 0.5rem, 5.25rem);
+    line-height: 0.92;
+    letter-spacing: -0.005em;
+    font-weight: 900;
+  }
+  .h-title {
+    font-size: clamp(2.25rem, 5vw + 0.5rem, 3.5rem);
+    line-height: 0.95;
+    letter-spacing: 0;
+    font-weight: 900;
+  }
+  .h-section {
+    font-size: 1.75rem;
+    line-height: 1;
+    letter-spacing: 0.02em;
+  }
+  .h-sub {
+    font-size: 1.375rem;
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+  }
+  .h-item {
+    font-size: 1.1875rem;
+    line-height: 1;
+    letter-spacing: 0.01em;
+  }
+  .h-page em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  /* ── The ticket (doc 08 §3) ───────────────────────────────────────────────────────────────
+     cover | body | stub, with a perforation and two notches where the stub tears off. Sizes
+     follow the ticket's own width (container query), so one component serves Home's hero, a
+     grid cell and a phone. The notches are punched in the page colour. */
+  .ticket-wrap {
+    container-type: inline-size;
+  }
+  .ticket {
+    --stock: #e4a128;
+    --p: 0.5;
+    --cover: 76px;
+    --stub: 96px;
+    --ticket-mint: oklch(90% 0.15 165);
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--cover) minmax(0, 1fr) var(--stub);
+    min-height: 132px;
+    background: var(--stock);
+    color: var(--stub-ink);
+    border-radius: var(--radius-md);
+    filter: drop-shadow(0 12px 14px oklch(0% 0 0 / 0.28));
+    isolation: isolate;
+  }
+  .ticket::before,
+  .ticket::after {
+    content: '';
+    position: absolute;
+    right: var(--stub);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--paper);
+    transform: translateX(50%);
+    z-index: 3;
+  }
+  .ticket::before {
+    top: -9px;
+  }
+  .ticket::after {
+    bottom: -9px;
+  }
+  .ticket__perf {
+    position: absolute;
+    top: 14px;
+    bottom: 14px;
+    right: var(--stub);
+    border-left: 2.5px dashed color-mix(in oklch, var(--stub-ink) 45%, transparent);
+    z-index: 2;
+  }
+  .ticket__cover {
+    display: grid;
+    overflow: hidden;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    background: color-mix(in oklch, var(--stub-ink) 14%, var(--stock));
+  }
+  .ticket__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .ticket__cover span {
+    display: grid;
+    place-items: center;
+    padding: 8px;
+    text-align: center;
+    font: 800 1rem/1 var(--display);
+    text-transform: uppercase;
+  }
+  .ticket__body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 6px;
+    min-width: 0;
+    padding: 14px 14px;
+  }
+  .ticket__title {
+    margin: 0;
+    font: 800 1.375rem/0.95 var(--display);
+    text-transform: uppercase;
+    letter-spacing: 0.005em;
+    text-wrap: balance;
+  }
+  .ticket__title a {
+    text-decoration: none;
+  }
+  .ticket__title a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+    text-underline-offset: 4px;
+  }
+  .ticket__title a:focus-visible {
+    outline-color: var(--stub-ink);
+  }
+  .ticket__jp,
+  .ticket__note,
+  .ticket__serial,
+  .ticket__bars {
+    display: none;
+  }
+  .ticket__meta {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    opacity: 0.85;
+  }
+  .ticket__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: fit-content;
+    margin: 0 0 6px;
+    padding: 3px 10px 3px 8px;
+    border-radius: 999px;
+    background: var(--stub-ink);
+    color: var(--ticket-mint);
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+  .ticket__badge::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .ticket__badge--quiet {
+    background: transparent;
+    color: var(--stub-ink);
+    box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--stub-ink) 50%, transparent);
+  }
+  .ticket__badge--quiet::before {
+    display: none;
+  }
+  .ticket__stub {
+    display: grid;
+    justify-items: center;
+    align-content: space-between;
+    gap: 6px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .ticket__num {
+    font-family: var(--display);
+    font-size: 2.875rem;
+    line-height: 0.8;
+    letter-spacing: -0.01em;
+    /* The numeral gets heavier as you get further in. */
+    font-variation-settings: 'wght' calc(300 + 600 * var(--p));
+    transition: font-variation-settings 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ticket__num[data-pad='true']::before {
+    content: '0';
+  }
+  .ticket__num span {
+    font-size: 0.38em;
+    font-weight: 500;
+    opacity: 0.7;
+    letter-spacing: 0;
+  }
+  .ticket__plus {
+    appearance: none;
+    border: 0;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    background: var(--stub-ink);
+    color: var(--ticket-mint);
+    font: 900 1.5rem/1 var(--display);
+    transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ticket__plus small {
+    display: none;
+    margin-top: 2px;
+    color: oklch(90% 0.02 265);
+    font: 500 0.6875rem var(--sans);
+    letter-spacing: 0.06em;
+  }
+  .ticket__plus:hover {
+    transform: scale(1.06) rotate(-4deg);
+  }
+  .ticket__plus:active {
+    transform: scale(0.94);
+  }
+  .ticket__plus:focus-visible {
+    outline-color: var(--stub-ink);
+    outline-offset: 3px;
+  }
+  .ticket__done {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 2px dashed color-mix(in oklch, var(--stub-ink) 50%, transparent);
+  }
+  .ticket__bars {
+    height: 30px;
+    width: 100%;
+    opacity: 0.9;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--stub-ink) 0 2px,
+      transparent 2px 4px,
+      var(--stub-ink) 4px 5px,
+      transparent 5px 9px,
+      var(--stub-ink) 9px 12px,
+      transparent 12px 14px
+    );
+  }
+  .ticket__track {
+    height: 6px;
+    border-radius: 3px;
+    background: color-mix(in oklch, var(--stub-ink) 20%, transparent);
+    overflow: hidden;
+  }
+  .ticket__track > div {
+    height: 100%;
+    background: var(--stub-ink);
+    transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ticket__stamp {
+    position: absolute;
+    right: calc(var(--stub) + 12px);
+    bottom: 14px;
+    z-index: 5;
+    pointer-events: none;
+    display: grid;
+    place-items: center;
+    width: 84px;
+    height: 84px;
+    border: 3px solid var(--stub-ink);
+    border-radius: 50%;
+    color: var(--stub-ink);
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    mix-blend-mode: multiply;
+    opacity: 0;
+    transform: rotate(-14deg) scale(1.7);
+    animation: ticket-thunk 1.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .ticket__stamp b {
+    display: block;
+    padding-left: 0.1em;
+    font-size: 1.375rem;
+    letter-spacing: 0.1em;
+  }
+  .ticket__stamp span {
+    display: none;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1.5px solid var(--stub-ink);
+    font: 500 0.6875rem var(--sans);
+    letter-spacing: 0.1em;
+  }
+  .ticket[data-jolt='a'] {
+    animation: ticket-jolt-a 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ticket[data-jolt='b'] {
+    animation: ticket-jolt-b 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes ticket-thunk {
+    0% {
+      opacity: 0;
+      transform: rotate(-14deg) scale(1.9);
+    }
+    16% {
+      opacity: 0.92;
+      transform: rotate(-9deg) scale(0.94);
+    }
+    24% {
+      transform: rotate(-9deg) scale(1.02);
+    }
+    32% {
+      transform: rotate(-9deg) scale(1);
+    }
+    80% {
+      opacity: 0.92;
+    }
+    100% {
+      opacity: 0;
+      transform: rotate(-9deg) scale(1);
+    }
+  }
+  @keyframes ticket-jolt-a {
+    0%,
+    100% {
+      transform: none;
+    }
+    20% {
+      transform: translateY(3px) scale(0.995);
+    }
+  }
+  @keyframes ticket-jolt-b {
+    0%,
+    100% {
+      transform: none;
+    }
+    20% {
+      transform: translateY(3px) scale(0.995);
+    }
+  }
+
+  /* Hero ticket: the first thing on Home. */
+  .ticket--hero {
+    --cover: 88px;
+    --stub: 96px;
+    min-height: 188px;
+  }
+  .ticket--hero .ticket__title {
+    font-size: 1.6875rem;
+  }
+  .ticket--hero .ticket__num {
+    font-size: 3.625rem;
+  }
+  .ticket--hero .ticket__plus {
+    width: 66px;
+    height: 66px;
+    font-size: 1.75rem;
+  }
+  @container (min-width: 600px) {
+    .ticket--hero {
+      --cover: 188px;
+      --stub: 188px;
+      min-height: 272px;
+    }
+    .ticket--hero .ticket__body {
+      padding: 22px 28px;
+      gap: 10px;
+    }
+    .ticket--hero .ticket__title {
+      font-size: 3.375rem;
+      max-width: 14ch;
+    }
+    .ticket--hero .ticket__jp,
+    .ticket--hero .ticket__note,
+    .ticket--hero .ticket__serial,
+    .ticket--hero .ticket__bars {
+      display: block;
+    }
+    .ticket__jp {
+      margin: 3px 0 0;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      opacity: 0.75;
+    }
+    .ticket__note {
+      margin: 0;
+      max-width: 36ch;
+      padding: 8px 12px;
+      border-radius: 3px;
+      background: oklch(98% 0.02 90 / 0.55);
+      font: 1.125rem/1.35 var(--hand);
+      transform: rotate(-1.2deg);
+    }
+    .ticket__serial {
+      font: 500 0.6875rem/1 var(--sans);
+      letter-spacing: 0.12em;
+      opacity: 0.75;
+    }
+    .ticket--hero .ticket__stub {
+      padding: 20px 16px;
+    }
+    .ticket--hero .ticket__num {
+      font-size: 7rem;
+    }
+    .ticket--hero .ticket__plus {
+      width: 104px;
+      height: 104px;
+      font-size: 2.75rem;
+    }
+    .ticket--hero .ticket__plus small {
+      display: block;
+    }
+    .ticket--hero .ticket__stamp {
+      right: calc(var(--stub) + 40px);
+      bottom: 20px;
+      width: 108px;
+      height: 108px;
+      border-width: 4px;
+    }
+    .ticket--hero .ticket__stamp b {
+      font-size: 1.875rem;
+    }
+    .ticket--hero .ticket__stamp span {
+      display: block;
+    }
+  }
+
+  /* Small ticket: a grid cell. */
+  .ticket--sm {
+    --cover: 76px;
+    --stub: 96px;
+  }
+  @container (min-width: 420px) {
+    .ticket--sm {
+      --cover: 92px;
+      --stub: 108px;
+      min-height: 148px;
+    }
+    .ticket--sm .ticket__title {
+      font-size: 1.5625rem;
+    }
+    .ticket--sm .ticket__num {
+      font-size: 3.25rem;
+    }
+    .ticket--sm .ticket__plus {
+      width: 62px;
+      height: 62px;
+    }
+    .ticket--sm .ticket__body {
+      padding: 14px 16px;
+    }
+  }
+
+  /* ── Poster ticket: a cover with a perforated stub underneath (Discover, lists) ────────── */
+  .poster {
+    position: relative;
+    display: grid;
+    align-content: start;
+    filter: drop-shadow(0 12px 14px oklch(0% 0 0 / 0.26));
+  }
+  .poster__cover {
+    position: relative;
+    display: block;
+    aspect-ratio: 2 / 3;
+    overflow: hidden;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    background: var(--raised-2);
+  }
+  .poster__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .poster:hover .poster__cover img {
+    transform: scale(1.05);
+  }
+  .poster__stub {
+    position: relative;
+    display: grid;
+    gap: 6px;
+    align-content: start;
+    padding: 16px 12px 12px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    background:
+      radial-gradient(circle 8px at 0 0, var(--paper) 97%, transparent 100%) no-repeat,
+      radial-gradient(circle 8px at 100% 0, var(--paper) 97%, transparent 100%) no-repeat,
+      var(--raised);
+  }
+  .poster__stub::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    top: 0;
+    border-top: 2px dashed var(--rule);
+  }
+  .poster__tag {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    padding: 3px 10px;
+    border-radius: 0 var(--radius) 0 0;
+    font: 800 0.75rem var(--display);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--stock, #e4a128);
+    color: var(--stub-ink);
   }
 }

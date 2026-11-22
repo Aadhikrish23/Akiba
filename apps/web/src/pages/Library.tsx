@@ -93,11 +93,11 @@ export function LibraryPage() {
 
   return (
     <div className="grid gap-8">
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">Library</h1>
+      <h1 className="h-title">Library</h1>
 
       <nav
         aria-label="Library sections"
-        className="border-rule flex flex-wrap gap-x-6 gap-y-2 border-b"
+        className="border-rule bg-raised flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-full border p-[3px]"
       >
         {TABS.map((value) => (
           <button
@@ -107,7 +107,7 @@ export function LibraryPage() {
             onClick={() => {
               update({ tab: value });
             }}
-            className={`border-b-2 py-2 text-base ${tab === value ? 'border-accent font-medium' : 'border-transparent'}`}
+            className={`min-h-10 shrink-0 cursor-pointer rounded-full px-4 py-2 text-sm whitespace-nowrap ${tab === value ? 'bg-ink text-paper font-bold' : 'text-mute hover:text-ink'}`}
           >
             {TAB_LABEL(value)}
             {count(value) !== null && (
@@ -224,7 +224,7 @@ export function LibraryPage() {
               <ul
                 aria-label="Library"
                 className="grid list-none gap-x-5 gap-y-8 p-0"
-                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))' }}
               >
                 {state.items.map((entry) => (
                   <li key={entry.id}>

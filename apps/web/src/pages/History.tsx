@@ -76,7 +76,7 @@ export function HistoryPage() {
 
   return (
     <div className="grid gap-8">
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">History</h1>
+      <h1 className="h-title">History</h1>
       <div className="max-w-xs">
         <Select
           label="Show"
@@ -117,7 +117,7 @@ export function HistoryPage() {
                 <p>
                   <Link
                     to={`/title/${item.title.id}`}
-                    className="font-serif font-semibold underline-offset-4 hover:underline"
+                    className="h-item underline-offset-4 hover:underline"
                   >
                     {displayTitle(item.title)}
                   </Link>

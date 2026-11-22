@@ -58,7 +58,7 @@ export function SettingsPage() {
   const { profile } = useAuth();
   return (
     <div className="grid max-w-3xl gap-12">
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="h-title">Settings</h1>
       {profile === null ? (
         <p role="status" aria-busy="true" className="text-mute">
           Loading your settings…
@@ -87,7 +87,7 @@ function Section({
 }) {
   return (
     <section aria-labelledby={id} className="border-rule grid gap-4 border-t pt-6">
-      <h2 id={id} className="font-serif text-xl font-semibold">
+      <h2 id={id} className="h-section">
         {title}
       </h2>
       {children}

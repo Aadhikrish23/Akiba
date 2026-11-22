@@ -112,7 +112,7 @@ export function TitlePage() {
   if (load.phase === 'missing') {
     return (
       <div className="grid max-w-prose gap-3">
-        <h1 className="font-serif text-2xl font-semibold">Title not found</h1>
+        <h1 className="h-title">Title not found</h1>
         <p className="text-mute">This title does not exist, or it is not available.</p>
         <p>
           <Link to="/discover" className="underline underline-offset-4">
@@ -125,7 +125,7 @@ export function TitlePage() {
   if (load.phase === 'error') {
     return (
       <div className="grid max-w-prose gap-4">
-        <h1 className="font-serif text-2xl font-semibold">Title</h1>
+        <h1 className="h-title">Title</h1>
         <Notice tone="error">{load.message}</Notice>
         <div>
           <Button onClick={retry}>Try again</Button>
@@ -168,10 +168,23 @@ export function TitlePage() {
 
   return (
     <article className="grid max-w-5xl gap-10">
+      {title.bannerUrl !== null && (
+        <div
+          className="relative -mb-4 h-36 overflow-hidden rounded-lg min-[880px]:h-56"
+          aria-hidden="true"
+        >
+          <img src={title.bannerUrl} alt="" className="size-full object-cover" />
+          <div className="from-paper/10 to-paper/95 absolute inset-0 bg-gradient-to-b" />
+        </div>
+      )}
       <div className="grid gap-6 min-[560px]:grid-cols-[200px_1fr]">
-        <div className="bg-raised border-rule aspect-[2/3] overflow-hidden rounded-sm border">
+        <div
+          className={`bg-raised-2 aspect-[2/3] w-40 overflow-hidden rounded-md shadow-xl min-[560px]:w-auto ${
+            title.bannerUrl !== null ? 'relative z-10 -mt-20 ml-4 -rotate-2 min-[560px]:ml-6' : ''
+          }`}
+        >
           {title.coverUrl === null ? (
-            <div className="text-mute font-serif grid h-full place-items-center p-4 text-center text-xl">
+            <div className="text-mute grid h-full place-items-center p-4 text-center text-xl font-display font-extrabold uppercase">
               {name}
             </div>
           ) : (
@@ -180,9 +193,7 @@ export function TitlePage() {
         </div>
         <div className="grid content-start gap-4">
           <div>
-            <h1 className="font-serif text-2xl leading-tight font-semibold tracking-tight">
-              {name}
-            </h1>
+            <h1 className="h-title">{name}</h1>
             {otherTitles(title).map((other) => (
               <p key={other.text} lang={other.lang} className="text-mute">
                 {other.text}
@@ -218,7 +229,7 @@ export function TitlePage() {
           {title.genres.length > 0 && (
             <ul aria-label="Genres" className="flex list-none flex-wrap gap-2 p-0 text-sm">
               {title.genres.map((genre) => (
-                <li key={genre} className="border-rule rounded-sm border px-2 py-0.5">
+                <li key={genre} className="border-rule rounded-full border px-3 py-0.5">
                   {genre}
                 </li>
               ))}
@@ -231,7 +242,7 @@ export function TitlePage() {
 
       {title.synopsis !== null && (
         <section aria-labelledby="synopsis-heading" className="grid max-w-prose gap-3">
-          <h2 id="synopsis-heading" className="font-serif text-xl font-semibold">
+          <h2 id="synopsis-heading" className="h-section">
             Synopsis
           </h2>
           {title.synopsis.split(/\n{2,}/).map((paragraph, index) => (
@@ -243,7 +254,7 @@ export function TitlePage() {
       )}
 
       <section aria-labelledby="cast-heading" className="grid gap-4">
-        <h2 id="cast-heading" className="font-serif text-xl font-semibold">
+        <h2 id="cast-heading" className="h-section">
           Characters
         </h2>
         {cast === null && (
@@ -298,7 +309,7 @@ export function TitlePage() {
 
       <section aria-labelledby="related-heading" className="grid gap-5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-          <h2 id="related-heading" className="font-serif text-xl font-semibold">
+          <h2 id="related-heading" className="h-section">
             Related titles
           </h2>
           {title.franchiseId !== null && (
