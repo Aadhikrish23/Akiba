@@ -3,7 +3,7 @@ import { oklchToHex } from './color.js';
 export * from './color.js';
 
 /**
- * The "Shelf" design tokens (doc 08 §2), the single source for web (CSS variables, Tailwind
+ * The "Ticket Stub Night" design tokens (doc 08 §2), the single source for web (CSS variables, Tailwind
  * theme), mobile and desktop (sRGB hex). A change to doc 08 is a change here, and the tests
  * compare the two.
  */
@@ -26,25 +26,55 @@ export function spacing(steps: number): number {
 export const COLOR_NAMES = [
   'paper',
   'raised',
+  'raised-2',
   'ink',
   'mute',
   'rule',
   'accent',
   'on-accent',
+  'danger',
+  'stub-ink',
 ] as const;
 
 export type ColorName = (typeof COLOR_NAMES)[number];
 
-/** Source colours, as doc 08 writes them. `accent` is vermilion and is used for state only. */
+/**
+ * Source colours, as doc 08 writes them. Dark is the night-time cinema lobby, light the same
+ * lobby by day. `accent` is the one colour that means "press me" (and focus); `stub-ink` is the
+ * ink printed on a ticket's coloured stock, the same in both schemes.
+ */
 export const oklchTokens: Readonly<Record<ColorName, Readonly<Record<ColorScheme, string>>>> = {
-  paper: { light: 'oklch(96.5% 0.012 85)', dark: 'oklch(19% 0.012 60)' },
-  raised: { light: 'oklch(99% 0.006 85)', dark: 'oklch(23.5% 0.014 60)' },
-  ink: { light: 'oklch(22% 0.015 60)', dark: 'oklch(93% 0.012 85)' },
-  mute: { light: 'oklch(48% 0.02 70)', dark: 'oklch(70% 0.02 80)' },
-  rule: { light: 'oklch(88% 0.015 80)', dark: 'oklch(31% 0.015 60)' },
-  accent: { light: 'oklch(55% 0.19 33)', dark: 'oklch(68% 0.17 38)' },
-  'on-accent': { light: 'oklch(98% 0.01 85)', dark: 'oklch(18% 0.02 40)' },
+  paper: { light: 'oklch(96.5% 0.012 85)', dark: 'oklch(16% 0.035 265)' },
+  raised: { light: 'oklch(99% 0.006 85)', dark: 'oklch(20.5% 0.04 265)' },
+  'raised-2': { light: 'oklch(93% 0.012 85)', dark: 'oklch(26% 0.045 265)' },
+  ink: { light: 'oklch(20% 0.04 265)', dark: 'oklch(95% 0.012 90)' },
+  mute: { light: 'oklch(44% 0.035 265)', dark: 'oklch(74% 0.035 265)' },
+  rule: { light: 'oklch(86% 0.015 85)', dark: 'oklch(32% 0.045 265)' },
+  accent: { light: 'oklch(40% 0.1 165)', dark: 'oklch(90% 0.15 165)' },
+  'on-accent': { light: 'oklch(97% 0.02 165)', dark: 'oklch(20% 0.05 200)' },
+  danger: { light: 'oklch(46% 0.18 28)', dark: 'oklch(74% 0.15 25)' },
+  'stub-ink': { light: 'oklch(19% 0.04 265)', dark: 'oklch(19% 0.04 265)' },
 };
+
+/**
+ * Ticket stock: the colours a ticket is printed on. Until the catalog supplies each cover's own
+ * colour, a title takes one of these, chosen from its id (see `stockFor` in the web app). The
+ * `stub-ink` text on every one of them is at least 4.5:1 (tested).
+ */
+export const ticketStock = [
+  '#e4a128',
+  '#f1ae50',
+  '#aebb35',
+  '#c99350',
+  '#5aa6ee',
+  '#e4a143',
+  '#e45d5d',
+  '#bbf1a1',
+  '#f1d65d',
+  '#f17843',
+  '#e4c993',
+  '#ffd6ae',
+] as const;
 
 /** The same colours as sRGB hex, for React Native and Electron. */
 export const hexTokens: Readonly<Record<ColorScheme, Readonly<Record<ColorName, string>>>> = {
@@ -57,9 +87,15 @@ export const hexTokens: Readonly<Record<ColorScheme, Readonly<Record<ColorName, 
 };
 
 export const fontFamily = {
-  /** Titles and headings. The final webfont is still open (doc 08 §2). */
+  /** Native apps without the webfonts: titles in the platform serif (see apps/mobile). */
   serif: '"Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif',
-  sans: 'ui-sans-serif, "Helvetica Neue", "Segoe UI", system-ui, sans-serif',
+  /** Body and controls: Zen Kaku Gothic New, which also sets the Japanese text. */
+  sans: '"Zen Kaku Gothic New", ui-sans-serif, "Helvetica Neue", "Segoe UI", system-ui, sans-serif',
+  /** Titles, big numerals and day names: Big Shoulders Display, condensed, with a weight axis. */
+  display:
+    '"Big Shoulders Display Variable", "Big Shoulders Display", "Zen Kaku Gothic New", Impact, sans-serif',
+  /** The handwritten note on a ticket. */
+  hand: '"Yomogi", "Zen Kaku Gothic New", cursive',
 } as const;
 
 /** Type scale in px (doc 08 §2: 11 / 13 / 15 / 18 / 24 / 32), rem-based on the web. */
@@ -67,10 +103,16 @@ export const typeScalePx = { xs: 11, sm: 13, base: 15, lg: 18, xl: 24, '2xl': 32
 
 export type TypeStep = keyof typeof typeScalePx;
 
+/** Display sizes for ticket numerals and page titles, in px (clamped down on narrow screens). */
+export const displayScalePx = { d1: 40, d2: 56, d3: 84 } as const;
+
 /** Root font size the rem values are relative to. */
 export const REM_PX = 16;
 
-export const radiusPx = 2;
+/** Corner radii in px: controls, tickets and posters, and the largest surfaces. */
+export const radiusPx = 6;
+export const radiusMdPx = 10;
+export const radiusLgPx = 14;
 
 /** Longest transition (doc 08 §2: ≤ 150 ms); zero under `prefers-reduced-motion`. */
 export const motionMaxMs = 150;
@@ -107,8 +149,12 @@ ${sourceVars}
 ${colourDeclarations((name) => `var(${cssName(name)}-l)`)}
   --serif: ${fontFamily.serif};
   --sans: ${fontFamily.sans};
+  --display: ${fontFamily.display};
+  --hand: ${fontFamily.hand};
   --gutter: ${gutterCss};
   --radius: ${radiusPx}px;
+  --radius-md: ${radiusMdPx}px;
+  --radius-lg: ${radiusLgPx}px;
   --motion-fast: ${motionMaxMs}ms;
   accent-color: var(--accent);
 }
@@ -154,6 +200,9 @@ export function tailwindThemeCss(): string {
   const textSizes = (Object.entries(typeScalePx) as [TypeStep, number][])
     .map(([step, px]) => `  --text-${step}: ${rem(px)};`)
     .join('\n');
+  const displaySizes = (Object.entries(displayScalePx) as [string, number][])
+    .map(([step, px]) => `  --text-${step}: ${rem(px)};`)
+    .join('\n');
   const breakpoints = Object.entries(breakpointsPx)
     .map(([step, px]) => `  --breakpoint-${step}: ${px}px;`)
     .join('\n');
@@ -162,15 +211,17 @@ export function tailwindThemeCss(): string {
   --color-*: initial;
 ${colours}
   --font-*: initial;
-  --font-serif: var(--serif);
   --font-sans: var(--sans);
+  --font-display: var(--display);
+  --font-hand: var(--hand);
   --text-*: initial;
 ${textSizes}
+${displaySizes}
   --spacing: ${SPACING_UNIT_PX}px;
   --radius-*: initial;
   --radius-sm: var(--radius);
-  --radius-md: var(--radius);
-  --radius-lg: var(--radius);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
   --breakpoint-*: initial;
 ${breakpoints}
 }

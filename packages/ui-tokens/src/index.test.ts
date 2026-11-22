@@ -6,14 +6,18 @@ import {
   SPACING_UNIT_PX,
   breakpointsPx,
   contrastRatio,
+  displayScalePx,
   hexTokens,
   motionMaxMs,
   oklchTokens,
   oklchToHex,
   parseOklch,
+  radiusLgPx,
+  radiusMdPx,
   radiusPx,
   spacing,
   tailwindThemeCss,
+  ticketStock,
   tokensCss,
   typeScalePx,
 } from './index.js';
@@ -40,7 +44,7 @@ describe('@akiba/ui-tokens: match doc 08 §2', () => {
   const docColours = new Map<string, [string, string]>();
   for (const line of DOC_08.split(/\r?\n/)) {
     const row =
-      /^\|\s*`([a-z-]+)`[^|]*\|\s*`(oklch\([^`]+\))`\s*\|\s*`(oklch\([^`]+\))`\s*\|$/.exec(line);
+      /^\|\s*`([a-z0-9-]+)`[^|]*\|\s*`(oklch\([^`]+\))`\s*\|\s*`(oklch\([^`]+\))`\s*\|$/.exec(line);
     if (row?.[1] !== undefined && row[2] !== undefined && row[3] !== undefined) {
       docColours.set(row[1], [row[2], row[3]]);
     }
@@ -60,7 +64,8 @@ describe('@akiba/ui-tokens: match doc 08 §2', () => {
     expect(Object.values(typeScalePx)).toEqual([11, 13, 15, 18, 24, 32]);
     expect(DOC_08).toContain('**Scale:** 11 / 13 / 15 / 18 / 24 / 32 px');
     expect(SPACING_UNIT_PX).toBe(4);
-    expect(radiusPx).toBe(2);
+    expect([radiusPx, radiusMdPx, radiusLgPx]).toEqual([6, 10, 14]);
+    expect(Object.values(displayScalePx)).toEqual([40, 56, 84]);
     expect(motionMaxMs).toBe(150);
     expect(Object.values(breakpointsPx)).toEqual([560, 880, 1200]);
     expect(DOC_08).toContain('Breakpoints 560 / 880 / 1200 px');
@@ -125,6 +130,10 @@ describe('@akiba/ui-tokens: accessibility of the palette (doc 08 §6, WCAG 2.2 A
     // The accent marks state (progress, focus ring, active tab); doc 08 asks for ≥ 3:1 for UI.
     ['accent on paper', 'accent', 'paper', 3],
     ['accent on raised', 'accent', 'raised', 3],
+    ['danger on paper', 'danger', 'paper', 4.5],
+    ['danger on raised', 'danger', 'raised', 4.5],
+    ['ink on raised-2', 'ink', 'raised-2', 4.5],
+    ['mute on raised-2', 'mute', 'raised-2', 4.5],
   ];
 
   for (const scheme of COLOR_SCHEMES) {
@@ -137,6 +146,17 @@ describe('@akiba/ui-tokens: accessibility of the palette (doc 08 §6, WCAG 2.2 A
       expect(ratio).toBeGreaterThanOrEqual(minimum);
     });
   }
+});
+
+describe('@akiba/ui-tokens: ticket stock (doc 08 §2)', () => {
+  it('prints stub-ink at 4.5:1 or better on every stock colour, in both schemes', () => {
+    for (const scheme of COLOR_SCHEMES) {
+      for (const stock of ticketStock) {
+        const ratio = contrastRatio(hexTokens[scheme]['stub-ink'], stock);
+        expect(ratio, `${scheme} ${stock}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
 });
 
 describe('@akiba/ui-tokens: generated CSS', () => {
@@ -167,6 +187,8 @@ describe('@akiba/ui-tokens: generated CSS', () => {
     expect(theme).toContain('--color-on-accent: var(--on-accent);');
     expect(theme).toContain('--text-xs: 0.6875rem;');
     expect(theme).toContain('--breakpoint-md: 880px;');
-    expect(theme).not.toMatch(/--font-serif: var\(--font-serif\)/);
+    expect(theme).toContain('--font-display: var(--display);');
+    expect(theme).toContain('--text-d1: 2.5rem;');
+    expect(theme).not.toContain('--font-display: var(--font-display)');
   });
 });

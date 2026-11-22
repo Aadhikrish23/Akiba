@@ -1,29 +1,33 @@
-# UX Design — "Shelf" direction
+# UX Design — "Ticket Stub Night" direction
 
-**Version:** 1.0 · **Date:** 2026-11-15 · Approved by the product owner. Reference mockup: [`mockups/shelf.html`](mockups/shelf.html).
+**Version:** 2.0 · **Date:** 2026-11-22 · Approved by the product owner. This replaces the 1.0 "Shelf" direction (cream paper, serif, vermilion). Reference mockups: [`mockups/desktop-redesign/`](mockups/desktop-redesign/index.html) (desktop and phone; open `home.html`). The old Shelf mockup stays in [`mockups/shelf.html`](mockups/shelf.html) for history.
 
 ## 1. Concept
-Akiba should feel like a personal shelf: cover art is the hero and chrome stays quiet. A compact list view (borrowed from the "Ledger" direction) supports fast tracking.
+Akiba is a cinema lobby at night, and every episode you watch is a punched ticket stub. A show you follow is a ticket printed in a colour taken from its cover; **+1** stamps it (観了), and the episode numeral gets heavier the further in you are. The calendar borrows the Japanese TV listing: times run past midnight (25:30 is 1:30 am) and a week is a timetable of your own shows. Cover art stays the hero; the interface around it is dark, ticket-coloured and has one mint accent that always means "press me".
 
-**Never:** generic AI look — purple/blue gradients, glassmorphism, uniform rounded cards with drop shadows, emoji or stock icons as design, neon "anime" clichés, centered hero with three feature boxes.
+**Never:** generic anime-site look (banner carousels, neon, sparkle), generic SaaS dashboard (metric tiles, card grids of the same size), cold and clinical. No gradient text, no coloured side stripes, no emoji as icons.
 
 ## 2. Design tokens (source of truth: `packages/ui-tokens`)
 | Token | Light | Dark |
 |---|---|---|
-| `paper` (background) | `oklch(96.5% .012 85)` | `oklch(19% .012 60)` |
-| `raised` | `oklch(99% .006 85)` | `oklch(23.5% .014 60)` |
-| `ink` (text) | `oklch(22% .015 60)` | `oklch(93% .012 85)` |
-| `mute` (secondary text) | `oklch(48% .02 70)` | `oklch(70% .02 80)` |
-| `rule` (hairlines) | `oklch(88% .015 80)` | `oklch(31% .015 60)` |
-| `accent` (vermilion) | `oklch(55% .19 33)` | `oklch(68% .17 38)` |
-| `on-accent` | `oklch(98% .01 85)` | `oklch(18% .02 40)` |
+| `paper` (background) | `oklch(96.5% .012 85)` | `oklch(16% .035 265)` |
+| `raised` | `oklch(99% .006 85)` | `oklch(20.5% .04 265)` |
+| `raised-2` (selected, track) | `oklch(93% .012 85)` | `oklch(26% .045 265)` |
+| `ink` (text) | `oklch(20% .04 265)` | `oklch(95% .012 90)` |
+| `mute` (secondary text) | `oklch(44% .035 265)` | `oklch(74% .035 265)` |
+| `rule` (hairlines) | `oklch(86% .015 85)` | `oklch(32% .045 265)` |
+| `accent` (mint: "press me", focus) | `oklch(40% .1 165)` | `oklch(90% .15 165)` |
+| `on-accent` | `oklch(97% .02 165)` | `oklch(20% .05 200)` |
+| `danger` (errors, destructive) | `oklch(46% .18 28)` | `oklch(74% .15 25)` |
+| `stub-ink` (ink on ticket stock) | `oklch(19% .04 265)` | `oklch(19% .04 265)` |
 
 Mobile/Electron receive the same values converted to sRGB hex by a build step.
-- **Type:** titles/headings in a high-contrast serif (system serif stack in prototype; final webfont TBD, e.g. a licensed or open-source serif); UI in a neutral grotesque/system sans; **tabular numerals** for counts and episode numbers. Japanese text set with a proper CJK fallback.
-- **Scale:** 11 / 13 / 15 / 18 / 24 / 32 px (rem-based).
+- **Ticket stock:** a ticket is printed on a colour taken from the title's cover (until the catalog supplies it, one of twelve warm stock colours chosen from the title id). `stub-ink` text on every stock colour is at least 4.5:1 (tested in `@akiba/ui-tokens`).
+- **Type:** titles, day names and big numerals in **Big Shoulders Display** (condensed, variable weight); UI and Japanese text in **Zen Kaku Gothic New**; the ticket note in **Yomogi** (handwriting, one short note, never UI). Self-hosted, no font CDN. **Tabular numerals** for counts and episode numbers.
+- **Scale:** 11 / 13 / 15 / 18 / 24 / 32 px (rem-based) for text; display sizes 40 / 56 / 84 px for ticket numerals and page titles, clamped down on narrow screens.
 - **Spacing:** 4-px base; gutters `clamp(16px, 4vw, 40px)`.
-- **Radius:** 2 px (almost square). **Elevation:** none; separation by hairline rules.
-- **Motion:** minimal; ≤150 ms; respect `prefers-reduced-motion`.
+- **Radius:** 6 px controls, 10 px tickets and posters, 14 px for the largest surfaces. **Elevation:** only a ticket lifts (a soft, offset drop shadow); everything else is separated by hairline rules.
+- **Motion:** transitions ≤150 ms, plus one authored moment: the 観了 stamp that lands on +1 (about a second and a half, with the numeral thickening). All of it is off under `prefers-reduced-motion`.
 - **Theme:** follows system via `color-scheme` and `light-dark()`; a manual override lives only in Settings.
 
 ## 3. Components
