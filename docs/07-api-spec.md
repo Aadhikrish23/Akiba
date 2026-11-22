@@ -60,6 +60,7 @@ All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `
 | `GET /history?type=&titleId=&from=&to=&limit=&cursor=` | Event timeline, newest first (`type` may list several, comma separated; `from` inclusive, `to` exclusive; keyset cursor). Events have no write routes: they are append-only |
 | `GET /stats` | Aggregates (later) |
 | `GET /library/favorites` | Favorite entries |
+| `GET /library/schedule?from=&to=` | Episodes of your Watching and Planned titles airing in `[from, to)` (ISO UTC, at most 14 days): `{ entryId, title, entryStatus, episode, airsAt, projected, watched }`. `projected` marks a weekly slot carried forward from the latest announced episode, up to the last episode; the source has not announced it. 422 on a bad window |
 
 ## 5. Inbox
 | Method & path | Purpose |

@@ -27,6 +27,7 @@ export function titleColumns(title: SourceTitle, now: Date): Prisma.TitleUncheck
     synonyms: [...title.synonyms],
     synopsis: title.synopsis,
     coverUrl: title.coverUrl,
+    coverColor: title.coverColor,
     bannerUrl: title.bannerUrl,
     format: title.format,
     status: title.status,

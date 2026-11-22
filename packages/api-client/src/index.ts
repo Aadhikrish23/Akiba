@@ -17,6 +17,7 @@ import {
   libraryCountsSchema,
   libraryEntryResponseSchema,
   libraryListResponseSchema,
+  scheduleResponseSchema,
   progressResponseSchema,
   restoreAccountResponseSchema,
   shareCreatedSchema,
@@ -46,6 +47,8 @@ import {
   type Platform,
   type ReadyResponse,
   type RefreshResponse,
+  type ScheduleQuery,
+  type ScheduleSlot,
   type RegisterRequest,
   type RegisterResponse,
   type ResetPasswordRequest,
@@ -201,6 +204,8 @@ export interface LibraryApi {
   list(params?: Partial<LibraryListQuery>): Promise<LibraryListResponse>;
   favorites(params?: Partial<LibraryListQuery>): Promise<LibraryListResponse>;
   counts(): Promise<LibraryCounts>;
+  /** The episodes of your Watching and Planned titles that air in `[from, to)` (ISO, UTC, at most 14 days). */
+  schedule(query: ScheduleQuery): Promise<ScheduleSlot[]>;
   get(entryId: string): Promise<LibraryEntryResponse['data']>;
   /** 409 `ALREADY_IN_LIBRARY` (with `entryId`) if it is already there. */
   add(titleId: string, status: EntryStatus): Promise<LibraryEntryResponse['data']>;
@@ -701,6 +706,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     },
     async counts() {
       return parse(libraryCountsSchema, '/library/counts', await get('/library/counts')).data;
+    },
+    async schedule(query) {
+      return parse(
+        scheduleResponseSchema,
+        '/library/schedule',
+        await get('/library/schedule', query),
+      ).data;
     },
     get: (entryId) => entryOf(entryPath(entryId), get(entryPath(entryId))),
     add: (titleId, status) => entryOf('/library', send('POST', '/library', { titleId, status })),

@@ -164,6 +164,7 @@ export function normalizeAnime(anime: Anime): SourceTitle | null {
     synonyms: (anime.title_synonyms ?? []).map((value) => value.trim()).filter((v) => v !== ''),
     synopsis: plainText(anime.synopsis),
     coverUrl: httpUrl(anime.images?.jpg?.large_image_url) ?? httpUrl(anime.images?.jpg?.image_url),
+    coverColor: null,
     bannerUrl: null,
     format: cleanString(anime.type),
     status: STATUS_BY_SOURCE[(anime.status ?? '').toLowerCase()] ?? 'not_yet_released',

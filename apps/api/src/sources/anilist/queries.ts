@@ -9,7 +9,7 @@ const MEDIA_CARD = `
   title { romaji english native }
   synonyms
   description(asHtml: false)
-  coverImage { extraLarge large }
+  coverImage { extraLarge large color }
   bannerImage
   format
   status

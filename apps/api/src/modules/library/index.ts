@@ -3,6 +3,7 @@ import type { DbClient } from '../../db/index.js';
 import { createHistoryService } from './history.js';
 import { createLibraryRouter } from './library.routes.js';
 import { createLibraryService, type LibraryService } from './library.service.js';
+import { createScheduleService } from './schedule.js';
 
 export type { LibraryService } from './library.service.js';
 
@@ -27,6 +28,10 @@ export function createLibraryModule(options: LibraryModuleOptions): LibraryModul
     router: createLibraryRouter({
       service,
       history: createHistoryService(options.db),
+      schedule: createScheduleService({
+        db: options.db,
+        ...(options.now === undefined ? {} : { now: options.now }),
+      }),
       authenticated: options.authenticated,
     }),
     service,

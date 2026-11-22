@@ -98,6 +98,7 @@ export function makeSourceTitle(
     synonyms: [],
     synopsis: null,
     coverUrl: null,
+    coverColor: null,
     bannerUrl: null,
     format: 'TV',
     status: 'finished',

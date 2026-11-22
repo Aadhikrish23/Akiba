@@ -287,6 +287,14 @@ describe('AniList adapter: normalisation edge cases', () => {
     expect(title?.coverUrl).toBe('https://img.example.test/a.jpg');
   });
 
+  it('keeps the cover colour as lower-case #rrggbb and drops anything else', async () => {
+    expect((await normalised({ coverImage: { color: '#E4A128' } }))?.coverColor).toBe('#e4a128');
+    expect((await normalised({ coverImage: { color: 'red' } }))?.coverColor).toBeNull();
+    expect((await normalised({ coverImage: { color: '#fff' } }))?.coverColor).toBeNull();
+    expect((await normalised({ coverImage: { color: '#e4a128;x' } }))?.coverColor).toBeNull();
+    expect((await normalised({ coverImage: null }))?.coverColor).toBeNull();
+  });
+
   it('strips markup and entities from the synopsis', async () => {
     const title = await normalised({ description: 'One<br><br>Two &amp; <i>three</i> &lt;b&gt;' });
     expect(title?.synopsis).toBe('One\n\nTwo & three <b>');

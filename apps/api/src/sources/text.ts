@@ -57,6 +57,12 @@ export function httpUrl(value: unknown): string | null {
   }
 }
 
+/** A `#rrggbb` colour (lower case) or null: clients paint with it, so anything else is dropped. */
+export function hexColour(value: unknown): string | null {
+  const text = cleanString(value);
+  return text !== null && /^#[0-9a-fA-F]{6}$/.test(text) ? text.toLowerCase() : null;
+}
+
 /** Longest character description kept. */
 const CHARACTER_DESCRIPTION_MAX = 2_000;
 

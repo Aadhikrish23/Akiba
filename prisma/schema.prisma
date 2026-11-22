@@ -251,6 +251,8 @@ model Title {
   synonyms        String[]                 @default([])
   synopsis        String?
   coverUrl        String?                  @map("cover_url")
+  /// The cover art's dominant colour as `#rrggbb` when the source supplies one (AniList does); tickets are printed on it.
+  coverColor      String?                  @map("cover_color")
   bannerUrl       String?                  @map("banner_url")
   /// The source's own format label, kept verbatim; `kind` is the normalised value.
   format          String?

@@ -4,6 +4,7 @@ import {
   episodesTotalRequestSchema,
   progressRequestSchema,
   libraryListQuerySchema,
+  scheduleQuerySchema,
   updateEntryRequestSchema,
 } from '@akiba/shared';
 import { Router, type RequestHandler } from 'express';
@@ -12,6 +13,7 @@ import { getAuth } from '../../middleware/auth.js';
 import { getValidated, validate } from '../../middleware/validate.js';
 import type { HistoryService } from './history.js';
 import type { LibraryService } from './library.service.js';
+import type { ScheduleService } from './schedule.js';
 
 const entryParams = { params: z.object({ entryId: z.string().max(64) }) };
 
@@ -23,6 +25,7 @@ const entryParams = { params: z.object({ entryId: z.string().max(64) }) };
 export function createLibraryRouter(options: {
   readonly service: LibraryService;
   readonly history: HistoryService;
+  readonly schedule: ScheduleService;
   readonly authenticated: readonly RequestHandler[];
 }): Router {
   const { service } = options;
@@ -44,7 +47,17 @@ export function createLibraryRouter(options: {
     res.json({ data: await service.counts(getAuth(res).userId) });
   });
 
-  // Registered before `/library/:entryId` so "favorites" is not read as an entry ID.
+  // Registered before `/library/:entryId` so "schedule" and "favorites" are not read as entry IDs.
+  const scheduleSchemas = { query: scheduleQuerySchema };
+  router.get('/library/schedule', ...guarded, validate(scheduleSchemas), async (_req, res) => {
+    res.json({
+      data: await options.schedule.slots(
+        getAuth(res).userId,
+        getValidated(res, scheduleSchemas).query,
+      ),
+    });
+  });
+
   router.get('/library/favorites', ...guarded, validate(listSchemas), async (_req, res) => {
     res.json(await service.favorites(getAuth(res).userId, getValidated(res, listSchemas).query));
   });

@@ -8,7 +8,14 @@ import {
   type Clock,
   type Sleep,
 } from '../resilience.js';
-import { characterDescription, cleanString, httpUrl, intOrNull, plainText } from '../text.js';
+import {
+  characterDescription,
+  cleanString,
+  hexColour,
+  httpUrl,
+  intOrNull,
+  plainText,
+} from '../text.js';
 import {
   SourceError,
   type CharacterRole,
@@ -47,7 +54,9 @@ const mediaSchema = z.looseObject({
     .nullish(),
   synonyms: z.array(z.string()).nullish(),
   description: optionalString,
-  coverImage: z.object({ extraLarge: optionalString, large: optionalString }).nullish(),
+  coverImage: z
+    .object({ extraLarge: optionalString, large: optionalString, color: optionalString })
+    .nullish(),
   bannerImage: optionalString,
   format: optionalString,
   status: optionalString,
@@ -205,6 +214,7 @@ export function normalizeMedia(media: Media): SourceTitle {
     synonyms: (media.synonyms ?? []).map((value) => value.trim()).filter((value) => value !== ''),
     synopsis: plainText(media.description),
     coverUrl: httpUrl(media.coverImage?.extraLarge) ?? httpUrl(media.coverImage?.large),
+    coverColor: hexColour(media.coverImage?.color),
     bannerUrl: httpUrl(media.bannerImage),
     format: cleanString(media.format),
     status: STATUS_BY_SOURCE[media.status ?? ''] ?? 'not_yet_released',

@@ -60,6 +60,8 @@ export const titleCardSchema = z.object({
   titleEnglish: z.string().nullable(),
   titleNative: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  /** `#rrggbb` of the cover art's dominant colour; null when the source has none. */
+  coverColor: z.string().nullable().default(null),
   format: z.string().nullable(),
   status: titleStatusSchema,
   episodesTotal: z.number().int().nullable(),

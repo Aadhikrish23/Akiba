@@ -48,6 +48,8 @@ export interface SourceTitle {
   /** Plain text (markup removed). */
   readonly synopsis: string | null;
   readonly coverUrl: string | null;
+  /** `#rrggbb`, lower case, or null when the source has no colour for the cover. */
+  readonly coverColor: string | null;
   readonly bannerUrl: string | null;
   /** The source's own format label, verbatim. */
   readonly format: string | null;
