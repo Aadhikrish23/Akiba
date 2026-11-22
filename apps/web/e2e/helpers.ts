@@ -50,6 +50,19 @@ export async function setAiringEpisode(episode: number): Promise<void> {
   expect(response.ok).toBe(true);
 }
 
+/** The one title the mock AniList reports as airing. */
+export const SHOW = 'Kusuriya no Hitorigoto 3rd Season';
+
+/** Open the airing show from Discover and add it as Watching. */
+export async function watchTheShow(page: Page): Promise<void> {
+  await page.goto('/discover?status=releasing');
+  await page.getByRole('link', { name: SHOW, exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: SHOW })).toBeVisible();
+  await page.getByLabel('Status').selectOption('watching');
+  await page.getByRole('button', { name: 'Add to library' }).click();
+  await expect(page.getByRole('heading', { name: 'On your shelf' })).toBeVisible();
+}
+
 const JOBS_CLI = fileURLToPath(new URL('../../api/dist/jobs/cli.js', import.meta.url));
 
 /**

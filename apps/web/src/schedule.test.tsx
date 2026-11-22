@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { json, renderApp, signedInHandler, violations, type Call } from './test/render';
 
 /** The Schedule screen: tonight, the week as a timetable in broadcast time, and +1 from a slot. */
@@ -44,8 +44,12 @@ const detail = (progress: number) => ({
   runs: [],
 });
 
-/** An hour ago, so the episode has aired whatever day the suite runs on. */
-const AIRED = new Date(Date.now() - 3_600_000).toISOString();
+/**
+ * The clock is pinned to the middle of a week (Wednesday noon, UTC), so what is "this week" and
+ * what has aired never depends on the day the suite runs. Only Date is faked: timers stay real.
+ */
+const NOW = '2026-11-25T12:00:00.000Z';
+const AIRED = '2026-11-25T11:00:00.000Z';
 
 const slot = (extra: Record<string, unknown> = {}) => ({
   entryId: ENTRY,
@@ -67,6 +71,14 @@ const serving = (slots: unknown[], onProgress?: (call: Call) => Response) =>
   });
 
 describe('Schedule', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(NOW));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows the week, asks the server for it in the account time zone, and counts what is waiting', async () => {
     const app = renderApp({ route: '/schedule', handler: serving([slot()]) });
     expect(

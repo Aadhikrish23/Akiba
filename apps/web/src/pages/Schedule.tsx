@@ -293,7 +293,6 @@ export function SchedulePage() {
                       type="button"
                       role="tab"
                       aria-selected={agendaDay === index}
-                      aria-label={`${name} ${addDays(monday, index).d}, ${count} airing`}
                       onClick={() => {
                         setPickedDay(index);
                       }}
@@ -311,6 +310,7 @@ export function SchedulePage() {
                       </b>
                       <small className="min-h-3 text-[0.6875rem] font-bold">
                         {count > 0 ? count : ''}
+                        <span className="sr-only">{count > 0 ? ' airing' : ' (none airing)'}</span>
                       </small>
                     </button>
                   );

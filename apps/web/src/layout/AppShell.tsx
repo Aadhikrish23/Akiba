@@ -189,14 +189,20 @@ export function AppShell() {
               {state.user.displayName ?? state.user.email}
             </span>
             <span className="flex gap-4 min-[880px]:hidden">
-              <Link to="/history" className="underline underline-offset-4">
+              <Link
+                to="/history"
+                className="inline-flex min-h-8 items-center underline underline-offset-4"
+              >
                 History
               </Link>
-              <Link to="/settings" className="underline underline-offset-4">
+              <Link
+                to="/settings"
+                className="inline-flex min-h-8 items-center underline underline-offset-4"
+              >
                 Settings
               </Link>
             </span>
-            <Button variant="link" onClick={signOut} className="whitespace-nowrap">
+            <Button variant="link" onClick={signOut} className="min-h-8 whitespace-nowrap">
               Log out
             </Button>
           </div>

@@ -1,6 +1,15 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { logIn, runJob, setAiringEpisode, setAniList, signUp, unique } from './helpers';
+import {
+  SHOW,
+  logIn,
+  runJob,
+  setAiringEpisode,
+  setAniList,
+  signUp,
+  unique,
+  watchTheShow,
+} from './helpers';
 
 /**
  * T24 journey 6 of doc 11 §4: an episode airs → the badge → read. The episode "airs" through the
@@ -9,7 +18,6 @@ import { logIn, runJob, setAiringEpisode, setAniList, signUp, unique } from './h
  * FR-NOTE-001…005.
  */
 
-const SHOW = 'Kusuriya no Hitorigoto 3rd Season';
 let nextEpisode = 100 + (Date.now() % 800);
 
 test.beforeEach(async () => {
@@ -26,16 +34,6 @@ async function account(page: Page, label: string): Promise<string> {
   await logIn(page, email);
   await expect(page.getByRole('heading', { name: 'Welcome, Hana' })).toBeVisible();
   return email;
-}
-
-/** Open the airing show from Discover and add it as Watching. */
-async function watchTheShow(page: Page): Promise<void> {
-  await page.goto('/discover?status=releasing');
-  await page.getByRole('link', { name: SHOW, exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: SHOW })).toBeVisible();
-  await page.getByLabel('Status').selectOption('watching');
-  await page.getByRole('button', { name: 'Add to library' }).click();
-  await expect(page.getByRole('heading', { name: 'On your shelf' })).toBeVisible();
 }
 
 /** Coming back to the tab asks the server for the count again. */
