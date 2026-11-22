@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discover · Akiba · Ticket Stub Night (desktop mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@300..900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Yomogi&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ticket-night.css">
+<link rel="stylesheet" href="pages.css">
+<style>
+  .ticket.pick { --stub: 220px; grid-template-columns: 200px 1fr var(--stub); grid-template-areas: "cover body stub"; min-height: 290px; }
+  .ticket.pick h3 { font-size: 52px; max-width: 14ch; }
+  .ticket.pick .body { justify-content: space-between; gap: 12px; padding: 24px 30px; }
+  .ticket.pick .stub { padding: 22px 18px; }
+  .ticket.pick .when-big { font: 700 13px var(--sans); letter-spacing: .12em; }
+  .ticket.pick .time { font: 800 64px/.85 var(--display); letter-spacing: -.01em; }
+  .ticket.pick .facts { font-size: 14px; font-weight: 500; opacity: .85; }
+  .ticket.pick .why { font-family: var(--hand); font-size: 18px; line-height: 1.25; transform: rotate(-1deg); background: oklch(98% .02 90 / .55); padding: 8px 12px; border-radius: 3px; max-width: 40ch; width: fit-content; }
+  .gridhead { display: flex; align-items: baseline; gap: 14px; }
+  .count { color: var(--mute); font-size: 14px; }
+  .tog.inline { margin-left: auto; }
+
+  @media (max-width: 820px) {
+    .ticket.pick { --stub: 112px; grid-template-columns: 84px 1fr var(--stub); min-height: 190px; }
+    .ticket.pick h3 { font-size: 25px; max-width: none; }
+    .ticket.pick .body { padding: 14px; gap: 8px; }
+    .ticket.pick .why, .ticket.pick .bars, .ticket.pick .jp { display: none; }
+    .ticket.pick .facts { font-size: 12.5px; }
+    .ticket.pick .stub { padding: 14px 8px; gap: 6px; }
+    .ticket.pick .time { font-size: 38px; }
+    .ticket.pick .btn { height: auto; min-height: 44px; padding: 6px 10px; font-size: 13px; white-space: normal; line-height: 1.15; }
+    .tog.inline { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <script src="shell.js" data-active="discover"></script>
+  <main class="page">
+    <div data-top></div>
+
+    <h1 class="greet">Find your<br><span>next stub.</span></h1>
+    <p class="lede">The season on air, with <b>what's already on your list</b> marked, so you can see what's still unclaimed.</p>
+
+    <article class="ticket pick" style="--stock:#e4a143;--p:.5">
+      <div class="cover"><img src="covers/213805.png" alt="" width="200" height="290"></div>
+      <div class="body">
+        <div>
+          <span class="badge">Season 2 · airing</span>
+          <h3 style="margin-top:14px"><a href="title.html">Koori no Jouheki 2nd Season</a></h3>
+          <p class="jp">氷の城壁 第2期 · Studio KAI</p>
+        </div>
+        <p class="why">Drama and romance, the same blend as Hotaru no Yomeiri on your list.</p>
+        <div class="facts">Comedy · Drama · Romance · Slice of Life · 13 episodes · episode 9 next</div>
+      </div>
+      <div class="stub">
+        <div class="when-big">THU</div>
+        <div class="time">23:56</div>
+        <button class="btn ink" type="button" id="pickAdd" aria-pressed="false">Plan to watch</button>
+        <div class="bars" aria-hidden="true"></div>
+      </div>
+      <div class="perf" aria-hidden="true"></div>
+    </article>
+
+    <div class="toolbar" style="margin-top:44px">
+      <div class="seg" role="tablist" aria-label="Collection">
+        <button role="tab" aria-selected="true" data-set="all">Everything</button>
+        <button role="tab" aria-selected="false" data-set="fall">Fall 2026</button>
+        <button role="tab" aria-selected="false" data-set="classic">Classics</button>
+      </div>
+      <div class="chips" role="group" aria-label="Genre">
+        <button class="chipb" type="button" aria-pressed="false">Action</button>
+        <button class="chipb" type="button" aria-pressed="false">Adventure</button>
+        <button class="chipb" type="button" aria-pressed="false">Drama</button>
+        <button class="chipb" type="button" aria-pressed="false">Fantasy</button>
+        <button class="chipb" type="button" aria-pressed="false">Romance</button>
+        <button class="chipb" type="button" aria-pressed="false">Comedy</button>
+      </div>
+      <label class="tog inline"><input type="checkbox" id="hideMine"><span class="sw" aria-hidden="true"></span>Hide what's on my list</label>
+    </div>
+
+    <h2 class="h" style="margin-top:0"><span id="gridTitle">Everything</span> <small class="count" id="gridCount" aria-live="polite"></small></h2>
+    <ul class="dgrid" id="grid"></ul>
+    <div class="empty" id="empty" hidden><b>Nothing matches</b>Try fewer genres, or show what's already on your list.<br><br><button class="btn ghost" type="button" id="clear">Clear filters</button></div>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><span id="toastMsg"></span><button type="button" id="toastUndo">Undo</button></div>
+<script>
+(function () {
+  'use strict';
+  var CHECK = Shell.icon('check', 'ico'), PLUS = Shell.icon('plus', 'ico');
+  var items = [
+    { id: 'koor', t: 'Koori no Jouheki 2nd Season', img: 'covers/213805.png', c: '#e4a143', set: 'fall', g: ['Comedy', 'Drama', 'Romance'], sub: 'Studio KAI · 13 eps', when: 'Thu 23:56' },
+    { id: 'blck', t: 'Black Clover 2nd Season', img: 'covers/195604.jpg', c: '#f1a143', set: 'fall', g: ['Action', 'Adventure', 'Comedy', 'Fantasy'], sub: 'Studio Pierrot · ongoing', when: 'Sat 23:00' },
+    { id: 'one',  t: 'One Piece', img: 'covers/21.jpg', c: '#e49335', set: 'fall', g: ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy'], sub: 'Toei Animation · ongoing', when: 'Sun 23:16' },
+    { id: 'kus',  t: 'Kusuriya no Hitorigoto 3rd Season', img: 'covers/195516.jpg', c: '#e4a128', set: 'fall', g: ['Drama', 'Mystery'], sub: 'OLM · 12 eps', mine: true },
+    { id: 'hota', t: 'Hotaru no Yomeiri', img: 'covers/205909.jpg', c: '#aebb35', set: 'fall', g: ['Drama', 'Romance'], sub: 'david production · 12 eps', mine: true },
+    { id: 'jojo', t: 'JoJo: Steel Ball Run', img: 'covers/210482.jpg', c: '#f1ae50', set: 'fall', g: ['Action', 'Adventure', 'Drama', 'Mystery'], sub: 'david production · 11 eps', mine: true },
+    { id: 'toky', t: 'Tokyo Revengers: Santen Sensou', img: 'covers/178083.jpg', c: '#c99350', set: 'fall', g: ['Action', 'Drama', 'Romance'], sub: 'LIDENFILMS · 13 eps', mine: true },
+    { id: 'toug', t: 'Tougen Anki: Nikko Kegon', img: 'covers/204650.png', c: '#5aa6ee', set: 'fall', g: ['Action', 'Mystery'], sub: 'Studio Hibari · 12 eps', mine: true },
+    { id: 'hxh',  t: 'Hunter × Hunter (2011)', img: 'covers/11061.png', c: '#f1d65d', set: 'classic', g: ['Action', 'Adventure', 'Fantasy'], sub: '2011 · 148 eps', when: 'Complete' },
+    { id: 'chi',  t: 'Spirited Away', img: 'covers/199.jpg', c: '#e45d5d', set: 'classic', g: ['Adventure', 'Drama', 'Fantasy'], sub: '2001 · film', when: 'Complete' },
+    { id: 'kny',  t: 'Demon Slayer', img: 'covers/101922.jpg', c: '#f1c9ae', set: 'classic', g: ['Action', 'Adventure', 'Drama', 'Fantasy'], sub: '2019 · 26 eps', when: 'Complete' },
+    { id: 'mha',  t: 'My Hero Academia', img: 'covers/21459.jpg', c: '#f1d643', set: 'classic', g: ['Action', 'Adventure', 'Comedy'], sub: '2016 · 13 eps in season 1', when: 'Complete' }
+  ];
+  var state = { set: 'all', genres: [], hideMine: false };
+  var planned = {};          // ids the viewer added from this page
+  var last = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;'); }
+
+  function card(it) {
+    var on = it.mine || planned[it.id];
+    var action = it.mine
+      ? '<span class="when plain">' + CHECK.replace('class="ico"', 'class="ico" style="display:inline;vertical-align:-3px;width:15px;height:15px"') + ' On your list</span>'
+      : '<button class="addb" type="button" data-add="' + it.id + '" aria-pressed="' + (!!planned[it.id]) + '" aria-label="' + (planned[it.id] ? 'Remove ' : 'Plan to watch ') + esc(it.t) + '">' + (planned[it.id] ? CHECK + 'Planned' : PLUS + 'Plan') + '</button>';
+    return '<li><article class="pc" style="--c:' + it.c + '">' +
+      '<a class="pcc" href="title.html" aria-hidden="true" tabindex="-1"><img src="' + it.img + '" alt="" width="200" height="300"></a>' +
+      '<div class="pcb"><h3><a href="title.html">' + esc(it.t) + '</a></h3><span class="sub">' + esc(it.sub) + '</span>' +
+      '<div class="rw">' + (it.when && !it.mine ? '<span class="when">' + it.when + '</span>' : '<span></span>') + action + '</div></div></article></li>';
+  }
+
+  function render() {
+    var list = items.filter(function (it) {
+      if (state.set !== 'all' && it.set !== state.set) return false;
+      if (state.hideMine && it.mine) return false;
+      return state.genres.every(function (g) { return it.g.indexOf(g) >= 0; });
+    });
+    $('grid').innerHTML = list.map(card).join('');
+    $('empty').hidden = list.length > 0;
+    $('gridCount').textContent = list.length + (list.length === 1 ? ' title' : ' titles');
+    $('gridTitle').textContent = { all: 'Everything', fall: 'Fall 2026, on air', classic: 'Classics worth a ticket' }[state.set];
+  }
+
+  document.querySelectorAll('.seg [data-set]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      state.set = b.dataset.set;
+      document.querySelectorAll('.seg [data-set]').forEach(function (x) { x.setAttribute('aria-selected', x === b); });
+      render();
+    });
+  });
+  document.querySelectorAll('.chips .chipb').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var g = b.textContent, i = state.genres.indexOf(g);
+      if (i >= 0) state.genres.splice(i, 1); else state.genres.push(g);
+      b.setAttribute('aria-pressed', i < 0);
+      render();
+    });
+  });
+  $('hideMine').addEventListener('change', function (e) { state.hideMine = e.target.checked; render(); });
+  $('clear').addEventListener('click', function () {
+    state.genres = []; state.hideMine = false; $('hideMine').checked = false;
+    document.querySelectorAll('.chips .chipb').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    render();
+  });
+
+  var toastTimer;
+  function toast(msg, undo) {
+    $('toastMsg').textContent = msg; last = undo;
+    $('toastUndo').hidden = !undo;
+    $('toast').classList.add('on'); clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { $('toast').classList.remove('on'); }, 5000);
+  }
+  $('toastUndo').addEventListener('click', function () { if (last) last(); $('toast').classList.remove('on'); });
+
+  $('grid').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-add]'); if (!b) return;
+    var id = b.dataset.add, it = items.filter(function (x) { return x.id === id; })[0];
+    planned[id] = !planned[id]; render();
+    var f = document.querySelector('[data-add="' + id + '"]'); if (f) f.focus();
+    toast(planned[id] ? it.t + ' added to Plan to watch.' : it.t + ' removed.', function () { planned[id] = !planned[id]; render(); });
+  });
+  $('pickAdd').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true';
+    this.setAttribute('aria-pressed', on);
+    this.textContent = on ? 'On your list' : 'Plan to watch';
+    toast(on ? 'Koori no Jouheki 2nd Season added to Plan to watch.' : 'Removed from Plan to watch.', null);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Akiba · Ticket Stub Night (desktop mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@300..900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Yomogi&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --night: oklch(16% .035 265);
+    --night-2: oklch(20.5% .04 265);
+    --night-3: oklch(26% .045 265);
+    --rule: oklch(32% .045 265);
+    --text: oklch(95% .012 90);
+    --mute: oklch(74% .035 265);
+    --punch: oklch(90% .15 165);      /* the only colour that means "press me" */
+    --on-punch: oklch(20% .05 200);
+    --ink: oklch(19% .04 265);        /* printed ink on ticket stock */
+    --display: 'Big Shoulders Display', 'Zen Kaku Gothic New', sans-serif;
+    --sans: 'Zen Kaku Gothic New', system-ui, sans-serif;
+    --hand: 'Yomogi', cursive;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--night);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+    min-height: 100vh;
+  }
+  ::selection { background: var(--punch); color: var(--on-punch); }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--punch); outline-offset: 3px; border-radius: 4px; }
+  ::-webkit-scrollbar { width: 12px; }
+  ::-webkit-scrollbar-track { background: var(--night); }
+  ::-webkit-scrollbar-thumb { background: var(--night-3); border-radius: 6px; border: 3px solid var(--night); }
+
+  .app { display: grid; grid-template-columns: 96px 1fr; min-height: 100vh; }
+
+  /* ---------- rail ---------- */
+  .rail {
+    position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 22px 0; border-right: 1px solid var(--rule);
+  }
+  .mark {
+    width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 22px;
+    background: var(--punch); color: var(--on-punch); border-radius: 6px;
+    font-family: var(--display); font-weight: 900; font-size: 34px; line-height: 1;
+    transform: rotate(-4deg);
+    box-shadow: 0 10px 24px -10px oklch(0% 0 0 / .6);
+  }
+  .rail a.nav {
+    width: 72px; padding: 10px 0 8px; display: grid; justify-items: center; gap: 4px;
+    text-decoration: none; color: var(--mute); border-radius: 8px;
+    font-size: 11px; font-weight: 500; letter-spacing: .02em;
+    position: relative;
+  }
+  .rail a.nav svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .rail a.nav:hover { color: var(--text); background: var(--night-2); }
+  .rail a.nav[aria-current="page"] { color: var(--punch); background: var(--night-2); }
+  .rail a.nav .ct {
+    position: absolute; top: 4px; right: 12px; min-width: 20px; height: 20px; padding: 0 5px;
+    background: var(--punch); color: var(--on-punch); border-radius: 10px;
+    font-size: 12px; font-weight: 700; display: grid; place-items: center;
+  }
+  .rail .grow { flex: 1; }
+  .me {
+    width: 44px; height: 44px; border-radius: 50%; background: oklch(80% .12 70); color: var(--ink);
+    display: grid; place-items: center; font-weight: 700; font-family: var(--display); font-size: 22px;
+  }
+
+  /* ---------- page ---------- */
+  .page { padding: 22px 40px 80px; max-width: 1480px; }
+  .top { display: flex; align-items: center; gap: 24px; margin-bottom: 30px; }
+  .search {
+    flex: 1; max-width: 560px; display: flex; align-items: center; gap: 12px;
+    background: var(--night-2); border: 1px solid var(--rule); border-radius: 999px; padding: 0 18px; height: 46px;
+    color: var(--mute);
+  }
+  .search svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; }
+  .search input { flex: 1; background: none; border: 0; color: var(--text); font: inherit; outline: 0; }
+  .search input::placeholder { color: var(--mute); }
+  .search:focus-within { border-color: var(--punch); }
+  .search kbd { font: 500 12px var(--sans); border: 1px solid var(--rule); border-radius: 4px; padding: 1px 7px; }
+  .clock { margin-left: auto; color: var(--mute); font-size: 14px; }
+  .clock b { color: var(--text); font-weight: 500; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 44px; align-items: start; }
+
+  h1.greet {
+    font-family: var(--display); font-weight: 900; text-transform: uppercase;
+    font-size: clamp(52px, 5.6vw, 84px); line-height: .9; letter-spacing: -.005em; margin: 0 0 10px;
+  }
+  h1.greet span { color: var(--punch); }
+  .lede { margin: 0 0 28px; color: var(--mute); font-size: 17px; max-width: 54ch; }
+  .lede b { color: var(--text); font-weight: 500; }
+
+  h2.h {
+    font-family: var(--display); font-weight: 800; text-transform: uppercase; letter-spacing: .02em;
+    font-size: 26px; line-height: 1; margin: 44px 0 16px; display: flex; align-items: baseline; gap: 14px;
+  }
+  h2.h small { font: 400 14px var(--sans); text-transform: none; letter-spacing: 0; color: var(--mute); }
+  h2.h a { margin-left: auto; font: 500 14px var(--sans); text-transform: none; letter-spacing: 0; color: var(--mute); }
+
+  /* ---------- ticket ---------- */
+  .ticket {
+    --stock: #e4a128;
+    position: relative; display: grid; color: var(--ink);
+    background: var(--stock); border-radius: 10px;
+    filter: drop-shadow(0 18px 20px oklch(0% 0 0 / .35));
+    isolation: isolate;
+  }
+  .ticket::before, .ticket::after {           /* punched notches where the stub tears off */
+    content: ""; position: absolute; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--night); right: var(--stub); z-index: 3; transform: translateX(50%);
+  }
+  .ticket::before { top: -11px; }
+  .ticket::after { bottom: -11px; }
+  .ticket .perf {
+    position: absolute; top: 14px; bottom: 14px; right: var(--stub); width: 0; z-index: 2;
+    border-left: 2.5px dashed oklch(19% .04 265 / .45);
+  }
+  .ticket .cover { grid-area: cover; border-radius: 10px 0 0 10px; overflow: hidden; }
+  .ticket .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ticket .body { grid-area: body; padding: 18px 22px; display: flex; flex-direction: column; min-width: 0; }
+  .ticket .stub { grid-area: stub; padding: 16px 12px; display: grid; justify-items: center; align-content: space-between; text-align: center; }
+  .ticket h3 {
+    font-family: var(--display); font-weight: 800; text-transform: uppercase; line-height: .95;
+    margin: 0; letter-spacing: .005em;
+  }
+  .ticket h3 a { text-decoration: none; }
+  .ticket h3 a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 4px; }
+  .ticket .jp { font-size: 13px; font-weight: 700; opacity: .75; margin: 3px 0 0; }
+  .ticket .meta { font-size: 13px; font-weight: 500; opacity: .85; }
+  .ticket .num {
+    font-family: var(--display); line-height: .8; letter-spacing: -.01em;
+    font-weight: calc(300 + 600 * var(--p));   /* the numeral gets heavier as you get further in */
+    font-variation-settings: "wght" calc(300 + 600 * var(--p));
+    transition: font-variation-settings .5s cubic-bezier(.16,1,.3,1);
+  }
+  .ticket .num small { font-size: .38em; font-weight: 500; opacity: .7; letter-spacing: 0; }
+  .ticket .serial {
+    font: 500 11px/1 var(--sans); letter-spacing: .12em; opacity: .75;
+  }
+  .ticket .bars {
+    height: 34px; width: 100%; opacity: .9;
+    background: repeating-linear-gradient(90deg, var(--ink) 0 2px, transparent 2px 4px, var(--ink) 4px 5px, transparent 5px 9px, var(--ink) 9px 12px, transparent 12px 14px);
+  }
+  .track { height: 8px; border-radius: 4px; background: oklch(19% .04 265 / .18); overflow: hidden; }
+  .track i { display: block; height: 100%; width: calc(var(--p) * 100%); background: var(--ink); border-radius: 4px; transition: width .5s cubic-bezier(.16,1,.3,1); }
+
+  .plus {
+    appearance: none; border: 0; cursor: pointer; font: inherit;
+    width: 84px; height: 84px; border-radius: 50%;
+    background: var(--ink); color: var(--punch);
+    font-family: var(--display); font-weight: 900; font-size: 34px; line-height: 1;
+    display: grid; place-items: center; align-content: center;
+    transition: transform .2s cubic-bezier(.16,1,.3,1);
+  }
+  .plus small { font: 500 11px var(--sans); letter-spacing: .06em; color: oklch(90% .02 265); margin-top: 2px; display: block; }
+  .plus:hover { transform: scale(1.06) rotate(-4deg); }
+  .plus:active { transform: scale(.94); }
+  .plus[disabled] { background: transparent; color: var(--ink); border: 2px dashed oklch(19% .04 265 / .5); cursor: default; transform: none; }
+  .plus[disabled] small { color: var(--ink); opacity: .7; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
+    background: var(--ink); color: var(--punch); padding: 3px 10px 3px 8px; border-radius: 999px; width: fit-content;
+  }
+  .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--punch); }
+  .badge.quiet { background: transparent; color: var(--ink); border: 1.5px solid oklch(19% .04 265 / .5); }
+  .badge.quiet::before { display: none; }
+
+  .stamp {
+    position: absolute; right: calc(var(--stub) + 40px); bottom: 20px; z-index: 5; pointer-events: none;
+    width: 108px; height: 108px; border-radius: 50%; border: 4px solid var(--ink); color: var(--ink);
+    display: grid; place-items: center; text-align: center; opacity: 0; transform: rotate(-14deg) scale(1.7);
+    font-weight: 700; line-height: 1.1; mix-blend-mode: multiply;
+  }
+  .stamp b { display: block; font-size: 30px; letter-spacing: .1em; padding-left: .1em; }
+  .stamp span { font: 500 11px var(--sans); letter-spacing: .1em; border-top: 1.5px solid var(--ink); padding-top: 4px; display: block; margin-top: 4px; }
+  .ticket.stamped .stamp { animation: thunk 1.8s cubic-bezier(.16,1,.3,1) both; }
+  @keyframes thunk {
+    0% { opacity: 0; transform: rotate(-14deg) scale(1.9); }
+    16% { opacity: .92; transform: rotate(-9deg) scale(.94); }
+    24% { transform: rotate(-9deg) scale(1.02); }
+    32% { transform: rotate(-9deg) scale(1); }
+    80% { opacity: .92; }
+    100% { opacity: 0; transform: rotate(-9deg) scale(1); }
+  }
+  .ticket.stamped { animation: jolt .32s cubic-bezier(.16,1,.3,1); }
+  @keyframes jolt { 0%,100% { transform: none; } 20% { transform: translateY(3px) scale(.995); } }
+
+  /* hero ticket */
+  .ticket.hero { --stub: 188px; grid-template-columns: 188px 1fr var(--stub); grid-template-areas: "cover body stub"; min-height: 272px; }
+  .ticket.hero h3 { font-size: 54px; max-width: 14ch; }
+  .ticket.hero .num { font-size: 112px; }
+  .ticket.hero .body { gap: 10px; justify-content: space-between; padding: 22px 28px; }
+  .ticket.hero .note {
+    font-family: var(--hand); font-size: 18px; line-height: 1.25; transform: rotate(-1.2deg);
+    background: oklch(98% .02 90 / .55); padding: 8px 12px; border-radius: 3px; max-width: 36ch;
+  }
+  .ticket.hero .stub { padding: 20px 16px; }
+  .ticket.hero .plus { width: 104px; height: 104px; font-size: 44px; }
+
+  /* compact tickets */
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 22px; }
+  .ticket.sm { --stub: 108px; grid-template-columns: 92px 1fr var(--stub); grid-template-areas: "cover body stub"; min-height: 148px; }
+  .ticket.sm h3 { font-size: 25px; }
+  .ticket.sm .num { font-size: 52px; }
+  .ticket.sm .body { padding: 14px 16px; gap: 6px; justify-content: space-between; }
+  .ticket.sm .stub { padding: 12px 8px; }
+  .ticket.sm .plus { width: 62px; height: 62px; font-size: 26px; }
+  .ticket.sm .plus small { display: none; }
+  .ticket.sm .stamp { width: 78px; height: 78px; right: calc(var(--stub) + 14px); bottom: 12px; border-width: 3px; }
+  .ticket.sm .stamp b { font-size: 20px; }
+  .ticket.sm .stamp span { display: none; }
+  .ticket.sm .cover { border-radius: 10px 0 0 10px; }
+
+  /* ---------- right column ---------- */
+  aside h2.h { margin-top: 0; }
+  .aired { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+  .aired li {
+    display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center;
+    background: var(--night-2); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 12px 8px 8px;
+    position: relative;
+  }
+  .aired li::before, .aired li::after { content: ""; position: absolute; left: 62px; width: 10px; height: 10px; border-radius: 50%; background: var(--night); z-index: 1; display: none; }
+  .aired img { width: 44px; height: 62px; object-fit: cover; border-radius: 4px; display: block; }
+  .aired b { display: block; font-weight: 700; font-size: 15px; line-height: 1.2; }
+  .aired span { color: var(--mute); font-size: 13px; }
+  .aired .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--punch); }
+  .aired li.read .dot { background: transparent; border: 2px solid var(--rule); }
+  .aired li.read b { font-weight: 500; color: var(--mute); }
+  .mini {
+    appearance: none; border: 1.5px solid var(--punch); color: var(--punch); background: transparent; border-radius: 999px;
+    font: 700 13px var(--sans); padding: 6px 12px; cursor: pointer;
+  }
+  .mini:hover { background: var(--punch); color: var(--on-punch); }
+
+  .wall { display: grid; grid-template-columns: repeat(14, 1fr); gap: 5px; margin: 0; padding: 0; list-style: none; }
+  .wall li { aspect-ratio: 1 / 1.2; border-radius: 3px; background: var(--c); position: relative; }
+  .wall li.none { background: transparent; border: 1.5px dashed var(--rule); }
+  .wall li::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1.5px dotted oklch(19% .04 265 / .55); }
+  .wall li.none::after { display: none; }
+  .wallnote { color: var(--mute); font-size: 13.5px; margin: 12px 0 0; }
+  .wallnote b { color: var(--text); font-weight: 500; }
+
+  .drawer { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; list-style: none; padding: 0; margin: 0; }
+  .drawer a { display: block; text-decoration: none; position: relative; }
+  .drawer img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 6px; display: block; transition: transform .25s cubic-bezier(.16,1,.3,1); }
+  .drawer a:hover img { transform: translateY(-5px) rotate(-1.5deg); }
+  .drawer .st {
+    position: absolute; left: 6px; bottom: 6px; background: var(--c); color: var(--ink); font: 800 11px var(--display); letter-spacing: .08em;
+    padding: 2px 7px; border-radius: 3px; text-transform: uppercase;
+  }
+
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @media (prefers-reduced-motion: reduce) { * { animation-duration: 1ms !important; transition-duration: 1ms !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <nav class="rail" aria-label="Main">
+    <div class="mark" aria-hidden="true">秋</div>
+    <a class="nav" href="#" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>Home</a>
+    <a class="nav" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg>Discover</a>
+    <a class="nav" href="#"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="4.5" height="16" rx="1"/><rect x="10" y="4" width="4.5" height="16" rx="1"/><path d="m16.5 6 3.5 1-3 13-3.5-1"/></svg>Library</a>
+    <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M4 13h4l1.5 3h5L16 13h4"/><path d="M5.5 5h13L20 13v6H4v-6z"/></svg>Inbox<span class="ct" aria-label="3 unread">3</span></a>
+    <a class="nav" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>History</a>
+    <div class="grow"></div>
+    <a class="nav" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Settings</a>
+    <div class="me" aria-label="Hana">H</div>
+  </nav>
+
+  <main class="page">
+    <div class="top">
+      <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span class="sr">Search anime</span><input placeholder="Search anime, studios, characters" /><kbd>/</kbd></label>
+      <div class="clock"><b>Tuesday</b> · 11:42 pm · Fall 2026</div>
+    </div>
+
+    <div class="cols">
+      <div>
+        <h1 class="greet">Good evening,<br><span>Hana.</span></h1>
+        <p class="lede"><b>Three episodes</b> aired for you since you last stamped. Kusuriya is waiting on number eight.</p>
+
+        <!-- hero ticket -->
+        <article class="ticket hero" style="--stock:#e4a128;--p:.583" data-w="7" data-total="12" data-aired="8">
+          <div class="cover"><img src="covers/195516.jpg" alt="" width="188" height="272"></div>
+          <div class="body">
+            <div>
+              <span class="badge">Ep 8 aired 2h ago</span>
+              <h3 style="margin-top:12px"><a href="#">Kusuriya no Hitorigoto 3rd Season</a></h3>
+              <p class="jp">薬屋のひとりごと 第3期 · OLM</p>
+            </div>
+            <p class="note">Maomao finally catches the poisoner's slip. Rewatching ep 6 first.</p>
+            <div>
+              <div class="meta">Aired through 8 · you're 1 behind</div>
+              <div class="serial">NO. 195516-0007 · WATCHING</div>
+            </div>
+          </div>
+          <div class="stub">
+            <div class="num"><span class="cur">07</span><small> /12</small></div>
+            <button class="plus" type="button" aria-label="Log episode 8 of Kusuriya no Hitorigoto 3rd Season">+1<small>EP 8</small></button>
+            <div class="bars" aria-hidden="true"></div>
+          </div>
+          <div class="perf" aria-hidden="true"></div>
+          <div class="stamp" aria-hidden="true"><div><b>観了</b><span class="when">TUE 11:42</span></div></div>
+        </article>
+
+        <h2 class="h">Still on the go <small>4 more in progress</small><a href="#">Open library</a></h2>
+        <div class="grid2">
+          <article class="ticket sm" style="--stock:#f1ae50;--p:.727" data-w="8" data-total="11" data-aired="9">
+            <div class="cover"><img src="covers/210482.jpg" alt="" width="92" height="148"></div>
+            <div class="body"><div><span class="badge">Ep 9 aired</span><h3 style="margin-top:8px"><a href="#">JoJo: Steel Ball Run</a></h3></div><div class="meta">Stage 2 &amp; 3 · 1 behind</div></div>
+            <div class="stub"><div class="num"><span class="cur">08</span><small>/11</small></div><button class="plus" type="button" aria-label="Log episode 9 of JoJo Steel Ball Run">+1</button></div>
+            <div class="perf" aria-hidden="true"></div>
+            <div class="stamp" aria-hidden="true"><div><b>観了</b></div></div>
+          </article>
+          <article class="ticket sm" style="--stock:#aebb35;--p:.583" data-w="7" data-total="12" data-aired="7">
+            <div class="cover"><img src="covers/205909.jpg" alt="" width="92" height="148"></div>
+            <div class="body"><div><span class="badge quiet">Caught up</span><h3 style="margin-top:8px"><a href="#">Hotaru no Yomeiri</a></h3></div><div class="meta">Next: Wed 11:30 pm</div></div>
+            <div class="stub"><div class="num"><span class="cur">07</span><small>/12</small></div><button class="plus" type="button" disabled aria-label="Hotaru no Yomeiri is caught up">✓</button></div>
+            <div class="perf" aria-hidden="true"></div>
+            <div class="stamp" aria-hidden="true"><div><b>観了</b></div></div>
+          </article>
+          <article class="ticket sm" style="--stock:#c99350;--p:.385" data-w="5" data-total="13" data-aired="8">
+            <div class="cover"><img src="covers/178083.jpg" alt="" width="92" height="148"></div>
+            <div class="body"><div><span class="badge">3 new eps</span><h3 style="margin-top:8px"><a href="#">Tokyo Revengers: Santen Sensou</a></h3></div><div class="meta">Aired through 8 · 3 behind</div></div>
+            <div class="stub"><div class="num"><span class="cur">05</span><small>/13</small></div><button class="plus" type="button" aria-label="Log episode 6 of Tokyo Revengers">+1</button></div>
+            <div class="perf" aria-hidden="true"></div>
+            <div class="stamp" aria-hidden="true"><div><b>観了</b></div></div>
+          </article>
+          <article class="ticket sm" style="--stock:#5aa6ee;--p:.667" data-w="8" data-total="12" data-aired="8">
+            <div class="cover"><img src="covers/204650.png" alt="" width="92" height="148"></div>
+            <div class="body"><div><span class="badge quiet">Caught up</span><h3 style="margin-top:8px"><a href="#">Tougen Anki: Nikko Kegon</a></h3></div><div class="meta">Next: Thu 12:00 am</div></div>
+            <div class="stub"><div class="num"><span class="cur">08</span><small>/12</small></div><button class="plus" type="button" disabled aria-label="Tougen Anki is caught up">✓</button></div>
+            <div class="perf" aria-hidden="true"></div>
+            <div class="stamp" aria-hidden="true"><div><b>観了</b></div></div>
+          </article>
+        </div>
+
+        <h2 class="h">Just finished <small>your drawer</small><a href="#">History</a></h2>
+        <ul class="drawer">
+          <li><a href="#" aria-label="Sousou no Frieren, completed"><img src="covers/154587.jpg" alt="" width="200" height="300"><span class="st" style="--c:#bbf1a1">Done · 10/10</span></a></li>
+          <li><a href="#" aria-label="Shingeki no Kyojin, completed"><img src="covers/16498.jpg" alt="" width="200" height="300"><span class="st" style="--c:#f1a143">Done · 25/25</span></a></li>
+          <li><a href="#" aria-label="Steins;Gate, completed"><img src="covers/9253.jpg" alt="" width="200" height="300"><span class="st" style="--c:#ffd6ae">Done · 24/24</span></a></li>
+          <li><a href="#" aria-label="Cowboy Bebop, completed"><img src="covers/1.png" alt="" width="200" height="300"><span class="st" style="--c:#f16b50">Done · 26/26</span></a></li>
+        </ul>
+      </div>
+
+      <aside>
+        <h2 class="h">Aired for you <small>3 new</small><a href="#">Inbox</a></h2>
+        <ul class="aired">
+          <li><img src="covers/195516.jpg" alt="" width="44" height="62"><div><b>Kusuriya no Hitorigoto 3rd Season</b><span>Episode 8 · 2h ago</span></div><i class="dot" aria-label="unread"></i></li>
+          <li><img src="covers/210482.jpg" alt="" width="44" height="62"><div><b>JoJo: Steel Ball Run</b><span>Episode 9 · 5h ago</span></div><i class="dot" aria-label="unread"></i></li>
+          <li><img src="covers/178083.jpg" alt="" width="44" height="62"><div><b>Tokyo Revengers: Santen Sensou</b><span>Episode 8 · yesterday</span></div><i class="dot" aria-label="unread"></i></li>
+          <li class="read"><img src="covers/204650.png" alt="" width="44" height="62"><div><b>Tougen Anki: Nikko Kegon</b><span>Episode 8 · Monday</span></div><i class="dot" aria-label="read"></i></li>
+        </ul>
+
+        <h2 class="h" style="margin-top:44px">Your fall so far <small>one stub per episode</small></h2>
+        <ul class="wall" aria-label="Episodes watched this season, one stub per episode">
+          <script>
+            (function(){
+              var cs=['#e4a128','#e4a128','#e4a128','#f1ae50','#f1ae50','#aebb35','#c99350','#5aa6ee','#e4a128','#f1ae50','#aebb35','#5aa6ee','#c99350','#e4a128'];
+              var out='';
+              for(var i=0;i<56;i++){
+                var c=cs[(i*7+Math.floor(i/3))%cs.length];
+                out+= i<41 ? '<li style="--c:'+c+'"></li>' : '<li class="none"></li>';
+              }
+              document.currentScript.insertAdjacentHTML('afterend',out);
+            })();
+          </script>
+        </ul>
+        <p class="wallnote"><b>41 stubs</b> this season, 15 more aired and waiting. Your busiest night was Sunday: 6 in a row.</p>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<div class="sr" role="status" aria-live="polite" id="live"></div>
+<script>
+  // +1 punches a stub: the numeral thickens, the bar fills, the 観了 stamp lands.
+  document.querySelectorAll('.ticket').forEach(function (t) {
+    var btn = t.querySelector('.plus');
+    if (!btn || btn.disabled) return;
+    btn.addEventListener('click', function () {
+      var w = +t.dataset.w + 1, total = +t.dataset.total, aired = +t.dataset.aired;
+      t.dataset.w = w;
+      t.style.setProperty('--p', (w / total).toFixed(3));
+      t.querySelector('.cur').textContent = String(w).padStart(2, '0');
+      var d = new Date();
+      var when = t.querySelector('.when'); if (when) when.textContent = 'TUE ' + d.getHours() % 12 + ':' + String(d.getMinutes()).padStart(2, '0');
+      t.classList.remove('stamped'); void t.offsetWidth; t.classList.add('stamped');
+      if (w >= aired) {
+        btn.disabled = true; btn.textContent = '✓';
+        btn.setAttribute('aria-label', 'Caught up');
+        var badge = t.querySelector('.badge'); if (badge) { badge.className = 'badge quiet'; badge.textContent = 'Caught up'; }
+      } else { btn.firstChild.nodeValue = '+1'; }
+      document.getElementById('live').textContent = 'Episode ' + w + ' logged.';
+    });
+  });
+</script>
+</body>
+</html>

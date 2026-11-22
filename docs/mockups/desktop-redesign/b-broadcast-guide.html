@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Akiba · Broadcast Guide (desktop mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: oklch(95.5% .006 250);
+    --paper-2: oklch(92% .008 250);
+    --ink: oklch(15% .025 265);
+    --mute: oklch(42% .03 265);
+    --rule: oklch(15% .025 265);
+    --hair: oklch(80% .012 250);
+    --hit: oklch(93% .2 112);          /* highlighter: today / now / press me */
+    --blue: oklch(42% .19 262);        /* links */
+    --display: 'Dela Gothic One', 'Zen Kaku Gothic New', sans-serif;
+    --sans: 'Zen Kaku Gothic New', system-ui, sans-serif;
+    --dot: 'DotGothic16', 'Zen Kaku Gothic New', monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 14.5px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+  ::selection { background: var(--hit); color: var(--ink); }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+  ::-webkit-scrollbar { width: 12px; } ::-webkit-scrollbar-thumb { background: var(--ink); border: 3px solid var(--paper); border-radius: 6px; }
+
+  .page { max-width: 1440px; margin: 0 auto; padding: 0 36px 80px; }
+
+  /* masthead ------------------------------------------------ */
+  .mast { display: grid; grid-template-columns: auto 1fr auto; align-items: end; gap: 28px; padding: 22px 0 12px; border-bottom: 4px solid var(--ink); }
+  .logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+  .logo b { font-family: var(--display); font-size: 54px; line-height: .9; background: var(--ink); color: var(--hit); padding: 6px 8px 4px; border-radius: 4px; }
+  .logo span { font-family: var(--display); font-size: 30px; line-height: 1; letter-spacing: .02em; }
+  .logo small { display: block; font: 500 12px var(--sans); letter-spacing: .1em; color: var(--mute); margin-top: 6px; }
+  .date { font-family: var(--dot); font-size: 15px; display: flex; gap: 22px; justify-content: center; color: var(--mute); }
+  .date b { color: var(--ink); font-weight: 400; }
+  .who { display: flex; align-items: center; gap: 14px; font-weight: 500; }
+  .who .s { width: 280px; border: 2px solid var(--ink); background: #fff; padding: 8px 12px; font: inherit; border-radius: 3px; }
+  .who .s::placeholder { color: var(--mute); }
+  .who .s:focus { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+  nav.sections { display: flex; border-bottom: 1px solid var(--rule); }
+  nav.sections a {
+    padding: 11px 26px 10px; text-decoration: none; font-weight: 700; font-size: 15px; border-right: 1px solid var(--hair);
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  nav.sections a small { font: 500 11px var(--dot); color: var(--mute); letter-spacing: .06em; }
+  nav.sections a:hover { background: var(--paper-2); }
+  nav.sections a[aria-current="page"] { background: var(--ink); color: #fff; }
+  nav.sections a[aria-current="page"] small { color: var(--hit); }
+  nav.sections .count { background: var(--hit); color: var(--ink); border-radius: 99px; padding: 0 8px; font-size: 12px; }
+  nav.sections .push { margin-left: auto; border-left: 1px solid var(--hair); border-right: 0; }
+
+  .layout { display: grid; grid-template-columns: 372px minmax(0, 1fr); gap: 0; margin-top: 26px; }
+  .col-l { padding-right: 32px; border-right: 1px solid var(--rule); }
+  .col-r { padding-left: 32px; }
+
+  h1.big { font-family: var(--display); font-weight: 400; font-size: 66px; line-height: 1.22; margin: 0 0 6px; letter-spacing: -.01em; }
+  h1.big em { font-style: normal; background: var(--hit); padding: 0 8px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .sub { color: var(--mute); margin: 0 0 24px; font-size: 16px; max-width: 34ch; }
+
+  h2.sec { font-family: var(--display); font-weight: 400; font-size: 21px; margin: 30px 0 10px; padding: 7px 10px 5px; background: var(--ink); color: #fff; display: flex; justify-content: space-between; align-items: baseline; }
+  h2.sec small { font: 400 13px var(--dot); color: var(--hit); }
+
+  /* tonight list --------------------------------------------- */
+  .slot { display: grid; grid-template-columns: 62px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--hair); }
+  .slot .t { font-family: var(--dot); font-size: 22px; line-height: 1; padding-top: 2px; }
+  .slot .t small { display: block; font-size: 11px; color: var(--mute); margin-top: 3px; }
+  .slot .card { display: grid; grid-template-columns: 72px 1fr; gap: 12px; }
+  .slot img { width: 72px; height: 102px; object-fit: cover; display: block; border: 2px solid var(--ink); }
+  .slot h3 { font-size: 16px; line-height: 1.2; margin: 0 0 2px; font-weight: 900; }
+  .slot p { margin: 0; color: var(--mute); font-size: 13px; }
+  .slot .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .slot.now { background: oklch(97% .1 112); padding-left: 12px; padding-right: 8px; margin-left: -12px; margin-right: -8px; }
+
+  .btn {
+    appearance: none; border: 2px solid var(--ink); background: var(--hit); color: var(--ink); font: 900 14px var(--sans);
+    padding: 6px 14px 5px; border-radius: 3px; cursor: pointer; box-shadow: 0 2px 0 var(--ink);
+    transition: transform .12s cubic-bezier(.16,1,.3,1), box-shadow .12s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--ink); }
+  .btn:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+  .btn[disabled] { background: transparent; box-shadow: none; color: var(--mute); border-color: var(--hair); cursor: default; transform: none; }
+  .chip { font: 400 12px var(--dot); border: 1.5px solid var(--ink); padding: 1px 7px; border-radius: 2px; }
+  .chip.fill { background: var(--ink); color: #fff; }
+
+  /* weekly grid ---------------------------------------------- */
+  .gridwrap { border: 2px solid var(--ink); background: #fff; }
+  .gridhead { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 14px 8px; border-bottom: 2px solid var(--ink); background: var(--paper-2); }
+  .gridhead h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; }
+  .legend { display: flex; gap: 18px; font-size: 13px; color: var(--mute); align-items: center; }
+  .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
+  .lg-seen { background: var(--ink); }
+  .lg-aired { background: var(--hit); border: 2px solid var(--ink); width: 12px; height: 12px; }
+  .lg-soon { border: 2px dashed var(--ink); }
+
+  table.week { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.week th, table.week td { border: 1px solid var(--hair); padding: 0; vertical-align: top; }
+  table.week thead th { font-family: var(--display); font-weight: 400; font-size: 17px; text-align: center; padding: 8px 0 6px; border-bottom: 2px solid var(--ink); background: #fff; }
+  table.week thead th small { display: block; font: 400 12px var(--dot); color: var(--mute); margin-top: 1px; }
+  table.week thead th.today { background: var(--hit); }
+  table.week thead th.today small { color: var(--ink); }
+  table.week th.time { width: 66px; font: 400 15px var(--dot); text-align: right; padding: 8px 8px 0 0; vertical-align: top; background: var(--paper-2); color: var(--ink); }
+  table.week td { height: 106px; }
+  table.week td.today { background: oklch(97% .06 112); }
+  .show { display: grid; grid-template-columns: 44px 1fr; gap: 8px; height: 100%; padding: 6px; background: var(--c); border: 2px solid var(--ink); margin: -1px; position: relative; text-decoration: none; }
+  .show img { width: 44px; height: 64px; object-fit: cover; border: 1.5px solid var(--ink); display: block; }
+  .show b { font-size: 12.5px; line-height: 1.15; font-weight: 900; display: block; }
+  .show .ep { font: 400 13px var(--dot); display: block; margin-top: 4px; }
+  .show .st { position: absolute; right: 5px; bottom: 5px; width: 22px; height: 22px; display: grid; place-items: center; background: var(--ink); color: #fff; font-size: 12px; font-weight: 900; border-radius: 50%; }
+  .show.aired .st { background: var(--hit); color: var(--ink); border: 2px solid var(--ink); }
+  .show.soon { background: transparent; border-style: dashed; }
+  .show:hover { outline: 3px solid var(--blue); outline-offset: 1px; z-index: 2; }
+  .other { padding: 7px 8px; font-size: 11.5px; line-height: 1.25; color: var(--mute); }
+  .other b { font-weight: 500; color: oklch(35% .03 265); display: block; }
+  .now-line { position: absolute; left: 0; right: 0; height: 0; }
+
+  .below { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 6px; }
+  .shelfrow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; list-style: none; padding: 0; margin: 14px 0 0; }
+  .shelfrow li img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border: 2px solid var(--ink); display: block; }
+  .shelfrow li b { display: block; font-size: 12.5px; margin-top: 5px; line-height: 1.2; }
+  .shelfrow li span { font: 400 12px var(--dot); color: var(--mute); }
+  .diary { list-style: none; margin: 14px 0 0; padding: 0; }
+  .diary li { display: grid; grid-template-columns: 78px 1fr auto; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--hair); align-items: baseline; }
+  .diary time { font: 400 13px var(--dot); color: var(--mute); }
+  .diary b { font-weight: 700; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @media (prefers-reduced-motion: reduce) { * { transition-duration: 1ms !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="mast">
+    <a class="logo" href="#" aria-label="Akiba home">
+      <b aria-hidden="true">秋</b>
+      <div><span>AKIBA</span><small>YOUR PERSONAL LISTINGS</small></div>
+    </a>
+    <div class="date" aria-label="Today"><span><b>2026.11.24</b></span><span>火曜日 TUE</span><span>秋アニメ FALL</span><span>23:42</span></div>
+    <div class="who">
+      <label><span class="sr">Search</span><input class="s" type="search" placeholder="Search anime, studios, characters"></label>
+      <span>Hana</span>
+    </div>
+  </header>
+  <nav class="sections" aria-label="Main">
+    <a href="#" aria-current="page">Home <small>ホーム</small></a>
+    <a href="#">Discover <small>探す</small></a>
+    <a href="#">Library <small>棚</small></a>
+    <a href="#">Inbox <small>受信箱</small> <span class="count">3</span></a>
+    <a href="#">History <small>履歴</small></a>
+    <a class="push" href="#">Settings <small>設定</small></a>
+  </nav>
+
+  <div class="layout">
+    <section class="col-l" aria-labelledby="tonight">
+      <h1 class="big" id="tonight">今夜は<br><em>3本</em>。</h1>
+      <p class="sub">Three of your shows air tonight, and two earlier ones are still unwatched.</p>
+
+      <h2 class="sec">Tonight <small>火曜 11/24</small></h2>
+      <div class="slot now">
+        <div class="t">23:00<small>Fuji TV</small></div>
+        <div class="card"><img src="covers/195516.jpg" alt="" width="72" height="102">
+          <div><h3>Kusuriya no Hitorigoto 3rd Season</h3><p>Ep 9 · airs in 1h 18m</p>
+            <div class="row"><span class="chip fill">ep 8 unwatched</span><button class="btn" type="button" aria-label="Log episode 8 of Kusuriya no Hitorigoto 3rd Season">+1</button></div></div></div>
+      </div>
+      <div class="slot">
+        <div class="t">24:00<small>TOKYO MX</small></div>
+        <div class="card"><img src="covers/205909.jpg" alt="" width="72" height="102">
+          <div><h3>Hotaru no Yomeiri</h3><p>Ep 8 · airs in 2h 18m</p><div class="row"><span class="chip">caught up</span></div></div></div>
+      </div>
+      <div class="slot">
+        <div class="t">25:30<small>BS11</small></div>
+        <div class="card"><img src="covers/204650.png" alt="" width="72" height="102">
+          <div><h3>Tougen Anki: Nikko Kegon</h3><p>Ep 9 · airs in 3h 48m</p><div class="row"><span class="chip">caught up</span></div></div></div>
+      </div>
+
+      <h2 class="sec">Behind <small>2 shows</small></h2>
+      <div class="slot">
+        <div class="t">–1<small>ep</small></div>
+        <div class="card"><img src="covers/210482.jpg" alt="" width="72" height="102">
+          <div><h3>JoJo: Steel Ball Run</h3><p>7 of 11 · ep 9 aired Sun</p>
+            <div class="row"><button class="btn" type="button" aria-label="Log episode 8 of JoJo Steel Ball Run">+1</button></div></div></div>
+      </div>
+      <div class="slot">
+        <div class="t">–3<small>eps</small></div>
+        <div class="card"><img src="covers/178083.jpg" alt="" width="72" height="102">
+          <div><h3>Tokyo Revengers: Santen Sensou</h3><p>5 of 13 · ep 8 aired Mon</p>
+            <div class="row"><button class="btn" type="button" aria-label="Log episode 6 of Tokyo Revengers">+1</button></div></div></div>
+      </div>
+    </section>
+
+    <section class="col-r" aria-labelledby="weekh">
+      <div class="gridwrap">
+        <div class="gridhead">
+          <h2 id="weekh">今週の番組表 <span style="font-family:var(--sans);font-size:14px;font-weight:500;color:var(--mute)">This week, in your slots</span></h2>
+          <div class="legend"><span><i class="lg-seen"></i>watched</span><span><i class="lg-aired"></i>aired, unwatched</span><span><i class="lg-soon"></i>not yet aired</span></div>
+        </div>
+        <table class="week">
+          <caption class="sr">Weekly airing schedule for the shows you are watching</caption>
+          <thead><tr>
+            <th class="time" scope="col"></th>
+            <th scope="col">月<small>MON 23</small></th>
+            <th scope="col" class="today">火<small>TODAY 24</small></th>
+            <th scope="col">水<small>WED 25</small></th>
+            <th scope="col">木<small>THU 26</small></th>
+            <th scope="col">金<small>FRI 27</small></th>
+            <th scope="col">土<small>SAT 28</small></th>
+            <th scope="col">日<small>SUN 29</small></th>
+          </tr></thead>
+          <tbody>
+            <tr><th class="time" scope="row">22:00</th>
+              <td></td><td class="today"></td><td></td><td></td><td></td>
+              <td><div class="other"><b>Sat 22:30</b>Black Clover S2 ep 8</div></td><td></td></tr>
+            <tr><th class="time" scope="row">23:00</th>
+              <td></td>
+              <td class="today"><a class="show soon" style="--c:#e4a128" href="#"><img src="covers/195516.jpg" alt="" width="44" height="64"><span><b>Kusuriya no Hitorigoto</b><span class="ep">#9 · 23:00</span></span></a></td>
+              <td></td><td></td><td></td>
+              <td></td>
+              <td><a class="show aired" style="--c:#f1ae50" href="#"><img src="covers/210482.jpg" alt="" width="44" height="64"><span><b>JoJo: Steel Ball Run</b><span class="ep">#9 · aired</span></span><i class="st" aria-label="aired, unwatched">●</i></a></td></tr>
+            <tr><th class="time" scope="row">24:00</th>
+              <td><a class="show aired" style="--c:#c99350" href="#"><img src="covers/178083.jpg" alt="" width="44" height="64"><span><b>Tokyo Revengers</b><span class="ep">#8 · aired</span></span><i class="st" aria-label="aired, unwatched">●</i></a></td>
+              <td class="today"><a class="show soon" style="--c:#aebb35" href="#"><img src="covers/205909.jpg" alt="" width="44" height="64"><span><b>Hotaru no Yomeiri</b><span class="ep">#8 · 24:00</span></span></a></td>
+              <td></td>
+              <td><div class="other"><b>Thu 24:30</b>Koori no Jouheki S2 ep 9<br>(not on your list)</div></td>
+              <td></td><td></td><td></td></tr>
+            <tr><th class="time" scope="row">25:30</th>
+              <td></td>
+              <td class="today"><a class="show soon" style="--c:#5aa6ee" href="#"><img src="covers/204650.png" alt="" width="44" height="64"><span><b>Tougen Anki</b><span class="ep">#9 · 25:30</span></span></a></td>
+              <td></td><td></td>
+              <td><a class="show" style="--c:#e4a128" href="#"><img src="covers/195516.jpg" alt="" width="44" height="64"><span><b>Kusuriya (rerun)</b><span class="ep">#8 · watched</span></span><i class="st" aria-label="watched">✓</i></a></td>
+              <td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="below">
+        <div>
+          <h2 class="sec">棚 · Latest on your shelf <small>last 6 finished</small></h2>
+          <ul class="shelfrow">
+            <li><img src="covers/154587.jpg" alt="" width="100" height="150"><b>Sousou no Frieren</b><span>10 / 10</span></li>
+            <li><img src="covers/16498.jpg" alt="" width="100" height="150"><b>Shingeki no Kyojin</b><span>25 / 25</span></li>
+            <li><img src="covers/9253.jpg" alt="" width="100" height="150"><b>Steins;Gate</b><span>24 / 24</span></li>
+            <li><img src="covers/1.png" alt="" width="100" height="150"><b>Cowboy Bebop</b><span>26 / 26</span></li>
+            <li><img src="covers/5114.jpg" alt="" width="100" height="150"><b>Fullmetal Alchemist B.</b><span>64 / 64</span></li>
+            <li><img src="covers/30.jpg" alt="" width="100" height="150"><b>Evangelion</b><span>26 / 26</span></li>
+          </ul>
+        </div>
+        <div>
+          <h2 class="sec">履歴 · Diary <small>this week</small></h2>
+          <ol class="diary">
+            <li><time>MON 23:58</time><span><b>Tougen Anki</b> ep 8</span><span class="chip">+1</span></li>
+            <li><time>MON 22:10</time><span><b>Hotaru no Yomeiri</b> ep 7</span><span class="chip">+1</span></li>
+            <li><time>SUN 25:05</time><span><b>JoJo: Steel Ball Run</b> ep 7</span><span class="chip">+1</span></li>
+            <li><time>SUN 23:40</time><span><b>Kusuriya no Hitorigoto</b> ep 7</span><span class="chip">+1</span></li>
+            <li><time>SAT 21:15</time><span><b>Sousou no Frieren</b> finished</span><span class="chip fill">9★</span></li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>
