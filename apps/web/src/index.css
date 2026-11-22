@@ -559,4 +559,268 @@
     background: var(--stock, #e4a128);
     color: var(--stub-ink);
   }
+
+  /* ── Schedule: slot states, mini tickets, thumbnails (doc 08 §3) ───────────────────────────
+     seen = muted stock with a check, aired = full stock with the mint ring and a +1, soon = a
+     dashed outline. State is also words and icons, never colour alone (doc 08 §6). */
+  .ticket--seen {
+    background: color-mix(in oklab, var(--stock) 36%, var(--raised-2));
+    color: var(--ink);
+  }
+  .ticket--seen .ticket__badge {
+    background: transparent;
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--ink) 45%, transparent);
+  }
+  .ticket--seen .ticket__badge::before {
+    display: none;
+  }
+  .ticket--seen .ticket__perf {
+    border-color: color-mix(in oklab, var(--ink) 35%, transparent);
+  }
+  .ticket--soon {
+    background: transparent;
+    color: var(--ink);
+    outline: 2px dashed var(--stock);
+    outline-offset: -2px;
+    filter: none;
+  }
+  .ticket--soon::before,
+  .ticket--soon::after {
+    display: none;
+  }
+  .ticket--soon .ticket__perf {
+    border-color: var(--stock);
+  }
+  .ticket--soon .ticket__badge {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .ticket--soon .ticket__cover {
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
+  .ticket--slot .ticket__num {
+    font-size: 2.5rem;
+    font-weight: 700;
+    font-variation-settings: 'wght' 700;
+  }
+  .ticket--slot .ticket__bars {
+    display: none;
+  }
+
+  .mt {
+    --stock: #e4a128;
+    --sw: 42px;
+    --cell: var(--paper);
+    position: relative;
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) var(--sw);
+    min-height: 64px;
+    isolation: isolate;
+    background: var(--stock);
+    color: var(--stub-ink);
+    border-radius: var(--radius-md);
+  }
+  .mt::before,
+  .mt::after {
+    content: '';
+    position: absolute;
+    right: var(--sw);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--cell);
+    transform: translateX(50%);
+    z-index: 3;
+  }
+  .mt::before {
+    top: -6px;
+  }
+  .mt::after {
+    bottom: -6px;
+  }
+  .mt__cover {
+    overflow: hidden;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+    background: color-mix(in oklab, var(--stub-ink) 14%, var(--stock));
+  }
+  .mt__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .mt__body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-width: 0;
+    padding: 7px 8px;
+  }
+  .mt__title {
+    font: 800 0.9375rem/1 var(--display);
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .mt__title a {
+    text-decoration: none;
+  }
+  .mt__title a:hover {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+  .mt__meta {
+    font-size: 0.71875rem;
+    line-height: 1.2;
+    opacity: 0.9;
+  }
+  .mt__act {
+    display: grid;
+    place-items: center;
+    margin: 8px 0;
+    border-left: 2px dashed color-mix(in oklab, var(--stub-ink) 45%, transparent);
+  }
+  .mt--aired {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .mt--seen {
+    background: color-mix(in oklab, var(--stock) 36%, var(--raised-2));
+    color: var(--ink);
+  }
+  .mt--seen .mt__act {
+    border-color: color-mix(in oklab, var(--ink) 35%, transparent);
+  }
+  .mt--soon {
+    background: transparent;
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1.5px var(--stock);
+  }
+  .mt--soon::before,
+  .mt--soon::after {
+    display: none;
+  }
+  .mt--soon .mt__act {
+    border-color: var(--stock);
+  }
+  .go {
+    appearance: none;
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--stub-ink);
+    color: oklch(90% 0.15 165);
+    font: 900 0.8125rem/1 var(--display);
+    cursor: pointer;
+    transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .go::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+  }
+  .go:hover {
+    transform: scale(1.12) rotate(-6deg);
+  }
+  .go:focus-visible {
+    outline-color: var(--accent);
+  }
+  .mt--seen .go {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .mt .ck,
+  .th .ck {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 0.8125rem;
+  }
+  .mt--soon .ck {
+    background: transparent;
+    color: var(--ink);
+  }
+  .th {
+    position: relative;
+    display: grid;
+    gap: 5px;
+    justify-items: start;
+  }
+  .th__cover {
+    position: relative;
+    display: block;
+    width: 100%;
+    aspect-ratio: 2 / 2.9;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--stock, #e4a128);
+  }
+  .th__cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .th__time {
+    font-size: 0.71875rem;
+    line-height: 1.1;
+    color: var(--mute);
+    white-space: nowrap;
+  }
+  .th__time b {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .th .go,
+  .th .ck {
+    position: absolute;
+    right: 4px;
+    bottom: 22px;
+    z-index: 2;
+  }
+  .th--aired .th__cover {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .th--seen img {
+    filter: saturate(0.5) brightness(0.6);
+  }
+  .th--soon .th__cover {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--stock);
+  }
+  .th--soon img {
+    opacity: 0.6;
+  }
+
+  .agenda-slot .mt {
+    --sw: 64px;
+    grid-template-columns: 52px minmax(0, 1fr) var(--sw);
+    min-height: 84px;
+  }
+  .agenda-slot .mt__title {
+    font-size: 1.125rem;
+  }
+  .agenda-slot .mt__meta {
+    font-size: 0.8125rem;
+  }
+  .agenda-slot .go {
+    width: 40px;
+    height: 40px;
+    font-size: 0.9375rem;
+  }
 }

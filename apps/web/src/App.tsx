@@ -17,6 +17,7 @@ import { HistoryPage } from './pages/History';
 import { HomePage } from './pages/Home';
 import { InboxPage } from './pages/Inbox';
 import { LibraryPage } from './pages/Library';
+import { SchedulePage } from './pages/Schedule';
 import { CurrentSeasonRedirect, SeasonChartPage } from './pages/SeasonChart';
 import { AccountDeletedPage, RestorePage, SharedPage } from './pages/Public';
 import { SettingsPage } from './pages/Settings';
@@ -51,6 +52,7 @@ export function AppRoutes() {
       <Route path="/shared/:token" element={<SharedPage />} />
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
+        <Route path="schedule" element={<SchedulePage />} />
         <Route path="discover" element={<DiscoverPage />} />
         <Route path="library" element={<LibraryPage />} />
         <Route path="inbox" element={<InboxPage />} />

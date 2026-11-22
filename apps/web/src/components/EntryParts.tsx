@@ -2,7 +2,7 @@ import type { LibraryEntry } from '@akiba/shared';
 import { Link } from 'react-router';
 import { useEntryProgress } from '../lib/progress';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
-import { stockFor } from './Ticket';
+import { stockFor } from '../lib/stock';
 import { Button, Notice } from './ui';
 
 /** A 4 px bar on a track that is visible on its own (doc 08 §6: the track has contrast). */
@@ -148,7 +148,7 @@ export function LibraryRow({ entry }: { entry: LibraryEntry }) {
 /** A poster in the library grid, with progress on the cover's bottom edge. */
 export function LibraryPoster({ entry }: { entry: LibraryEntry }) {
   const name = displayTitle(entry.title);
-  const stock = stockFor(entry.title.id);
+  const stock = stockFor(entry.title);
   return (
     <article
       className="poster has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4"

@@ -1,7 +1,7 @@
 import type { TitleCard } from '@akiba/shared';
 import { Link } from 'react-router';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
-import { stockFor } from './Ticket';
+import { stockFor } from '../lib/stock';
 
 /**
  * Poster ticket (doc 08 §3): a 2:3 cover with a perforated stub under it, name and meta on the
@@ -11,7 +11,7 @@ import { stockFor } from './Ticket';
  */
 export function PosterCard({ title }: { title: TitleCard }) {
   const name = displayTitle(title);
-  const stock = stockFor(title.id);
+  const stock = stockFor(title);
   return (
     <article
       className="poster has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4"

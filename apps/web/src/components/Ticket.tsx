@@ -1,20 +1,10 @@
 import type { LibraryEntry } from '@akiba/shared';
-import { ticketStock } from '@akiba/ui-tokens';
 import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router';
 import { useEntryProgress } from '../lib/progress';
+import { stockFor } from '../lib/stock';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
 import { Button, Notice } from './ui';
-
-/**
- * The colour a title's ticket is printed on. Until the catalog supplies each cover's own colour
- * it is one of the stock colours, chosen from the title id so a title always has the same one.
- */
-export function stockFor(id: string): string {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-  return ticketStock[hash % ticketStock.length] ?? '#e4a128';
-}
 
 type TicketStyle = CSSProperties & { '--stock': string; '--p': number };
 
@@ -45,7 +35,7 @@ export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 's
     : track.status === 'completed'
       ? 'Completed'
       : 'Last episode watched';
-  const style: TicketStyle = { '--stock': stockFor(entry.title.id), '--p': fraction };
+  const style: TicketStyle = { '--stock': stockFor(entry.title), '--p': fraction };
 
   return (
     <article className="ticket-wrap grid gap-3">

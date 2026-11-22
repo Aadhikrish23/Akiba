@@ -9,6 +9,8 @@ interface NavItem {
   readonly to: string;
   readonly label: string;
   readonly end?: boolean;
+  /** Not in the phone's tab bar (seven tabs do not fit); reached from the top bar instead. */
+  readonly phoneHidden?: boolean;
   readonly icon: ReactNode;
 }
 
@@ -37,6 +39,17 @@ const NAV: readonly NavItem[] = [
     icon: (
       <Icon>
         <path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />
+      </Icon>
+    ),
+  },
+  {
+    to: '/schedule',
+    label: 'Schedule',
+    icon: (
+      <Icon>
+        <rect x="4" y="5" width="16" height="15" rx="2" />
+        <path d="M4 10h16M9 3v4M15 3v4" />
+        <path d="M8.5 14.5h2M13.5 14.5h2" />
       </Icon>
     ),
   },
@@ -74,6 +87,7 @@ const NAV: readonly NavItem[] = [
   {
     to: '/history',
     label: 'History',
+    phoneHidden: true,
     icon: (
       <Icon>
         <circle cx="12" cy="12" r="9" />
@@ -84,6 +98,7 @@ const NAV: readonly NavItem[] = [
   {
     to: '/settings',
     label: 'Settings',
+    phoneHidden: true,
     icon: (
       <Icon>
         <circle cx="12" cy="12" r="3" />
@@ -157,8 +172,8 @@ export function AppShell() {
                 end={item.end === true}
                 className={({ isActive }) =>
                   `relative flex flex-1 flex-col items-center gap-0.5 rounded-md px-1 py-2 text-xs font-medium min-[880px]:w-[76px] min-[880px]:flex-none ${
-                    isActive ? 'bg-raised text-accent' : 'text-mute hover:text-ink'
-                  }`
+                    item.phoneHidden === true ? 'max-[879px]:hidden' : ''
+                  } ${isActive ? 'bg-raised text-accent' : 'text-mute hover:text-ink'}`
                 }
               >
                 {item.icon}
@@ -172,6 +187,14 @@ export function AppShell() {
               data-testid="account-name"
             >
               {state.user.displayName ?? state.user.email}
+            </span>
+            <span className="flex gap-4 min-[880px]:hidden">
+              <Link to="/history" className="underline underline-offset-4">
+                History
+              </Link>
+              <Link to="/settings" className="underline underline-offset-4">
+                Settings
+              </Link>
             </span>
             <Button variant="link" onClick={signOut} className="whitespace-nowrap">
               Log out

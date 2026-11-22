@@ -2,10 +2,12 @@ import type { LibraryEntry, Notification } from '@akiba/shared';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
-import { Ticket, stockFor } from '../components/Ticket';
+import { Ticket } from '../components/Ticket';
+import { WeekStrip } from '../components/WeekStrip';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { usePageTitle } from '../lib/page';
+import { stockFor } from '../lib/stock';
 import { displayTitle } from '../lib/titles';
 
 /** "2h ago", "yesterday", or a short date: enough for a list that is read at a glance. */
@@ -123,6 +125,7 @@ export function HomePage() {
             </div>
           )}
         </section>
+        <WeekStrip />
       </div>
 
       {aired.length > 0 && (
@@ -146,7 +149,7 @@ export function HomePage() {
                   <span
                     aria-hidden="true"
                     className="h-[62px] w-11 rounded-sm"
-                    style={{ background: stockFor(note.title.id) }}
+                    style={{ background: stockFor(note.title) }}
                   />
                 ) : (
                   <img

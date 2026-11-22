@@ -43,7 +43,7 @@ Mobile/Electron receive the same values converted to sRGB hex by a build step.
 | **Inbox item** | Cover thumb, "Episode N of Title aired", relative time, unread dot in accent |
 
 ## 4. Screens
-**Web / Desktop (sidebar nav ≥ 880 px; top nav below):** Home · Discover (search, browse, season chart) · Title detail · Franchise · Studio · Character · Library (grid/list, status tabs) · History · Inbox · Settings (profile, theme, title language, export, share link, delete account) · Auth screens · Shared list (public).
+**Web / Desktop (left rail ≥ 880 px; slim top bar and bottom tab bar below):** Home · Schedule (tonight as tickets; the week as a timetable in broadcast time, 25:30 = 1:30 am; a day agenda on a phone; `GET /library/schedule`) · Discover (search, browse, season chart) · Title detail · Franchise · Studio · Character · Library (grid/list, status tabs) · History · Inbox · Settings (profile, theme, title language, export, share link, delete account) · Auth screens · Shared list (public).
 **Mobile (tab bar):** Home · Discover · Library · Inbox · Me. Title detail, franchise, studio, character, history and settings are pushed screens.
 
 ### Key flows
