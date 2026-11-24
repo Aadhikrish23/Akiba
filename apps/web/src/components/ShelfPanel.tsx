@@ -295,7 +295,7 @@ export function ShelfPanel({ title }: { title: TitleDetail }) {
           </Button>
         ) : (
           <p role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-            Remove this title? Your history is kept.
+            Remove this title? Your viewings are kept.
             <Button
               variant="link"
               onClick={() =>

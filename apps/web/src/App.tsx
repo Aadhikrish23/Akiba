@@ -13,7 +13,6 @@ import {
 } from './pages/auth';
 import { DiscoverPage } from './pages/Discover';
 import { CharacterPage, FranchisePage, StudioPage } from './pages/Explore';
-import { HistoryPage } from './pages/History';
 import { HomePage } from './pages/Home';
 import { InboxPage } from './pages/Inbox';
 import { LibraryPage } from './pages/Library';
@@ -56,7 +55,6 @@ export function AppRoutes() {
         <Route path="discover" element={<DiscoverPage />} />
         <Route path="library" element={<LibraryPage />} />
         <Route path="inbox" element={<InboxPage />} />
-        <Route path="history" element={<HistoryPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="discover/season" element={<CurrentSeasonRedirect />} />
         <Route path="discover/season/:year/:season" element={<SeasonChartPage />} />

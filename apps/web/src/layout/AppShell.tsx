@@ -85,17 +85,6 @@ const NAV: readonly NavItem[] = [
     ),
   },
   {
-    to: '/history',
-    label: 'History',
-    phoneHidden: true,
-    icon: (
-      <Icon>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </Icon>
-    ),
-  },
-  {
     to: '/settings',
     label: 'Settings',
     phoneHidden: true,
@@ -189,12 +178,6 @@ export function AppShell() {
               {state.user.displayName ?? state.user.email}
             </span>
             <span className="flex gap-4 min-[880px]:hidden">
-              <Link
-                to="/history"
-                className="inline-flex min-h-8 items-center underline underline-offset-4"
-              >
-                History
-              </Link>
               <Link
                 to="/settings"
                 className="inline-flex min-h-8 items-center underline underline-offset-4"
