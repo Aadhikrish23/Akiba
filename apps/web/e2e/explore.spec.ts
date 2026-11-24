@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { setAniList, signedIn } from './helpers';
+import { openResult, setAniList, signedIn } from './helpers';
 
 /**
  * T22 journeys: from a title to its cast, a character, its studio and its franchise, in real Chrome
@@ -14,7 +14,7 @@ test.beforeEach(async () => {
 
 async function openAttackOnTitan(page: Page): Promise<void> {
   await page.goto('/discover?q=attack%20on%20titan');
-  await page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true }).click();
+  await openResult(page, 'Shingeki no Kyojin');
   await expect(page.getByRole('heading', { level: 1, name: 'Shingeki no Kyojin' })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Characters' })).toBeVisible();
 }

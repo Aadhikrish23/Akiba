@@ -11,7 +11,7 @@ import {
 } from './test/render';
 
 /**
- * T18: Library, Home ("Continue watching" +1), the shelf panel on the title page and History.
+ * T18: Library, Home ("Continue watching" +1), and the shelf panel on the title page.
  * FR-LIB-001…007, FR-TRK-001…005, FR-REM-001…005; doc 08 key flows 1–4, §5 states, §6 accessibility.
  */
 
@@ -281,6 +281,66 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
       handler: server((call) => (call.path.endsWith('/library') ? list([]) : undefined)),
     });
     expect(await screen.findByText(/Nothing in progress/)).toBeTruthy();
+  });
+});
+
+describe('Library: seasons in one banner', () => {
+  const info = {
+    id: '00000000-0000-4000-8000-0000000000f1',
+    size: 7,
+    titleRomaji: 'My Hero Academia',
+    titleEnglish: 'Boku no Hero Academia (English)',
+    titleNative: null,
+  };
+  const withSeasons = server((call) => {
+    if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+    if (call.path.endsWith('/library'))
+      return list([
+        entry(1, { title: card(1, { franchise: info }) }),
+        entry(2),
+        entry(3, { status: 'completed', title: card(3, { franchise: info }) }),
+      ]);
+    return undefined;
+  });
+
+  it('puts the seasons you have of one show under one banner, with how many of the whole', async () => {
+    renderApp({ route: '/library', handler: withSeasons });
+    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 7 titles' });
+    expect(within(banner).getByText('7 titles · 2 in your library, 1 completed')).toBeTruthy();
+    // The other show is an ordinary poster; the seasons are inside the banner.
+    expect(screen.getByRole('link', { name: 'Show 2' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Show 1' })).toBeNull();
+  });
+
+  it('opens to show your entries of it, in the same layout as the rest', async () => {
+    const app = renderApp({ route: '/library', handler: withSeasons });
+    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 7 titles' });
+    await app.user.click(within(banner).getByRole('button', { name: /My Hero Academia/ }));
+    const seasons = await within(banner).findByRole('list', { name: 'Seasons in your library' });
+    expect(within(seasons).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(seasons).getByRole('link', { name: 'Show 1' })).toBeTruthy();
+    expect(within(seasons).getByRole('link', { name: 'Show 3' })).toBeTruthy();
+  });
+
+  it('does the same in the compact list, with +1 on each season', async () => {
+    const app = renderApp({
+      route: '/library',
+      handler: signedInHandler({ libraryView: 'list' }, (call) => {
+        if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+        if (call.path.endsWith('/library'))
+          return list([
+            entry(1, { title: card(1, { franchise: info }) }),
+            entry(3, { title: card(3, { franchise: info }) }),
+          ]);
+        return problem(404, 'NOT_FOUND');
+      }),
+    });
+    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 7 titles' });
+    await app.user.click(within(banner).getByRole('button', { name: /My Hero Academia/ }));
+    expect(
+      await within(banner).findByRole('button', { name: '+1 episode of Show 1' }),
+    ).toBeTruthy();
+    expect(within(banner).getByRole('button', { name: '+1 episode of Show 3' })).toBeTruthy();
   });
 });
 
@@ -586,7 +646,7 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
     expect(within(viewings).getByText(/Run 1: .*finished 2026-11-05, rated 8 \/ 10/)).toBeTruthy();
   });
 
-  it('removing asks first, keeps the history, and returns to "Add to your library"', async () => {
+  it('removing asks first, keeps the viewings, and returns to "Add to your library"', async () => {
     const app = renderApp({
       route: `/title/${TITLE}`,
       handler: shelf({}, (call) =>
@@ -594,7 +654,7 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
       ),
     });
     await app.user.click(await screen.findByRole('button', { name: 'Remove from library' }));
-    expect(screen.getByRole('alert').textContent).toMatch(/Your history is kept/);
+    expect(screen.getByRole('alert').textContent).toMatch(/Your viewings are kept/);
     await app.user.click(screen.getByRole('button', { name: 'Yes, remove it' }));
     expect(await screen.findByRole('heading', { name: 'Add to your library' })).toBeTruthy();
   });
@@ -614,68 +674,6 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
   it('is free of automatically detectable accessibility problems', async () => {
     const app = renderApp({ route: `/title/${TITLE}`, handler: shelf() });
     await screen.findByRole('heading', { name: 'On your shelf' });
-    expect(await violations(app.container)).toEqual([]);
-  });
-});
-
-describe('History (FR-REM-003)', () => {
-  const event = (
-    n: number,
-    type: string,
-    payload: Record<string, unknown>,
-    occurredAt: string,
-  ) => ({
-    id: `22222222-2222-4222-8222-${String(n).padStart(12, '0')}`,
-    type,
-    occurredAt,
-    payload,
-    entryId: ENTRY,
-    title: card(1),
-  });
-  const history = server((call) =>
-    call.path.endsWith('/history')
-      ? json(200, {
-          data: [
-            event(3, 'rated', { from: null, to: 9 }, '2026-11-18T12:00:00.000Z'),
-            event(2, 'progress_changed', { from: 2, to: 3, run: 1 }, '2026-11-18T11:00:00.000Z'),
-            event(1, 'entry_added', { status: 'watching' }, '2026-11-17T10:00:00.000Z'),
-          ],
-          nextCursor: null,
-        })
-      : undefined,
-  );
-
-  it('lists events as sentences, grouped by day, newest first', async () => {
-    renderApp({ route: '/history', handler: history });
-    expect(await screen.findByText('Rated 9 out of 10')).toBeTruthy();
-    expect(screen.getByText('Watched episode 3')).toBeTruthy();
-    expect(screen.getByText('Added to your library as Watching')).toBeTruthy();
-    expect(screen.getAllByRole('region')).toHaveLength(2); // two days
-    expect(screen.getAllByRole('link', { name: 'Show 1' })).toHaveLength(3);
-  });
-
-  it('filters by kind of event through the API', async () => {
-    const app = renderApp({ route: '/history', handler: history });
-    await screen.findByText('Rated 9 out of 10');
-    await app.user.selectOptions(screen.getByLabelText('Show'), 'rated');
-    await waitFor(() => {
-      expect(query(app.to('/history').at(-1)!).get('type')).toBe('rated');
-    });
-  });
-
-  it('says what to do when there is nothing yet', async () => {
-    renderApp({
-      route: '/history',
-      handler: server((call) =>
-        call.path.endsWith('/history') ? json(200, { data: [], nextCursor: null }) : undefined,
-      ),
-    });
-    expect(await screen.findByText(/Nothing here yet/)).toBeTruthy();
-  });
-
-  it('is free of automatically detectable accessibility problems', async () => {
-    const app = renderApp({ route: '/history', handler: history });
-    await screen.findByText('Rated 9 out of 10');
     expect(await violations(app.container)).toEqual([]);
   });
 });

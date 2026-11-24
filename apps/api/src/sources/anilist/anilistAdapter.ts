@@ -74,6 +74,23 @@ const mediaSchema = z.looseObject({
 });
 type Media = z.infer<typeof mediaSchema>;
 
+const relationsSchema = z
+  .object({
+    edges: z.array(
+      z.object({
+        relationType: z.string().nullish(),
+        node: z.object({
+          id: z.number().int(),
+          idMal: optionalInt,
+          type: optionalString,
+          format: optionalString,
+          title: z.object({ romaji: optionalString }).nullish(),
+        }),
+      }),
+    ),
+  })
+  .nullish();
+
 const detailSchema = mediaSchema.extend({
   studios: z
     .object({
@@ -89,22 +106,7 @@ const detailSchema = mediaSchema.extend({
       ),
     })
     .nullish(),
-  relations: z
-    .object({
-      edges: z.array(
-        z.object({
-          relationType: z.string().nullish(),
-          node: z.object({
-            id: z.number().int(),
-            idMal: optionalInt,
-            type: optionalString,
-            format: optionalString,
-            title: z.object({ romaji: optionalString }).nullish(),
-          }),
-        }),
-      ),
-    })
-    .nullish(),
+  relations: relationsSchema,
   nextAiringEpisode: z.object({ episode: z.number().int(), airingAt: z.number().int() }).nullish(),
   characters: z
     .object({
@@ -295,7 +297,9 @@ function normalizeCharacters(media: z.infer<typeof detailSchema>): SourceCharact
   return characters;
 }
 
-function normalizeRelations(media: z.infer<typeof detailSchema>): SourceRelation[] {
+function normalizeRelations(media: {
+  relations?: z.infer<typeof relationsSchema>;
+}): SourceRelation[] {
   const relations: SourceRelation[] = [];
   for (const edge of media.relations?.edges ?? []) {
     // Manga and novels are not titles in Akiba; an "adaptation" of one is not a relation here.
@@ -439,7 +443,10 @@ export function createAniListAdapter(options: AniListAdapterOptions = {}): Sourc
   }
 
   const pageSchema = z.object({
-    Page: z.object({ pageInfo: pageInfoSchema, media: z.array(mediaSchema) }),
+    Page: z.object({
+      pageInfo: pageInfoSchema,
+      media: z.array(mediaSchema.extend({ relations: relationsSchema })),
+    }),
   });
 
   async function pageOf(
@@ -449,7 +456,10 @@ export function createAniListAdapter(options: AniListAdapterOptions = {}): Sourc
     const data = await client.run(key, () => graphql(MEDIA_PAGE_QUERY, variables));
     const { Page } = parse(pageSchema, data, 'page');
     return {
-      items: Page.media.map(normalizeMedia),
+      items: Page.media.map((media) => ({
+        ...normalizeMedia(media),
+        relations: normalizeRelations(media),
+      })),
       page: Page.pageInfo.currentPage ?? (variables['page'] as number),
       hasNextPage: Page.pageInfo.hasNextPage === true,
     };

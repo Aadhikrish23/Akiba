@@ -1,10 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { expectCount, setAniList, signedIn } from './helpers';
+import { expectCount, openResult, setAniList, showResult, signedIn } from './helpers';
 
 /**
  * T18 journeys 1–3 of doc 11 §4, in real Chrome against the built app, the built API, a real
- * database and the mock AniList: add → +1 ×3 → rate → history; rewatch; episode-count override.
+ * database and the mock AniList: add → +1 ×3 → rate; rewatch; episode-count override.
  */
 
 test.beforeEach(async () => {
@@ -13,7 +13,7 @@ test.beforeEach(async () => {
 
 async function openAttackOnTitan(page: Page): Promise<void> {
   await page.goto('/discover?q=attack%20on%20titan');
-  await page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true }).click();
+  await openResult(page, 'Shingeki no Kyojin');
   await expect(page.getByRole('heading', { level: 1, name: 'Shingeki no Kyojin' })).toBeVisible();
 }
 
@@ -27,9 +27,7 @@ async function addAs(page: Page, status: string): Promise<void> {
 const plusOne = (page: Page) =>
   page.getByRole('button', { name: '+1 episode of Shingeki no Kyojin' });
 
-test('journey 1: search, add to Watching, +1 three times, rate, see it in history', async ({
-  page,
-}) => {
+test('journey 1: search, add to Watching, +1 three times, rate, see it kept', async ({ page }) => {
   await signedIn(page, 'lib1');
   await openAttackOnTitan(page);
   await addAs(page, 'watching');
@@ -46,19 +44,14 @@ test('journey 1: search, add to Watching, +1 three times, rate, see it in histor
   await page.reload();
   await expectCount(page, '3 / 25');
 
-  await page.getByRole('link', { name: 'History' }).click();
-  await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
-  await expect(page.getByText('Rated 9 out of 10')).toBeVisible();
-  await expect(page.getByText('Watched episode 3')).toBeVisible();
-  await expect(page.getByText('Watched episode 1')).toBeVisible();
-  await expect(page.getByText('Added to your library as Watching')).toBeVisible();
+  await expect(page.getByLabel('Your rating')).toHaveValue('9');
 
   // It is on the shelf and on Home.
   await page.getByRole('link', { name: 'Library' }).click();
   // Wait for the Library itself first: until then the title page is still showing, with related
   // titles whose names also contain this one (an exact match avoids the strict-mode clash).
   await expect(page.getByRole('heading', { level: 1, name: 'Library' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true })).toBeVisible();
+  await showResult(page, 'Shingeki no Kyojin');
   await page.getByRole('link', { name: 'Home' }).click();
   await expect(page.getByRole('heading', { name: 'Continue watching' })).toBeVisible();
   await expectCount(page, '3 / 25');
@@ -112,10 +105,6 @@ test('journey 2: rewatch a completed title and see both viewings', async ({ page
   await expect(viewings.getByText(/Run 2: .*in progress/)).toBeVisible();
   await expect(viewings.getByText(/Run 1: .*finished/)).toBeVisible();
   await expectCount(page, '0 / 25');
-
-  await page.getByRole('link', { name: 'History' }).click();
-  await expect(page.getByText('Started rewatch 2')).toBeVisible();
-  await expect(page.getByText('Finished watching')).toBeVisible();
 });
 
 test('journey 3: override the episode count, see it marked Edited, reset it', async ({ page }) => {
@@ -147,9 +136,7 @@ test('the compact list layout is remembered across a reload', async ({ page }) =
   await expect(plusOne(page)).toBeVisible();
 });
 
-test('keyboard only: add, log an episode and reach the history without a mouse', async ({
-  page,
-}) => {
+test('keyboard only: add and log an episode without a mouse', async ({ page }) => {
   await signedIn(page, 'lib5');
   await openAttackOnTitan(page);
   await addAs(page, 'watching');
@@ -161,7 +148,7 @@ test('keyboard only: add, log an episode and reach the history without a mouse',
 });
 
 for (const scheme of ['light', 'dark'] as const) {
-  test(`accessibility (WCAG 2.2 AA, ${scheme}): Home, Library (grid and list), History and the shelf`, async ({
+  test(`accessibility (WCAG 2.2 AA, ${scheme}): Home, Library (grid and list) and the shelf`, async ({
     page,
   }) => {
     await page.emulateMedia({ colorScheme: scheme });
@@ -191,8 +178,5 @@ for (const scheme of ['light', 'dark'] as const) {
     await page.getByRole('radio', { name: 'List' }).check();
     await expect(plusOne(page)).toBeVisible();
     await check('/library (list)');
-    await page.goto('/history');
-    await expect(page.getByText('Rated 8 out of 10')).toBeVisible();
-    await check('/history');
   });
 }

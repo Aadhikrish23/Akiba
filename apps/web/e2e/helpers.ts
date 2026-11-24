@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { expect, type Page } from '@playwright/test';
+import { expect, request, type Page } from '@playwright/test';
 
 export const unique = (label: string): string =>
   `${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.test`;
@@ -92,4 +92,46 @@ export async function expectCount(page: Page, text: string): Promise<void> {
   const count = page.getByTestId('episode-count');
   await expect(count.getByRole('textbox')).toHaveValue(value!);
   await expect(count).toHaveText(`/ ${total}`);
+}
+
+/**
+ * The web app keeps its access token in memory, so a test that talks to the API itself signs in
+ * once more (a separate session) and sends that token.
+ */
+export async function api(email: string) {
+  const context = await request.newContext({
+    baseURL: 'http://localhost:4173',
+    extraHTTPHeaders: { 'X-Client': 'web' },
+  });
+  const login = await context.post('/v1/auth/login', { data: { email, password: PASSWORD } });
+  expect(login.ok()).toBe(true);
+  const { accessToken } = (await login.json()) as { accessToken: string };
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  return {
+    get: (path: string) => context.get(path, { headers }),
+    post: (path: string, data: unknown) => context.post(path, { headers, data }),
+    put: (path: string, data: unknown) => context.put(path, { headers, data }),
+    close: () => context.dispose(),
+  };
+}
+
+/**
+ * Make a title's link visible in a list of titles, opening any banner that holds it: the seasons of
+ * one show are one banner, so which titles are cards and which are inside one depends on what the
+ * catalog already knows about how they relate.
+ */
+export async function showResult(page: Page, name: string): Promise<void> {
+  const link = page.getByRole('link', { name, exact: true }).first();
+  const closed = page.getByRole('article').getByRole('button', { expanded: false });
+  await expect(link.or(closed.first())).toBeVisible();
+  if (!(await link.isVisible())) {
+    for (const toggle of await closed.all()) await toggle.click();
+  }
+  await expect(link).toBeVisible();
+}
+
+/** Click a title's link in a list of titles (see {@link showResult}). */
+export async function openResult(page: Page, name: string): Promise<void> {
+  await showResult(page, name);
+  await page.getByRole('link', { name, exact: true }).first().click();
 }

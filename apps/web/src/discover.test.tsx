@@ -226,6 +226,100 @@ describe('Discover: browse (FR-DISC-002, FR-DISC-006)', () => {
   });
 });
 
+describe('Discover: seasons in one banner', () => {
+  const FRANCHISE = '00000000-0000-4000-8000-0000000000f1';
+  const info = {
+    id: FRANCHISE,
+    size: 4,
+    titleRomaji: 'My Hero Academia',
+    titleEnglish: 'Boku no Hero Academia (English)',
+    titleNative: null,
+  };
+  const seasons = [10, 11, 12].map((n) => card(n, { franchise: info, seasonYear: 2016 + n - 10 }));
+  const catalog = server((call) => {
+    if (call.path.endsWith('/genres')) return json(200, { data: [] });
+    if (call.path.includes('/titles/search')) return list([...seasons, card(20)]);
+    if (call.path.includes('/franchises/')) {
+      return json(200, {
+        data: {
+          id: FRANCHISE,
+          name: 'Boku no Hero Academia',
+          titles: [...seasons, card(13, { franchise: info })].map((title) => ({
+            ...title,
+            startDate: '2016-04-03',
+          })),
+          // Seasons 1 to 3 follow each other; the fourth title is a movie off to the side.
+          relations: [
+            { fromTitleId: seasons[0]!.id, toTitleId: seasons[1]!.id, relationType: 'sequel' },
+            { fromTitleId: seasons[1]!.id, toTitleId: seasons[2]!.id, relationType: 'sequel' },
+            { fromTitleId: seasons[0]!.id, toTitleId: card(13).id, relationType: 'side_story' },
+          ],
+          totals: { titles: 4, inLibrary: 1, completed: 0 },
+        },
+        meta: { stale: false, source: 'cache' },
+      });
+    }
+    return undefined;
+  });
+
+  it('shows the seasons of one show as one banner named after the first, not one card each', async () => {
+    renderApp({ route: '/discover?q=hero', handler: catalog });
+    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
+    expect(within(banner).getByText('4 titles')).toBeTruthy();
+    // The seasons are inside it, not beside it: only the other show is a card of its own.
+    expect(screen.queryByRole('link', { name: 'Show 10' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Show 20' })).toBeTruthy();
+  });
+
+  it('opens to list every title of the franchise, oldest first, including ones not on the page', async () => {
+    const app = renderApp({ route: '/discover?q=hero', handler: catalog });
+    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
+    const toggle = within(banner).getByRole('button', { name: /My Hero Academia/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    await app.user.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const seasonRows = await within(banner).findByRole('list', {
+      name: 'Seasons in this franchise',
+    });
+    expect(within(seasonRows).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(seasonRows).getByText(/^Season 2 · /)).toBeTruthy();
+    // The movie is listed after them, with the other titles that are not seasons.
+    const others = within(banner).getByRole('list', { name: 'Other titles in this franchise' });
+    expect(within(others).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(others).getByRole('link', { name: 'Show 13' })).toBeTruthy();
+    expect(app.to(`/franchises/${FRANCHISE}`).length).toBeGreaterThan(0);
+  });
+
+  it('does not ask for the seasons until the banner is opened', async () => {
+    const app = renderApp({ route: '/discover?q=hero', handler: catalog });
+    await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
+    expect(app.to(`/franchises/${FRANCHISE}`)).toHaveLength(0);
+  });
+
+  it('keeps a title whose franchise has only itself on the page as an ordinary card', async () => {
+    renderApp({
+      route: '/discover?q=hero',
+      handler: server((call) => {
+        if (call.path.endsWith('/genres')) return json(200, { data: [] });
+        if (call.path.includes('/titles/search')) {
+          return list([card(10, { franchise: info }), card(20)]);
+        }
+        return undefined;
+      }),
+    });
+    expect(await screen.findByRole('link', { name: 'Show 10' })).toBeTruthy();
+    expect(screen.queryByRole('article', { name: /titles$/ })).toBeNull();
+  });
+
+  it('has no axe violations with a banner open', async () => {
+    const app = renderApp({ route: '/discover?q=hero', handler: catalog });
+    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
+    await app.user.click(within(banner).getByRole('button', { name: /My Hero Academia/ }));
+    await within(banner).findByRole('list', { name: 'Other titles in this franchise' });
+    expect(await violations(app.container)).toEqual([]);
+  });
+});
+
 describe('Discover: search (FR-DISC-001)', () => {
   const catalog = server((call) => {
     if (call.path.endsWith('/genres')) return json(200, { data: ['Action'] });

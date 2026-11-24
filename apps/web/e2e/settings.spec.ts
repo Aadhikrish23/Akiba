@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
-import { logIn, PASSWORD, setAniList, signUp, unique } from './helpers';
+import { logIn, openResult, PASSWORD, setAniList, showResult, signUp, unique } from './helpers';
 import { emailedLink } from './mail';
 
 /**
@@ -29,7 +29,7 @@ async function accountWithShelf(page: Page, label: string): Promise<string> {
   await expect(page.getByRole('heading', { name: 'Welcome, Hana' })).toBeVisible();
 
   await page.goto('/discover?q=attack%20on%20titan');
-  await page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true }).click();
+  await openResult(page, 'Shingeki no Kyojin');
   await page.getByLabel('Status').selectOption('completed');
   await page.getByRole('button', { name: 'Add to library' }).click();
   await expect(page.getByRole('heading', { name: 'On your shelf' })).toBeVisible();
@@ -163,7 +163,7 @@ test('settings: language and theme', async ({ page }) => {
   await page.getByLabel('Show titles in').selectOption('english');
   await expect(page.getByText('Saved.')).toBeVisible();
   await page.goto('/discover?q=attack%20on%20titan');
-  await expect(page.getByRole('link', { name: 'Attack on Titan', exact: true })).toBeVisible();
+  await showResult(page, 'Attack on Titan');
 
   await page.goto('/settings');
   await page.getByRole('radio', { name: 'Dark' }).check();
@@ -210,7 +210,7 @@ test('delete the account, then restore it within the grace period', async ({ pag
   await expect(page.getByRole('heading', { name: 'Account restored' })).toBeVisible();
   await loggedIn(page, email);
   await page.goto('/library');
-  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true })).toBeVisible();
+  await showResult(page, 'Shingeki no Kyojin');
 });
 
 for (const scheme of ['light', 'dark'] as const) {

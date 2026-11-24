@@ -24,6 +24,7 @@ const slotAt = (airsAt: string, extra: Partial<ScheduleSlot> = {}): ScheduleSlot
     titleNative: null,
     coverUrl: null,
     coverColor: null,
+    franchise: null,
     format: 'TV',
     status: 'releasing',
     episodesTotal: 12,

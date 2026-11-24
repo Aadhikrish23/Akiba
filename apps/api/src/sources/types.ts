@@ -38,6 +38,8 @@ export interface SourceDate {
 
 /** What search and browse return for each title: enough for a card. */
 export interface SourceTitle {
+  /** How the source says this title relates to others (AniList lists send them, so seasons can be grouped). */
+  readonly relations?: readonly SourceRelation[];
   readonly source: SourceName;
   readonly externalIds: ExternalIds;
   readonly kind: TitleKind;

@@ -4,6 +4,7 @@ import {
   TITLE_KINDS,
   type EntryStatus,
   type LibraryCounts,
+  type LibraryEntry,
   type LibrarySort,
   type TitleKind,
 } from '@akiba/shared';
@@ -11,8 +12,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { LibraryPoster, LibraryRow } from '../components/EntryParts';
+import { FranchiseBanner } from '../components/FranchiseBanner';
 import { GridSkeleton } from '../components/TitleResults';
 import { Button, Field, Notice, Select } from '../components/ui';
+import { groupByFranchise, type Grouped } from '../lib/franchise';
 import { useEntryList } from '../lib/library';
 import { usePageTitle } from '../lib/page';
 import { ENTRY_LABEL, KIND_LABEL } from '../lib/titles';
@@ -28,6 +31,26 @@ type Tab = EntryStatus | 'favorites' | 'all';
 const TABS: readonly Tab[] = ['all', ...ENTRY_STATUSES, 'favorites'];
 const TAB_LABEL = (tab: Tab): string =>
   tab === 'all' ? 'All' : tab === 'favorites' ? 'Favorites' : ENTRY_LABEL[tab];
+
+/** The seasons of one show you have in your library, as one banner that opens to show them. */
+function EntryBanner({
+  group,
+  children,
+}: {
+  group: Extract<Grouped<LibraryEntry>, { kind: 'banner' }>;
+  children: React.ReactNode;
+}) {
+  const done = group.items.filter((entry) => entry.status === 'completed').length;
+  return (
+    <FranchiseBanner
+      franchise={group.franchise}
+      covers={group.items.map((entry) => entry.title.coverUrl)}
+      standing={`${group.items.length} in your library${done > 0 ? `, ${done} completed` : ''}`}
+    >
+      {children}
+    </FranchiseBanner>
+  );
+}
 
 const pick = <T extends string>(options: readonly T[], value: string | null): T | undefined =>
   (options as readonly string[]).includes(value ?? '') ? (value as T) : undefined;
@@ -84,6 +107,14 @@ export function LibraryPage() {
     }
     setParams(next, { replace: true });
   };
+  const groups =
+    state.phase === 'ready'
+      ? groupByFranchise(
+          state.items,
+          (entry) => entry.title.franchise,
+          (entry) => entry.id,
+        )
+      : [];
   const count = (value: Tab): number | null =>
     counts === null
       ? null
@@ -216,9 +247,21 @@ export function LibraryPage() {
             </p>
             {view === 'list' ? (
               <ul aria-label="Library" className="list-none p-0">
-                {state.items.map((entry) => (
-                  <LibraryRow key={entry.id} entry={entry} />
-                ))}
+                {groups.map((group) =>
+                  group.kind === 'one' ? (
+                    <LibraryRow key={group.key} entry={group.item} />
+                  ) : (
+                    <li key={group.key} className="py-3">
+                      <EntryBanner group={group}>
+                        <ul aria-label="Seasons in your library" className="m-0 list-none p-0">
+                          {group.items.map((entry) => (
+                            <LibraryRow key={entry.id} entry={entry} />
+                          ))}
+                        </ul>
+                      </EntryBanner>
+                    </li>
+                  ),
+                )}
               </ul>
             ) : (
               <ul
@@ -226,11 +269,31 @@ export function LibraryPage() {
                 className="grid list-none gap-x-5 gap-y-8 p-0"
                 style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))' }}
               >
-                {state.items.map((entry) => (
-                  <li key={entry.id}>
-                    <LibraryPoster entry={entry} />
-                  </li>
-                ))}
+                {groups.map((group) =>
+                  group.kind === 'one' ? (
+                    <li key={group.key}>
+                      <LibraryPoster entry={group.item} />
+                    </li>
+                  ) : (
+                    <li key={group.key} className="col-span-full">
+                      <EntryBanner group={group}>
+                        <ul
+                          aria-label="Seasons in your library"
+                          className="m-0 grid list-none gap-x-5 gap-y-8 p-0"
+                          style={{
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))',
+                          }}
+                        >
+                          {group.items.map((entry) => (
+                            <li key={entry.id}>
+                              <LibraryPoster entry={entry} />
+                            </li>
+                          ))}
+                        </ul>
+                      </EntryBanner>
+                    </li>
+                  ),
+                )}
               </ul>
             )}
             {state.moreError !== null && <Notice tone="error">{state.moreError}</Notice>}

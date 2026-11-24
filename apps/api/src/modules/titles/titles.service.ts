@@ -27,6 +27,7 @@ import type {
   TitleFilters,
 } from '../../sources/types.js';
 import {
+  addRelations,
   applyCard,
   applyDetail,
   cardSelect,
@@ -192,8 +193,51 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
         (entry) => db.$transaction((tx) => applyCard(tx, entry.titleId, entry.item, now())),
       );
     }
+    await linkSeasons(usable);
     // The same title can come back twice (two entries of a source mapped to one); show it once.
     return [...new Set(usable.map((entry) => entry.titleId))];
+  }
+
+  /**
+   * A list page from AniList says how its titles relate (season 2 follows season 1). Store the links
+   * whose far end is already a title of ours (usually another season on the same page) and let the
+   * franchises follow, so a search shows "My Hero Academia" as one group at once instead of only
+   * after each season has been opened. A failure here never fails the search.
+   */
+  async function linkSeasons(
+    entries: readonly { titleId: string; item: SourceTitle }[],
+  ): Promise<void> {
+    try {
+      const withLinks = entries.filter((entry) => (entry.item.relations?.length ?? 0) > 0);
+      const wanted = new Set<string>();
+      for (const entry of withLinks) {
+        for (const relation of entry.item.relations ?? []) {
+          const id = relation.target.externalIds.anilist;
+          if (id !== undefined) wanted.add(id);
+        }
+      }
+      if (wanted.size === 0) return;
+      const known = await db.titleExternalId.findMany({
+        where: { source: 'anilist', externalId: { in: [...wanted] } },
+        select: { titleId: true, externalId: true },
+      });
+      const titleOf = new Map(known.map((row) => [row.externalId, row.titleId]));
+      const rows = withLinks.flatMap((entry) =>
+        (entry.item.relations ?? []).flatMap((relation) => {
+          const to = titleOf.get(relation.target.externalIds.anilist ?? '');
+          return to === undefined
+            ? []
+            : [{ fromTitleId: entry.titleId, toTitleId: to, relationType: relation.relationType }];
+        }),
+      );
+      if (rows.length === 0) return;
+      await db.$transaction(async (tx) => {
+        await addRelations(tx, rows);
+        await recomputeFranchises(tx, [...new Set(rows.map((row) => row.fromTitleId))]);
+      });
+    } catch (error) {
+      logger.warn({ err: error }, 'could not link the seasons of a list page');
+    }
   }
 
   function cacheGet(key: string): CachedPage | undefined {

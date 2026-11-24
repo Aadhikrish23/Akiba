@@ -1,14 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, request, test, type Page } from '@playwright/test';
-import {
-  PASSWORD,
-  SHOW,
-  runJob,
-  setAiringEpisode,
-  setAniList,
-  signedIn,
-  watchTheShow,
-} from './helpers';
+import { expect, test, type Page } from '@playwright/test';
+import { SHOW, api, runJob, setAiringEpisode, setAniList, signedIn, watchTheShow } from './helpers';
 
 /**
  * The Schedule screen (doc 08 §1) in a real browser: an episode "airs" through the real airing-sync
@@ -28,27 +20,6 @@ test.beforeEach(async () => {
 interface Slot {
   episode: number;
   airsAt: string;
-}
-
-/**
- * The web app keeps its access token in memory, so a test that talks to the API itself signs in
- * once more (a separate session) and sends that token.
- */
-async function api(email: string) {
-  const context = await request.newContext({
-    baseURL: 'http://localhost:4173',
-    extraHTTPHeaders: { 'X-Client': 'web' },
-  });
-  const login = await context.post('/v1/auth/login', { data: { email, password: PASSWORD } });
-  expect(login.ok()).toBe(true);
-  const { accessToken } = (await login.json()) as { accessToken: string };
-  const headers = { Authorization: `Bearer ${accessToken}` };
-  return {
-    get: (path: string) => context.get(path, { headers }),
-    post: (path: string, data: unknown) => context.post(path, { headers, data }),
-    put: (path: string, data: unknown) => context.put(path, { headers, data }),
-    close: () => context.dispose(),
-  };
 }
 
 /** A fresh account that is Watching the airing show, with progress one episode short of the aired one. */

@@ -68,6 +68,23 @@ export const titleCardSchema = z.object({
   season: seasonSchema.nullable(),
   seasonYear: z.number().int().nullable(),
   averageScore: z.number().int().nullable(),
+  /**
+   * The franchise this title belongs to (its seasons, movies and spin-offs), when it has more than
+   * itself: how many titles, and the names of the one it is named after (the earliest to start),
+   * so a list can show "My Hero Academia" once instead of every season.
+   */
+  franchise: z
+    .object({
+      id: z.uuid(),
+      size: z.number().int().min(2),
+      /** TV titles on the main line (the "seasons"); null while not counted. */
+      seasons: z.number().int().min(0).nullable().default(null),
+      titleRomaji: z.string().nullable(),
+      titleEnglish: z.string().nullable(),
+      titleNative: z.string().nullable(),
+    })
+    .nullable()
+    .default(null),
   /** The caller's own library status for this title; null when it is not on their shelf. */
   libraryStatus: entryStatusSchema.nullable(),
   /** The caller's entry for this title, so any screen can act on it (progress, status). */

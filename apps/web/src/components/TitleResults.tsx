@@ -1,5 +1,7 @@
 import { Button, Notice } from './ui';
+import { FranchiseBanner, FranchiseTitles } from './FranchiseBanner';
 import { PosterCard, PosterGrid } from './PosterCard';
+import { groupByFranchise } from '../lib/franchise';
 import type { ListState } from '../lib/titles';
 
 /** Loading skeleton that matches the grid it will become (doc 08 §5: no spinners over content). */
@@ -33,12 +35,15 @@ export function TitleResults({
   empty,
   onRetry,
   onLoadMore,
+  groupSeasons = false,
 }: {
   state: ListState;
   label: string;
   empty: React.ReactNode;
   onRetry: () => void;
   onLoadMore: () => void;
+  /** Show the seasons of one show as one banner (search and browse). */
+  groupSeasons?: boolean;
 }) {
   if (state.phase === 'loading') return <GridSkeleton />;
   if (state.phase === 'error') {
@@ -67,11 +72,34 @@ export function TitleResults({
             {state.items.length} {state.items.length === 1 ? 'title' : 'titles'} shown
           </p>
           <PosterGrid label={label}>
-            {state.items.map((item) => (
-              <li key={item.id}>
-                <PosterCard title={item} />
-              </li>
-            ))}
+            {(groupSeasons
+              ? groupByFranchise(
+                  state.items,
+                  (item) => item.franchise,
+                  (item) => item.id,
+                )
+              : state.items.map((item) => ({ kind: 'one' as const, key: item.id, item }))
+            ).map((group) =>
+              group.kind === 'one' ? (
+                <li key={group.key}>
+                  <PosterCard title={group.item} />
+                </li>
+              ) : (
+                <li key={group.key} className="col-span-full">
+                  <FranchiseBanner
+                    franchise={group.franchise}
+                    covers={group.items.map((item) => item.coverUrl)}
+                    standing={
+                      group.items.some((item) => item.libraryStatus !== null)
+                        ? `${group.items.filter((item) => item.libraryStatus !== null).length} in your library`
+                        : undefined
+                    }
+                  >
+                    <FranchiseTitles franchiseId={group.franchise.id} />
+                  </FranchiseBanner>
+                </li>
+              ),
+            )}
           </PosterGrid>
         </>
       )}

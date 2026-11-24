@@ -19,6 +19,19 @@ export const cardSelect = (userId: string) =>
     season: true,
     seasonYear: true,
     averageScore: true,
+    // The franchise: its size and the title it is named after (the earliest to start).
+    franchise: {
+      select: {
+        id: true,
+        seasonCount: true,
+        _count: { select: { titles: true } },
+        titles: {
+          orderBy: [{ startDate: 'asc' }, { popularity: 'asc' }],
+          take: 1,
+          select: { titleRomaji: true, titleEnglish: true, titleNative: true },
+        },
+      },
+    },
     libraryEntries: {
       where: { userId, removedAt: null },
       select: { id: true, status: true },
@@ -27,6 +40,20 @@ export const cardSelect = (userId: string) =>
   }) satisfies Prisma.TitleSelect;
 
 type CardRow = Prisma.TitleGetPayload<{ select: ReturnType<typeof cardSelect> }>;
+
+/** A franchise of one title is no franchise: only two or more are shown as a group. */
+function franchiseOf(row: CardRow['franchise']): TitleCard['franchise'] {
+  if (row === null || row._count.titles < 2) return null;
+  const root = row.titles[0];
+  return {
+    id: row.id,
+    size: row._count.titles,
+    seasons: row.seasonCount,
+    titleRomaji: root?.titleRomaji ?? null,
+    titleEnglish: root?.titleEnglish ?? null,
+    titleNative: root?.titleNative ?? null,
+  };
+}
 
 export function toCard(row: CardRow): TitleCard {
   return {
@@ -43,6 +70,7 @@ export function toCard(row: CardRow): TitleCard {
     season: row.season,
     seasonYear: row.seasonYear,
     averageScore: row.averageScore,
+    franchise: franchiseOf(row.franchise),
     libraryStatus: row.libraryEntries[0]?.status ?? null,
     libraryEntryId: row.libraryEntries[0]?.id ?? null,
   };
@@ -282,6 +310,19 @@ export async function replaceRelations(
   const rows = relations
     .filter((relation) => relation.toTitleId !== fromTitleId)
     .map((relation) => ({ fromTitleId, ...relation }));
+  if (rows.length > 0) await tx.titleRelation.createMany({ data: rows, skipDuplicates: true });
+}
+
+/** Add relations without touching the ones already stored (a list page knows only some of a title's). */
+export async function addRelations(
+  tx: DbTransaction,
+  relations: readonly {
+    fromTitleId: string;
+    toTitleId: string;
+    relationType: Prisma.TitleRelationCreateManyInput['relationType'];
+  }[],
+): Promise<void> {
+  const rows = relations.filter((relation) => relation.toTitleId !== relation.fromTitleId);
   if (rows.length > 0) await tx.titleRelation.createMany({ data: rows, skipDuplicates: true });
 }
 

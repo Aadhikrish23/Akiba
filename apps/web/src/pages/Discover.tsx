@@ -209,6 +209,7 @@ export function DiscoverPage() {
         </h2>
         <TitleResults
           state={state}
+          groupSeasons
           label={searching ? 'Search results' : 'Titles'}
           onRetry={retry}
           onLoadMore={loadMore}

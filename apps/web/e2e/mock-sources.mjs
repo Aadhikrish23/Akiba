@@ -30,6 +30,50 @@ const send = (response, status, body) => {
 };
 const answer = (response, fixture) => send(response, fixture.status, fixture.response);
 
+/** Three seasons that follow each other and a movie off to the side, for the "one banner" tests. */
+function heroSeasons() {
+  const season = (id, name, year, edges, format = 'TV') => ({
+    id,
+    idMal: null,
+    title: { romaji: name, english: name, native: null },
+    synonyms: [],
+    description: null,
+    coverImage: { extraLarge: null, large: null, color: '#e4a128' },
+    bannerImage: null,
+    format,
+    status: 'FINISHED',
+    episodes: format === 'TV' ? 13 : 1,
+    duration: 24,
+    season: 'SPRING',
+    seasonYear: year,
+    startDate: { year, month: 4, day: 3 },
+    endDate: { year, month: 6, day: 26 },
+    averageScore: 80,
+    popularity: 5000 - year,
+    isAdult: false,
+    genres: ['Action'],
+    updatedAt: null,
+    relations: {
+      edges: edges.map(([relationType, target]) => ({
+        relationType,
+        node: { id: target, idMal: null, type: 'ANIME', format: 'TV', title: { romaji: 'x' } },
+      })),
+    },
+  });
+  return [
+    season(91001, 'My Hero Academia', 2016, [
+      ['SEQUEL', 91002],
+      ['SIDE_STORY', 91004],
+    ]),
+    season(91002, 'My Hero Academia 2', 2017, [
+      ['PREQUEL', 91001],
+      ['SEQUEL', 91003],
+    ]),
+    season(91003, 'My Hero Academia 3', 2018, [['PREQUEL', 91002]]),
+    season(91004, 'My Hero Academia: The Movie', 2019, [['SIDE_STORY', 91001]], 'MOVIE'),
+  ];
+}
+
 function mediaPage(variables) {
   const base = variables.search !== undefined ? fixtures.search : fixtures.browse;
   let media = base.response.data.Page.media;
@@ -44,6 +88,7 @@ function mediaPage(variables) {
     media = [];
   if (variables.search !== undefined) {
     const needle = String(variables.search).toLowerCase();
+    if (needle.includes('hero academia')) media = heroSeasons();
     media = media.filter((item) =>
       [item.title.romaji, item.title.english, ...(item.synonyms ?? [])]
         .filter(Boolean)

@@ -329,6 +329,8 @@ model TitleRelation {
 model Franchise {
   id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name String
+  /// TV titles on the main line (prequel/sequel chain) of the franchise: its "seasons". Null until counted.
+  seasonCount Int? @map("season_count")
 
   titles Title[]
 

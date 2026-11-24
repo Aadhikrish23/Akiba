@@ -31,7 +31,7 @@
 ## 3. Discover (authenticated)
 | Method & path | Purpose |
 |---|---|
-| `GET /titles/search?q=&format=&limit=&cursor=` | Text search |
+| `GET /titles/search?q=&format=&limit=&cursor=` | Text search. Every card (here and everywhere) carries `franchise`: `null`, or `{ id, size, seasons, titleRomaji, titleEnglish, titleNative }` for a title in a franchise of two or more (`size` titles, `seasons` of them on the main line, the names being the earliest title's). A list page from AniList also brings how its titles relate; the links whose far end is already stored are saved and franchises follow, so the seasons of one show are grouped from the first search |
 | `GET /titles/browse?genre=&season=&year=&format=&status=&sort=popularity|score|start_date&limit=&cursor=` | Filtered browse. `tag` and `order` are not offered: the sources only sort descending and tags are post-MVP |
 | `GET /seasons/current` · `GET /seasons/:year/:season` | Seasonal chart (accepts `genre`, `format`, `sort`, `limit`, `cursor`; the answer adds `season` and `seasonYear`) |
 | `GET /titles/:titleId` | Title detail incl. user's `libraryStatus`; `meta` says whether it is stale; 404 for an unknown or adult title; 503 `SOURCES_UNAVAILABLE` if it was never fetched and no source answers |

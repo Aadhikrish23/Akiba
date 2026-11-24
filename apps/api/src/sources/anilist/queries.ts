@@ -51,7 +51,9 @@ export const MEDIA_PAGE_QUERY = `
 query MediaPage(${PAGE_VARIABLES}) {
   Page(page: $page, perPage: $perPage) {
     ${PAGE_INFO}
-    media(${MEDIA_ARGUMENTS}) {${MEDIA_CARD}}
+    media(${MEDIA_ARGUMENTS}) {${MEDIA_CARD}
+      relations { edges { relationType(version: 2) node { id idMal type format title { romaji } } } }
+    }
   }
 }`;
 

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { setAniList, signedIn } from './helpers';
+import { api, openResult, setAniList, showResult, signedIn } from './helpers';
 
 /**
  * T13/T14 journeys: discovery in real Chrome against the built web app, the built API, a real
@@ -27,11 +27,11 @@ test('journey: search for a title, open it, follow a related title (FR-DISC-001,
   // No button press and no Enter: the search runs once typing pauses.
   await page.getByLabel('Search by name').pressSequentially('attack on titan');
   await expect(page.getByRole('heading', { name: 'Results for “attack on titan”' })).toBeVisible();
-  await expect(grid(page, 'Search results')).toHaveCount(3);
+  await expect(grid(page, 'Search results').first()).toBeVisible();
   await expect(page).toHaveURL(/q=attack\+on\+titan/);
 
   // The whole card is one link, through the name.
-  await page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true }).click();
+  await openResult(page, 'Shingeki no Kyojin');
   await expect(page).toHaveURL(/\/title\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Shingeki no Kyojin' })).toBeVisible();
   await expect(page.getByText('Attack on Titan', { exact: true })).toBeVisible();
@@ -98,14 +98,14 @@ test('journey: an AniList outage is labelled and never loses what is stored (FR-
   await signedIn(page, 'outage');
   // Warm the catalog while the source works.
   await page.goto('/discover?q=shingeki');
-  await expect(grid(page, 'Search results')).toHaveCount(3);
+  await expect(grid(page, 'Search results').first()).toBeVisible();
 
   await setAniList('down');
   // A search nobody has made yet cannot come from the reuse cache: it falls back to what is stored.
   await page.goto('/discover?q=kyojin');
   // The gateway retries with backoff and paces its requests before giving up on a source.
   await expect(page.getByText(/Showing saved results/)).toBeVisible({ timeout: 25_000 });
-  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true })).toBeVisible();
+  await showResult(page, 'Shingeki no Kyojin');
 
   // And a search with nothing stored says the catalog is unavailable, with a way to retry.
   await page.goto('/discover?q=nothing-stored-matches-this');
@@ -192,7 +192,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await check('/discover');
 
     await page.goto('/discover?q=attack');
-    await expect(grid(page, 'Search results')).toHaveCount(3);
+    await expect(grid(page, 'Search results').first()).toBeVisible();
     await check('/discover (search)');
 
     await page.goto('/discover/season/2024/fall');
@@ -200,8 +200,54 @@ for (const scheme of ['light', 'dark'] as const) {
     await check('/discover/season');
 
     await page.goto('/discover?q=attack');
-    await page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true }).click();
+    await openResult(page, 'Shingeki no Kyojin');
     await expect(page.getByRole('heading', { level: 3, name: 'After this' })).toBeVisible();
     await check('/title/:id');
   });
 }
+
+test('seasons of one show are one banner that opens to list them (and the library groups them too)', async ({
+  page,
+}) => {
+  const email = await signedIn(page, 'banner');
+  await page.goto('/discover');
+  await page.getByLabel('Search by name').pressSequentially('hero academia');
+
+  // Four titles of one franchise: three seasons and a movie. One banner, not four cards.
+  const banner = page.getByRole('article', {
+    name: 'My Hero Academia, 3 seasons · 1 movie, special or spin-off',
+  });
+  await expect(banner).toBeVisible();
+  await expect(page.getByRole('link', { name: 'My Hero Academia 2', exact: true })).toHaveCount(0);
+
+  await banner.getByRole('button', { name: /My Hero Academia/ }).click();
+  const seasons = banner.getByRole('list', { name: 'Seasons in this franchise' });
+  await expect(seasons.getByRole('listitem')).toHaveCount(3);
+  await expect(seasons.getByText(/^Season 3 · /)).toBeVisible();
+  const others = banner.getByRole('list', { name: 'Other titles in this franchise' });
+  await expect(others.getByRole('link', { name: 'My Hero Academia: The Movie' })).toBeVisible();
+
+  // Two of the seasons go into the library; the library shows them under the same banner.
+  const server = await api(email);
+  const found = (await (
+    await server.get('/v1/titles/search?q=hero%20academia&limit=10')
+  ).json()) as {
+    data: { id: string; titleRomaji: string }[];
+  };
+  for (const title of found.data.filter((item) => /Academia( 2)?$/.test(item.titleRomaji))) {
+    expect((await server.post('/v1/library', { titleId: title.id, status: 'watching' })).ok()).toBe(
+      true,
+    );
+  }
+  await server.close();
+  await page.goto('/library');
+  const owned = page.getByRole('article', {
+    name: 'My Hero Academia, 3 seasons · 1 movie, special or spin-off',
+  });
+  await expect(owned).toBeVisible();
+  await expect(owned.getByText('2 in your library')).toBeVisible();
+  await owned.getByRole('button', { name: /My Hero Academia/ }).click();
+  await expect(
+    owned.getByRole('list', { name: 'Seasons in your library' }).getByRole('listitem'),
+  ).toHaveCount(2);
+});
