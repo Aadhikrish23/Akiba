@@ -284,10 +284,11 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
   });
 });
 
-describe('Library: seasons in one banner', () => {
+describe('Library: the seasons of one show are one tile', () => {
   const info = {
     id: '00000000-0000-4000-8000-0000000000f1',
     size: 7,
+    seasons: 7,
     titleRomaji: 'My Hero Academia',
     titleEnglish: 'Boku no Hero Academia (English)',
     titleNative: null,
@@ -302,28 +303,19 @@ describe('Library: seasons in one banner', () => {
       ]);
     return undefined;
   });
+  const tileName = 'Franchise My Hero Academia 7 seasons 2 in your library, 1 completed';
 
-  it('puts the seasons you have of one show under one banner, with how many of the whole', async () => {
+  it('puts the seasons you have of one show in one tile that opens the show', async () => {
     renderApp({ route: '/library', handler: withSeasons });
-    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 7 titles' });
-    expect(within(banner).getByText('7 titles · 2 in your library, 1 completed')).toBeTruthy();
-    // The other show is an ordinary poster; the seasons are inside the banner.
+    const tile = await screen.findByRole('link', { name: tileName });
+    expect(tile.getAttribute('href')).toBe(`/franchise/${info.id}`);
+    // The other show is an ordinary poster; the seasons are behind the tile.
     expect(screen.getByRole('link', { name: 'Show 2' })).toBeTruthy();
     expect(screen.queryByRole('link', { name: 'Show 1' })).toBeNull();
   });
 
-  it('opens to show your entries of it, in the same layout as the rest', async () => {
-    const app = renderApp({ route: '/library', handler: withSeasons });
-    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 7 titles' });
-    await app.user.click(within(banner).getByRole('button', { name: /My Hero Academia/ }));
-    const seasons = await within(banner).findByRole('list', { name: 'Seasons in your library' });
-    expect(within(seasons).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(seasons).getByRole('link', { name: 'Show 1' })).toBeTruthy();
-    expect(within(seasons).getByRole('link', { name: 'Show 3' })).toBeTruthy();
-  });
-
-  it('does the same in the compact list, with +1 on each season', async () => {
-    const app = renderApp({
+  it('is a tile in the compact list too', async () => {
+    renderApp({
       route: '/library',
       handler: signedInHandler({ libraryView: 'list' }, (call) => {
         if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
@@ -335,12 +327,11 @@ describe('Library: seasons in one banner', () => {
         return problem(404, 'NOT_FOUND');
       }),
     });
-    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 7 titles' });
-    await app.user.click(within(banner).getByRole('button', { name: /My Hero Academia/ }));
     expect(
-      await within(banner).findByRole('button', { name: '+1 episode of Show 1' }),
+      await screen.findByRole('link', {
+        name: 'Franchise My Hero Academia 7 seasons 2 in your library',
+      }),
     ).toBeTruthy();
-    expect(within(banner).getByRole('button', { name: '+1 episode of Show 3' })).toBeTruthy();
   });
 });
 

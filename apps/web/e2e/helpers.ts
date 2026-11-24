@@ -116,18 +116,17 @@ export async function api(email: string) {
 }
 
 /**
- * Make a title's link visible in a list of titles, opening any banner that holds it: the seasons of
- * one show are one banner, so which titles are cards and which are inside one depends on what the
- * catalog already knows about how they relate.
+ * Make a title's link visible in a list of titles. The seasons of one show are one tile, so a title
+ * may be behind it: then the tile is opened and the title is found on the show's page.
  */
 export async function showResult(page: Page, name: string): Promise<void> {
   const link = page.getByRole('link', { name, exact: true }).first();
-  const closed = page.getByRole('article').getByRole('button', { expanded: false });
-  await expect(link.or(closed.first())).toBeVisible();
+  const tile = page.getByRole('link', { name: /^Franchise / }).first();
+  await expect(link.or(tile)).toBeVisible();
   if (!(await link.isVisible())) {
-    for (const toggle of await closed.all()) await toggle.click();
+    await tile.click();
+    await expect(link).toBeVisible();
   }
-  await expect(link).toBeVisible();
 }
 
 /** Click a title's link in a list of titles (see {@link showResult}). */

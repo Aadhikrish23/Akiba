@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Akiba · One tile per show: search, franchise page, library (mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@300..900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Yomogi&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ticket-night.css">
+<link rel="stylesheet" href="pages.css">
+<style>
+  [hidden] { display: none !important; }
+
+  /* ---- review strip (mock only) ---- */
+  .review { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 22px; padding: 10px 14px; border: 1.5px dashed var(--rule); border-radius: 12px; color: var(--mute); font-size: 13.5px; }
+  .review b { color: var(--text); font-weight: 500; margin-right: 4px; }
+  .review button { appearance: none; border: 1.5px solid var(--rule); background: transparent; color: var(--text); border-radius: 999px; padding: 6px 14px; font: 500 13.5px var(--sans); cursor: pointer; }
+  .review button[aria-pressed="true"] { background: var(--text); color: var(--ink); border-color: var(--text); font-weight: 700; }
+
+  h1.big { font: 900 clamp(46px, 7vw, 92px)/.9 var(--display); text-transform: uppercase; margin: 0 0 12px; letter-spacing: .005em; }
+  h2.sec { font: 800 28px/1 var(--display); text-transform: uppercase; letter-spacing: .03em; margin: 38px 0 14px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  h2.sec small { font: 400 14px var(--sans); text-transform: none; letter-spacing: 0; color: var(--mute); }
+
+  /* ---- tiles ---- */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 176px), 1fr)); gap: 22px 20px; margin: 0; padding: 0; list-style: none; }
+  .tile { position: relative; display: grid; gap: 10px; text-decoration: none; color: inherit; }
+  .tile .art { position: relative; aspect-ratio: 2 / 3; border-radius: 10px; background: var(--night-2); }
+  .tile .art > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; display: block; }
+  .tile h3 { margin: 0; font: 800 19px/1.05 var(--display); text-transform: uppercase; letter-spacing: .01em; }
+  .tile p { margin: 0; color: var(--mute); font-size: 13.5px; line-height: 1.3; }
+  .tile:hover .art { outline: 2px solid var(--text); outline-offset: 3px; }
+  .tile:focus-visible { outline: 2px solid var(--punch); outline-offset: 6px; border-radius: 10px; }
+  .tag { position: absolute; left: 8px; top: 8px; z-index: 5; background: var(--punch); color: var(--on-punch); font: 800 11px/1 var(--sans); letter-spacing: .1em; padding: 5px 8px; border-radius: 5px; text-transform: uppercase; }
+  .tag.ink { background: var(--text); color: var(--ink); }
+
+  /* the stack: the franchise as three covers fanned behind each other */
+  .stack .art { background: transparent; margin: 0 10px 14px; }
+  .stack .art > img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 10px; box-shadow: 0 10px 22px -12px oklch(0% 0 0 / .8); border: 2px solid var(--night); }
+  .stack .art > img:nth-child(1) { transform: translate(-7%, 2%) rotate(-6deg); filter: brightness(.7); }
+  .stack .art > img:nth-child(2) { transform: translate(7%, 2%) rotate(6deg); filter: brightness(.82); }
+  .stack .art > img:nth-child(3) { transform: none; }
+  .stack:hover .art { outline: 0; }
+  .stack:hover .art > img:nth-child(1) { transform: translate(-11%, 2%) rotate(-9deg); }
+  .stack:hover .art > img:nth-child(2) { transform: translate(11%, 2%) rotate(9deg); }
+  .stack .art > img { transition: transform .35s cubic-bezier(.16,1,.3,1); }
+  .seasons-bar { display: flex; gap: 3px; height: 6px; }
+  .seasons-bar i { flex: 1; border-radius: 2px; background: var(--night-3); position: relative; overflow: hidden; }
+  .seasons-bar i::after { content: ""; position: absolute; inset: 0; width: var(--w, 0%); background: var(--punch); }
+  .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: oklch(0% 0 0 / .5); border-radius: 0 0 10px 10px; overflow: hidden; z-index: 4; }
+  .progress i { display: block; height: 100%; background: var(--punch); }
+
+  .how { margin: 6px 0 0; color: var(--mute); font-size: 14px; max-width: 70ch; }
+
+  /* ---- franchise page ---- */
+  .fhead { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 34px; align-items: end; margin: 6px 0 30px; }
+  .fhead .stk { position: relative; aspect-ratio: 2 / 3; margin: 14px 0 0 14px; }
+  .fhead .stk img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 10px; border: 2px solid var(--night); box-shadow: 0 16px 30px -14px oklch(0% 0 0 / .8); }
+  .fhead .stk img:nth-child(1) { transform: translate(-12%, 2%) rotate(-8deg); filter: brightness(.65); }
+  .fhead .stk img:nth-child(2) { transform: translate(12%, 2%) rotate(8deg); filter: brightness(.8); }
+  .kick { font: 700 12.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--punch); margin: 0 0 8px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 0 0 20px; color: var(--mute); font-size: 15px; }
+  .facts b { color: var(--text); font: 800 26px/1 var(--display); margin-right: 6px; }
+  .acts { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .sel { appearance: none; height: 42px; border-radius: 999px; border: 1.5px solid var(--rule); background: var(--night-2); color: var(--text); font: 500 14px var(--sans); padding: 0 16px; }
+  .whole { margin: 18px 0 0; max-width: 560px; }
+  .whole .lab { display: flex; justify-content: space-between; color: var(--mute); font-size: 13.5px; margin-bottom: 6px; }
+  .whole .lab b { color: var(--text); font-weight: 500; }
+
+  .srow { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 12px; border: 1.5px solid var(--rule); border-radius: 12px; background: var(--night-2); }
+  .srow + .srow, .sgroup + .srow { margin-top: 10px; }
+  .srow .c { width: 58px; aspect-ratio: 2 / 3; border-radius: 6px; object-fit: cover; display: block; background: var(--night-3); }
+  .srow .c.none { display: grid; place-items: center; font: 800 20px var(--display); color: var(--mute); }
+  .srow .no { font: 700 12px var(--sans); letter-spacing: .14em; color: var(--mute); text-transform: uppercase; }
+  .srow .t { font: 800 22px/1.05 var(--display); text-transform: uppercase; margin: 2px 0 3px; }
+  .srow .m { color: var(--mute); font-size: 14px; }
+  .state { font: 700 13px var(--sans); padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--rule); color: var(--mute); white-space: nowrap; }
+  .state.done { border-color: var(--text); color: var(--text); }
+  .state.now { border-color: var(--punch); color: var(--punch); }
+  .mini { height: 5px; border-radius: 3px; background: var(--night-3); overflow: hidden; margin-top: 9px; max-width: 260px; }
+  .mini i { display: block; height: 100%; background: var(--punch); }
+  .srow .go2 { display: flex; align-items: center; gap: 10px; }
+  .tog2 { appearance: none; background: transparent; border: 0; color: var(--mute); cursor: pointer; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; }
+  .tog2:hover { color: var(--text); background: var(--night-3); }
+  .tog2 svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+  .tog2[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+  /* episodes of a season */
+  .eps { margin: -2px 0 12px; padding: 16px 16px 18px; border: 1.5px solid var(--rule); border-top: 0; border-radius: 0 0 12px 12px; background: oklch(0% 0 0 / .18); }
+  .eps .hint { color: var(--mute); font-size: 13.5px; margin: 0 0 12px; }
+  .epg { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 8px; }
+  .ep { appearance: none; position: relative; height: 46px; border-radius: 8px; border: 1.5px dashed var(--rule); background: transparent; color: var(--mute); font: 700 15px var(--sans); cursor: pointer; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+  .ep:hover { border-color: var(--text); color: var(--text); }
+  .ep.seen { border: 1.5px solid transparent; background: color-mix(in oklab, var(--c, #e4a128) 38%, var(--night-3)); color: var(--text); }
+  .ep.next { border: 2px solid var(--punch); color: var(--punch); background: transparent; }
+  .ep.next::after { content: "next"; position: absolute; bottom: -9px; left: 50%; transform: translateX(-50%); background: var(--punch); color: var(--on-punch); font: 800 9.5px/1 var(--sans); letter-spacing: .08em; padding: 3px 6px; border-radius: 4px; text-transform: uppercase; }
+  .ep:focus-visible { outline: 2px solid var(--punch); outline-offset: 2px; }
+  .sgroup > summary { list-style: none; cursor: pointer; }
+
+  /* continue ticket on the owned page */
+  .cont { display: grid; grid-template-columns: 96px minmax(0, 1fr) 150px; min-height: 150px; border-radius: 14px; background: var(--c, #e4a143); color: var(--ink); position: relative; margin: 0 0 8px; }
+  .cont img { width: 100%; height: 100%; object-fit: cover; border-radius: 14px 0 0 14px; display: block; }
+  .cont .b { padding: 18px 22px; display: grid; align-content: space-between; gap: 6px; }
+  .cont .k { font: 800 11.5px var(--sans); letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
+  .cont h3 { margin: 0; font: 900 34px/.95 var(--display); text-transform: uppercase; }
+  .cont .s { display: grid; place-items: center; gap: 4px; border-left: 2.5px dashed oklch(19% .04 265 / .4); padding: 12px; }
+  .cont .s .n { font: 900 54px/.8 var(--display); }
+  .cont .s .n small { font-size: 22px; opacity: .65; font-weight: 500; }
+  .cont .plus2 { appearance: none; border: 0; cursor: pointer; width: 62px; height: 62px; border-radius: 50%; background: var(--ink); color: var(--punch); font: 900 24px var(--display); }
+  .cont .plus2:hover { transform: scale(1.08) rotate(-6deg); }
+  .cont::before, .cont::after { content: ""; position: absolute; right: 150px; width: 16px; height: 16px; border-radius: 50%; background: var(--night); transform: translateX(50%); }
+  .cont::before { top: -8px; } .cont::after { bottom: -8px; }
+
+  .inlib { display: inline-flex; align-items: center; gap: 8px; font: 800 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--on-punch); background: var(--punch); padding: 6px 12px; border-radius: 999px; }
+
+  .tabs2 { display: inline-flex; background: var(--night-2); border: 1px solid var(--rule); border-radius: 999px; padding: 3px; gap: 2px; margin: 0 0 22px; }
+  .tabs2 span { padding: 8px 16px; border-radius: 999px; color: var(--mute); font: 500 14px var(--sans); }
+  .tabs2 span[aria-current] { background: var(--text); color: var(--ink); font-weight: 700; }
+
+  .note { margin: 34px 0 0; border: 1.5px dashed var(--rule); border-radius: 14px; padding: 18px 22px; max-width: 920px; }
+  .note h2 { margin: 0 0 8px; font: 800 24px/1 var(--display); text-transform: uppercase; letter-spacing: .03em; }
+  .note ul { margin: 0; padding-left: 20px; color: var(--mute); display: grid; gap: 5px; }
+  .note b { color: var(--text); font-weight: 500; }
+
+  @media (max-width: 820px) {
+    .fhead { grid-template-columns: 150px minmax(0, 1fr); gap: 20px; align-items: center; }
+    .facts b { font-size: 21px; }
+    .srow { grid-template-columns: 50px minmax(0, 1fr); }
+    .srow .go2 { grid-column: 1 / -1; justify-content: space-between; }
+    .srow .c { width: 50px; }
+    .srow .t { font-size: 19px; }
+    .cont { grid-template-columns: 72px minmax(0, 1fr) 104px; }
+    .cont h3 { font-size: 24px; }
+    .cont .s .n { font-size: 38px; }
+    .cont .plus2 { width: 52px; height: 52px; }
+    .cont::before, .cont::after { right: 104px; }
+    .epg { grid-template-columns: repeat(auto-fill, minmax(46px, 1fr)); }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .note { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <script src="shell.js" data-active="library"></script>
+
+  <main class="page">
+    <div data-top></div>
+
+    <div class="review" role="group" aria-label="Mock screens">
+      <b>Mock screens:</b>
+      <button type="button" data-v="search" aria-pressed="true">1 · Search</button>
+      <button type="button" data-v="page" aria-pressed="false">2 · Franchise page (not added)</button>
+      <button type="button" data-v="library" aria-pressed="false">3 · Library</button>
+      <button type="button" data-v="owned" aria-pressed="false">4 · Franchise page (in your library)</button>
+    </div>
+
+    <!-- ============ 1 · SEARCH ============ -->
+    <section id="v-search">
+      <h2 class="sec" style="margin-top:0">Results for “hero” <small>one tile per show, not one per season</small></h2>
+      <ul class="tiles">
+        <li>
+          <a class="tile stack" href="#page" data-go="page" aria-label="My Hero Academia, franchise: 8 seasons and 16 movies, specials and spin-offs">
+            <span class="tag">Franchise</span>
+            <span class="art" aria-hidden="true">
+              <img src="covers/21856.jpg" alt=""><img src="covers/163139.jpg" alt=""><img src="covers/21459.jpg" alt="">
+            </span>
+            <h3>My Hero Academia</h3>
+            <p>8 seasons · 16 movies, specials and spin-offs</p>
+          </a>
+        </li>
+        <li><a class="tile" href="#"><span class="art"><img src="covers/99263.jpg" alt=""></span><h3>The Rising of the Shield Hero</h3><p>TV · 2019 · 25 episodes</p></a></li>
+        <li><a class="tile" href="#"><span class="art"><img src="covers/105156.jpg" alt=""></span><h3>Cautious Hero</h3><p>TV · 2019 · 12 episodes</p></a></li>
+        <li><a class="tile" href="#"><span class="art"><img src="covers/97922.jpg" alt=""></span><h3>Inuyashiki Last Hero</h3><p>TV · 2017 · 11 episodes</p></a></li>
+      </ul>
+      <p class="how">Opening the tile goes to the show's own page. Nothing expands in the list, so a search for a long-running show stays short. Titles that belong to no franchise stay as they are.</p>
+    </section>
+
+    <!-- ============ 2 · FRANCHISE PAGE (not added) ============ -->
+    <section id="v-page" hidden>
+      <div class="fhead">
+        <div class="stk" aria-hidden="true"><img src="covers/21856.jpg" alt=""><img src="covers/163139.jpg" alt=""><img src="covers/21459.jpg" alt=""></div>
+        <div>
+          <p class="kick">Franchise</p>
+          <h1 class="big">My Hero Academia</h1>
+          <p class="facts"><span><b>8</b>seasons</span><span><b>170</b>episodes</span><span><b>16</b>movies, specials, spin-offs</span><span>2016 – 2025</span></p>
+          <div class="acts" id="acts-add">
+            <button class="btn" type="button" id="addAll">+ Add all 8 seasons</button>
+            <label class="sr" for="addAs">Add as</label>
+            <select class="sel" id="addAs"><option>as Planned</option><option>as Watching</option></select>
+            <span class="how" style="margin:0">or add the seasons you want below</span>
+          </div>
+          <p class="inlib" id="allAdded" hidden>✓ All 8 seasons in your library</p>
+        </div>
+      </div>
+
+      <h2 class="sec">Seasons <small>oldest first, with how many episodes each has</small></h2>
+      <div id="seasonsAdd"></div>
+
+      <h2 class="sec">Movies, specials and spin-offs <small>16 titles</small></h2>
+      <div id="othersAdd"></div>
+    </section>
+
+    <!-- ============ 3 · LIBRARY ============ -->
+    <section id="v-library" hidden>
+      <h1 class="big" style="font-size:clamp(40px,6vw,72px)">Library</h1>
+      <div class="tabs2" role="presentation"><span aria-current="page">All 4</span><span>Watching 3</span><span>Completed 0</span><span>Planned 1</span></div>
+      <ul class="tiles">
+        <li>
+          <a class="tile stack" href="#owned" data-go="owned" aria-label="My Hero Academia, 3 of 8 seasons, episode 52 of 170 watched">
+            <span class="tag">Franchise</span>
+            <span class="art" aria-hidden="true">
+              <img src="covers/21856.jpg" alt=""><img src="covers/100166.jpg" alt=""><img src="covers/21459.jpg" alt="">
+            </span>
+            <span class="seasons-bar" aria-hidden="true" id="libBar"></span>
+            <h3>My Hero Academia</h3>
+            <p id="libMeta">Season 3 · episode 14 of 25</p>
+          </a>
+        </li>
+        <li><a class="tile" href="#"><span class="art"><img src="covers/195516.jpg" alt=""><span class="progress"><i style="width:58%"></i></span></span><h3>Kusuriya no Hitorigoto 3</h3><p>Watching · 7 / 12</p></a></li>
+        <li><a class="tile" href="#"><span class="art"><img src="covers/210482.jpg" alt=""><span class="progress"><i style="width:73%"></i></span></span><h3>JoJo: Steel Ball Run</h3><p>Watching · 8 / 11</p></a></li>
+        <li><a class="tile" href="#"><span class="art"><img src="covers/16498.jpg" alt=""><span class="progress"><i style="width:12%"></i></span></span><h3>Attack on Titan</h3><p>Planned</p></a></li>
+      </ul>
+      <p class="how">A franchise is one tile with a segment for each season you have. The count under it is where you are now. Open it to see every season and its episodes.</p>
+    </section>
+
+    <!-- ============ 4 · FRANCHISE PAGE (in library) ============ -->
+    <section id="v-owned" hidden>
+      <div class="fhead">
+        <div class="stk" aria-hidden="true"><img src="covers/21856.jpg" alt=""><img src="covers/100166.jpg" alt=""><img src="covers/21459.jpg" alt=""></div>
+        <div>
+          <p class="kick">Franchise · <span class="inlib" style="padding:3px 10px;font-size:11px">In your library</span></p>
+          <h1 class="big">My Hero Academia</h1>
+          <p class="facts"><span><b id="oSeasons">3</b>of 8 seasons started</span><span><b id="oEps">52</b>of 170 episodes</span></p>
+          <div class="whole"><div class="lab"><span>Whole show</span><b id="oPct">31%</b></div><div class="seasons-bar" id="oBar" style="height:8px"></div></div>
+        </div>
+      </div>
+
+      <div class="cont" id="cont" style="--c:#e4935d"></div>
+
+      <h2 class="sec">Seasons <small>open one to see its episodes; click an episode to set where you are</small></h2>
+      <div id="seasonsOwn"></div>
+
+      <h2 class="sec">Movies, specials and spin-offs <small>16 titles · none added</small></h2>
+      <div id="othersOwn"></div>
+    </section>
+
+    <section class="note" aria-labelledby="nh">
+      <h2 id="nh">How it behaves</h2>
+      <ul>
+        <li><b>Search:</b> a franchise is one tile ("Franchise" tag, a stack of covers, "8 seasons · 16 movies, specials and spin-offs"). No dropdown. Titles with no franchise are ordinary tiles.</li>
+        <li><b>Franchise page (not added):</b> add the whole show in one go (as Planned or Watching) or pick seasons. Each season shows its episodes, so you know what you are adding. Movies, specials and spin-offs are listed separately and added the same way.</li>
+        <li><b>Library:</b> one tile per franchise, with a segment per season you have and where you are now. Single titles stay as they are.</li>
+        <li><b>Franchise page (in your library):</b> a Continue ticket for the next episode (+1), overall progress, then every season with its status and progress. Open a season for its episode grid: watched, next, and still to come. Click an episode to set where you are (everything before it counts as watched), which is how someone already on season 5 catches up without pressing +1 a hundred times.</li>
+        <li>Each season is still its own entry underneath (own status, rating, episode count and +1), so nothing about tracking changes; this is how they are shown and reached.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  function $(id) { return document.getElementById(id); }
+  var seasons = [
+    { n: 1, t: 'My Hero Academia',              img: 'covers/21459.jpg',  c: '#f1d643', eps: 13, y: 'Spring 2016', p: 13, added: true },
+    { n: 2, t: 'My Hero Academia Season 2',     img: 'covers/21856.jpg',  c: '#e48643', eps: 25, y: 'Spring 2017', p: 25, added: true },
+    { n: 3, t: 'My Hero Academia Season 3',     img: 'covers/100166.jpg', c: '#e4935d', eps: 25, y: 'Spring 2018', p: 14, added: true },
+    { n: 4, t: 'My Hero Academia Season 4',     img: 'covers/104276.jpg', c: '#fec950', eps: 25, y: 'Fall 2019',   p: 0,  added: false },
+    { n: 5, t: 'My Hero Academia Season 5',     img: 'covers/117193.jpg', c: '#e4501a', eps: 25, y: 'Spring 2021', p: 0,  added: false },
+    { n: 6, t: 'My Hero Academia Season 6',     img: 'covers/139630.jpg', c: '#f16b0d', eps: 25, y: 'Fall 2022',   p: 0,  added: false },
+    { n: 7, t: 'My Hero Academia Season 7',     img: 'covers/163139.jpg', c: '#2893e4', eps: 21, y: 'Spring 2024', p: 0,  added: false },
+    { n: 8, t: 'My Hero Academia Final Season', img: 'covers/182896.jpg', c: '#c9d6f1', eps: 11, y: 'Fall 2025',   p: 0,  added: false }
+  ];
+  var others = [
+    { t: 'My Hero Academia: Two Heroes', k: 'Movie · 2018 · 1 episode' },
+    { t: 'My Hero Academia: Heroes Rising', k: 'Movie · 2019 · 1 episode' },
+    { t: 'My Hero Academia: World Heroes’ Mission', k: 'Movie · 2021 · 1 episode' },
+    { t: 'Vigilante: My Hero Academia Illegals', k: 'TV spin-off · 2025 · 13 episodes' }
+  ];
+  var open = { 3: true };
+  var addedOwn = {};          // on the not-added page: which seasons were added in this mock
+  var CHEV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function watched() { return seasons.reduce(function (a, s) { return a + s.p; }, 0); }
+  function totalEps() { return seasons.reduce(function (a, s) { return a + s.eps; }, 0); }
+  function current() { for (var i = 0; i < seasons.length; i++) if (seasons[i].added && seasons[i].p < seasons[i].eps) return seasons[i]; return null; }
+  function stateOf(s) {
+    if (!s.added) return { cls: '', txt: 'Not added' };
+    if (s.p >= s.eps) return { cls: 'done', txt: 'Completed ✓' };
+    if (s.p > 0) return { cls: 'now', txt: 'Watching · ' + s.p + ' / ' + s.eps };
+    return { cls: '', txt: 'Planned' };
+  }
+
+  /* ---------- page 2: not added ---------- */
+  function renderAdd() {
+    $('seasonsAdd').innerHTML = seasons.map(function (s) {
+      var on = !!addedOwn[s.n];
+      return '<div class="srow"><img class="c" src="' + s.img + '" alt="">' +
+        '<div><div class="no">Season ' + s.n + '</div><div class="t">' + esc(s.t) + '</div><div class="m">' + s.y + ' · ' + s.eps + ' episodes</div></div>' +
+        '<div class="go2">' + (on ? '<span class="state done">✓ In your library</span>' : '<button class="btn ghost" type="button" data-add="' + s.n + '">+ Add</button>') + '</div></div>';
+    }).join('');
+    $('othersAdd').innerHTML = others.map(function (o) {
+      return '<div class="srow"><span class="c none" aria-hidden="true">秋</span><div><div class="t" style="font-size:19px">' + esc(o.t) + '</div><div class="m">' + o.k + '</div></div><div class="go2"><button class="btn ghost" type="button">+ Add</button></div></div>';
+    }).join('');
+    var all = seasons.every(function (s) { return addedOwn[s.n]; });
+    $('acts-add').hidden = all; $('allAdded').hidden = !all;
+  }
+
+  /* ---------- page 4: in your library ---------- */
+  function bar(el) {
+    el.innerHTML = seasons.map(function (s) { return '<i style="--w:' + (s.added ? Math.round(100 * s.p / s.eps) : 0) + '%"></i>'; }).join('');
+  }
+  function renderOwned() {
+    var w = watched(), t = totalEps(), cur = current();
+    $('oSeasons').textContent = seasons.filter(function (s) { return s.added; }).length;
+    $('oEps').textContent = w; $('oPct').textContent = Math.round(100 * w / t) + '%';
+    bar($('oBar')); bar($('libBar'));
+    $('libMeta').textContent = cur ? 'Season ' + cur.n + ' · episode ' + cur.p + ' of ' + cur.eps : 'Up to date';
+    var cn = $('cont');
+    if (cur) {
+      cn.style.setProperty('--c', cur.c);
+      cn.innerHTML = '<img src="' + cur.img + '" alt=""><div class="b"><div><div class="k">Continue · Season ' + cur.n + '</div><h3>Episode ' + (cur.p + 1) + '<br>is next</h3></div><div class="k">' + esc(cur.t) + ' · ' + cur.eps + ' episodes</div></div>' +
+        '<div class="s"><div class="n">' + cur.p + '<small> / ' + cur.eps + '</small></div><button class="plus2" type="button" id="plus1" aria-label="+1 episode of ' + esc(cur.t) + '">+1</button></div>';
+    } else { cn.style.setProperty('--c', '#c9d6f1'); cn.innerHTML = '<div class="b" style="grid-column:1/-1"><div class="k">All caught up</div><h3>Nothing left to watch<br>in the seasons you added</h3></div>'; }
+
+    $('seasonsOwn').innerHTML = seasons.map(function (s) {
+      var st = stateOf(s), isOpen = !!open[s.n] && s.added, pct = Math.round(100 * s.p / s.eps);
+      var head = '<div class="srow" style="' + (isOpen ? 'border-radius:12px 12px 0 0' : '') + '"><img class="c" src="' + s.img + '" alt="">' +
+        '<div><div class="no">Season ' + s.n + '</div><div class="t">' + esc(s.t) + '</div><div class="m">' + s.y + ' · ' + s.eps + ' episodes</div>' + (s.added ? '<div class="mini"><i style="width:' + pct + '%"></i></div>' : '') + '</div>' +
+        '<div class="go2"><span class="state ' + st.cls + '">' + st.txt + '</span>' +
+        (s.added ? '<button class="tog2" type="button" data-open="' + s.n + '" aria-expanded="' + isOpen + '" aria-label="Episodes of season ' + s.n + '">' + CHEV + '</button>' : '<button class="btn ghost" type="button" data-addown="' + s.n + '">+ Add</button>') + '</div></div>';
+      var eps = '';
+      if (isOpen) {
+        var grid = '';
+        for (var e = 1; e <= s.eps; e++) grid += '<button class="ep ' + (e <= s.p ? 'seen' : e === s.p + 1 ? 'next' : '') + '" type="button" style="--c:' + s.c + '" data-s="' + s.n + '" data-e="' + e + '" aria-label="Episode ' + e + (e <= s.p ? ', watched' : e === s.p + 1 ? ', next' : '') + '">' + e + '</button>';
+        eps = '<div class="eps"><p class="hint">Click an episode to set where you are: everything up to it counts as watched. Click the last watched one again to take it back.</p><div class="epg">' + grid + '</div></div>';
+      }
+      return head + eps;
+    }).join('');
+    $('othersOwn').innerHTML = others.slice(0, 3).map(function (o) {
+      return '<div class="srow"><span class="c none" aria-hidden="true">秋</span><div><div class="t" style="font-size:19px">' + esc(o.t) + '</div><div class="m">' + o.k + '</div></div><div class="go2"><button class="btn ghost" type="button">+ Add</button></div></div>';
+    }).join('') + '<p class="how" style="margin-top:10px">and 13 more</p>';
+  }
+
+  /* ---------- events ---------- */
+  document.addEventListener('click', function (e) {
+    var b;
+    if ((b = e.target.closest('[data-add]'))) { addedOwn[b.dataset.add] = true; renderAdd(); return; }
+    if (e.target.closest('#addAll')) { seasons.forEach(function (s) { addedOwn[s.n] = true; }); renderAdd(); return; }
+    if ((b = e.target.closest('[data-open]'))) { var n = +b.dataset.open; open[n] = !open[n]; renderOwned(); return; }
+    if ((b = e.target.closest('[data-addown]'))) { var s = seasons[+b.dataset.addown - 1]; s.added = true; open[s.n] = true; renderOwned(); return; }
+    if ((b = e.target.closest('.ep'))) {
+      var se = seasons[+b.dataset.s - 1], ep = +b.dataset.e;
+      se.p = (se.p === ep) ? ep - 1 : ep; renderOwned();
+      var again = document.querySelector('.ep[data-s="' + se.n + '"][data-e="' + ep + '"]'); if (again) again.focus();
+      return;
+    }
+    if (e.target.closest('#plus1')) { var c = current(); if (c) { c.p += 1; renderOwned(); var p = $('plus1'); if (p) p.focus(); } return; }
+    if ((b = e.target.closest('[data-go]'))) { e.preventDefault(); show(b.dataset.go); return; }
+    if ((b = e.target.closest('.review button'))) { show(b.dataset.v); }
+  });
+
+  function show(v) {
+    ['search', 'page', 'library', 'owned'].forEach(function (name) { $('v-' + name).hidden = name !== v; });
+    document.querySelectorAll('.review button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === v)); });
+    if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+    window.scrollTo(0, 0);
+  }
+  renderAdd(); renderOwned();
+  var h = location.hash.slice(1);
+  show(['search', 'page', 'library', 'owned'].indexOf(h) >= 0 ? h : 'search');
+  window.addEventListener('hashchange', function () { var x = location.hash.slice(1); if (['search', 'page', 'library', 'owned'].indexOf(x) >= 0) show(x); });
+})();
+</script>
+</body>
+</html>

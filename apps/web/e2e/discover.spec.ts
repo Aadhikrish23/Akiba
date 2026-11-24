@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { api, openResult, setAniList, showResult, signedIn } from './helpers';
+import { openResult, setAniList, showResult, signedIn } from './helpers';
 
 /**
  * T13/T14 journeys: discovery in real Chrome against the built web app, the built API, a real
@@ -206,48 +206,60 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
-test('seasons of one show are one banner that opens to list them (and the library groups them too)', async ({
+test('seasons of one show are one tile; its page lists them, adds them and sends episodes to Crunchyroll', async ({
   page,
 }) => {
-  const email = await signedIn(page, 'banner');
+  await signedIn(page, 'tile');
   await page.goto('/discover');
   await page.getByLabel('Search by name').pressSequentially('hero academia');
 
-  // Four titles of one franchise: three seasons and a movie. One banner, not four cards.
-  const banner = page.getByRole('article', {
-    name: 'My Hero Academia, 3 seasons · 1 movie, special or spin-off',
-  });
-  await expect(banner).toBeVisible();
+  // Four titles of one franchise: three seasons and a movie. One tile, not four cards.
+  const summary = 'Franchise My Hero Academia 3 seasons · 1 movie, special or spin-off';
+  const tile = page.getByRole('link', { name: summary });
+  await expect(tile).toBeVisible();
   await expect(page.getByRole('link', { name: 'My Hero Academia 2', exact: true })).toHaveCount(0);
 
-  await banner.getByRole('button', { name: /My Hero Academia/ }).click();
-  const seasons = banner.getByRole('list', { name: 'Seasons in this franchise' });
-  await expect(seasons.getByRole('listitem')).toHaveCount(3);
-  await expect(seasons.getByText(/^Season 3 · /)).toBeVisible();
-  const others = banner.getByRole('list', { name: 'Other titles in this franchise' });
-  await expect(others.getByRole('link', { name: 'My Hero Academia: The Movie' })).toBeVisible();
-
-  // Two of the seasons go into the library; the library shows them under the same banner.
-  const server = await api(email);
-  const found = (await (
-    await server.get('/v1/titles/search?q=hero%20academia&limit=10')
-  ).json()) as {
-    data: { id: string; titleRomaji: string }[];
-  };
-  for (const title of found.data.filter((item) => /Academia( 2)?$/.test(item.titleRomaji))) {
-    expect((await server.post('/v1/library', { titleId: title.id, status: 'watching' })).ok()).toBe(
-      true,
-    );
-  }
-  await server.close();
-  await page.goto('/library');
-  const owned = page.getByRole('article', {
-    name: 'My Hero Academia, 3 seasons · 1 movie, special or spin-off',
-  });
-  await expect(owned).toBeVisible();
-  await expect(owned.getByText('2 in your library')).toBeVisible();
-  await owned.getByRole('button', { name: /My Hero Academia/ }).click();
+  // The tile opens the show's page: numbered seasons, and the movie after them.
+  await tile.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'My Hero Academia' })).toBeVisible();
+  const seasons = page.getByRole('region', { name: /^Seasons/ }).getByRole('article');
+  await expect(seasons).toHaveCount(3);
+  await expect(page.getByText('Season 3', { exact: true })).toBeVisible();
   await expect(
-    owned.getByRole('list', { name: 'Seasons in your library' }).getByRole('listitem'),
-  ).toHaveCount(2);
+    page.getByRole('region', { name: /^Movies, specials and spin-offs/ }).getByRole('link', {
+      name: 'My Hero Academia: The Movie',
+    }),
+  ).toBeVisible();
+
+  // Add all three seasons in one go.
+  await page.getByRole('button', { name: '+ Add all 3 seasons' }).click();
+  await expect(page.getByRole('status')).toContainText('3 of 3 seasons in your library');
+
+  // Open a season: its episodes, each opening on Crunchyroll in a new tab.
+  await page.getByRole('button', { name: 'Episodes of My Hero Academia', exact: true }).click();
+  const episodes = page.getByRole('list', { name: 'Episodes of My Hero Academia' });
+  await expect(episodes.getByRole('listitem')).toHaveCount(13);
+  const watch = episodes.getByRole('link', { name: /^Watch/ }).first();
+  await expect(watch).toHaveAttribute('href', /crunchyroll\.com/);
+  await expect(watch).toHaveAttribute('target', '_blank');
+
+  // Mark where I am: everything up to episode 3 counts as watched.
+  await episodes.getByRole('button', { name: 'Mark up to episode 3 as watched' }).click();
+  await expect(
+    episodes.getByRole('button', { name: 'Watched up to episode 3: undo' }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Episodes of My Hero Academia', exact: true }).click();
+  await expect(
+    page
+      .getByRole('list', { name: 'Episodes of My Hero Academia' })
+      .getByRole('button', { name: 'Watched up to episode 3: undo' }),
+  ).toBeVisible();
+
+  // The library shows the same show as one tile, which opens the same page.
+  await page.goto('/library');
+  const owned = page.getByRole('link', { name: `${summary} 3 in your library` });
+  await expect(owned).toBeVisible();
+  await owned.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'My Hero Academia' })).toBeVisible();
 });

@@ -13,6 +13,7 @@ export const cardSelect = (userId: string) =>
     titleNative: true,
     coverUrl: true,
     coverColor: true,
+    crunchyrollUrl: true,
     format: true,
     status: true,
     episodesTotal: true,
@@ -64,6 +65,7 @@ export function toCard(row: CardRow): TitleCard {
     titleNative: row.titleNative,
     coverUrl: row.coverUrl,
     coverColor: row.coverColor,
+    crunchyrollUrl: row.crunchyrollUrl,
     format: row.format,
     status: row.status,
     episodesTotal: row.episodesTotal,
@@ -95,6 +97,17 @@ export async function loadCards(
   });
 }
 
+/** The stored {"130": "https://..."} as the API's map, ignoring anything that is not a link. */
+function episodeLinks(value: unknown): Record<string, string> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === 'string' && entry[1].startsWith('https://'),
+    ),
+  );
+}
+
 const dateOnly = (value: Date | null): string | null =>
   value === null ? null : value.toISOString().slice(0, 10);
 
@@ -110,6 +123,8 @@ export async function loadDetail(
   stale: boolean;
   fetchedAt: Date | null;
   detailFetchedAt: Date | null;
+  /** False for a title stored before episode links were kept: its detail is fetched once more to get them. */
+  linksFetched: boolean;
   status: string;
 } | null> {
   const row = await db.title.findFirst({
@@ -117,6 +132,7 @@ export async function loadDetail(
     select: {
       ...cardSelect(userId),
       synopsis: true,
+      crunchyrollEpisodes: true,
       bannerUrl: true,
       durationMin: true,
       startDate: true,
@@ -145,6 +161,7 @@ export async function loadDetail(
     stale: row.stale,
     fetchedAt: row.fetchedAt,
     detailFetchedAt: row.detailFetchedAt,
+    linksFetched: row.crunchyrollEpisodes !== null,
     status: row.status,
     detail: {
       ...toCard(row),
@@ -164,6 +181,7 @@ export async function loadDetail(
           ? null
           : { episode: next.episodeNumber, airsAt: next.airsAt.toISOString() },
       franchiseId: row.franchiseId,
+      crunchyrollEpisodes: episodeLinks(row.crunchyrollEpisodes),
     },
   };
 }
@@ -248,6 +266,16 @@ export async function applyDetail(
   now: Date,
 ): Promise<void> {
   await applyCard(tx, titleId, detail, now);
+  if (detail.crunchyrollEpisodes !== undefined && detail.source === 'anilist') {
+    await tx.title.update({
+      where: { id: titleId },
+      data: {
+        crunchyrollEpisodes: Object.fromEntries(
+          detail.crunchyrollEpisodes.map((item) => [String(item.episode), item.url]),
+        ),
+      },
+    });
+  }
 
   const known = await tx.studio.findMany({ select: { id: true, name: true, externalIds: true } });
   const links: { titleId: string; studioId: string; isMain: boolean }[] = [];

@@ -40,6 +40,8 @@ export interface SourceDate {
 export interface SourceTitle {
   /** How the source says this title relates to others (AniList lists send them, so seasons can be grouped). */
   readonly relations?: readonly SourceRelation[];
+  /** The Crunchyroll series page, when the source lists one (undefined: the source does not say). */
+  readonly crunchyrollUrl?: string | null;
   readonly source: SourceName;
   readonly externalIds: ExternalIds;
   readonly kind: TitleKind;
@@ -124,6 +126,8 @@ export interface SourceTitleDetail extends SourceTitle {
   readonly characters: readonly SourceCharacter[];
   /** The next episode to air, when the source knows. */
   readonly nextAiring: SourceAiringSlot | null;
+  /** Crunchyroll watch pages of single episodes, as far as the source lists them. */
+  readonly crunchyrollEpisodes?: readonly { readonly episode: number; readonly url: string }[];
 }
 
 /** One scheduled episode of one title (the title is named in the ID namespace of its source). */

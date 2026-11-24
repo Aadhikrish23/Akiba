@@ -12,7 +12,8 @@ import {
   VerifyEmailPage,
 } from './pages/auth';
 import { DiscoverPage } from './pages/Discover';
-import { CharacterPage, FranchisePage, StudioPage } from './pages/Explore';
+import { CharacterPage, StudioPage } from './pages/Explore';
+import { FranchisePage } from './pages/Franchise';
 import { HomePage } from './pages/Home';
 import { InboxPage } from './pages/Inbox';
 import { LibraryPage } from './pages/Library';

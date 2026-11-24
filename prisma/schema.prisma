@@ -253,6 +253,10 @@ model Title {
   coverUrl        String?                  @map("cover_url")
   /// The cover art's dominant colour as `#rrggbb` when the source supplies one (AniList does); tickets are printed on it.
   coverColor      String?                  @map("cover_color")
+  /// The show's Crunchyroll series page, when AniList lists one.
+  crunchyrollUrl String? @map("crunchyroll_url")
+  /// Episode number to Crunchyroll watch URL, as far as AniList lists them (often partial). {"1": "https://..."}
+  crunchyrollEpisodes Json? @map("crunchyroll_episodes")
   bannerUrl       String?                  @map("banner_url")
   /// The source's own format label, kept verbatim; `kind` is the normalised value.
   format          String?

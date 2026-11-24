@@ -75,7 +75,25 @@ export function createExploreService(options: { readonly db: DbClient }): Explor
       select: { fromTitleId: true, toTitleId: true, relationType: true },
       orderBy: [{ fromTitleId: 'asc' }, { toTitleId: 'asc' }, { relationType: 'asc' }],
     });
-    const titles = rows.map((row) => ({ ...toCard(row), startDate: dateOnly(row.startDate) }));
+    const mine = await db.libraryEntry.findMany({
+      where: { userId, removedAt: null, titleId: { in: ids } },
+      select: { titleId: true, progress: true, episodesTotalOverride: true },
+    });
+    const entryOf = new Map(mine.map((entry) => [entry.titleId, entry]));
+    const titles = rows.map((row) => {
+      const entry = entryOf.get(row.id);
+      return {
+        ...toCard(row),
+        startDate: dateOnly(row.startDate),
+        entry:
+          entry === undefined
+            ? null
+            : {
+                progress: entry.progress,
+                total: entry.episodesTotalOverride ?? row.episodesTotal,
+              },
+      };
+    });
     return {
       data: {
         id: found.id,

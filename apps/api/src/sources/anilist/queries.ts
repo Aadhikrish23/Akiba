@@ -10,6 +10,7 @@ const MEDIA_CARD = `
   synonyms
   description(asHtml: false)
   coverImage { extraLarge large color }
+  externalLinks { site url type }
   bannerImage
   format
   status
@@ -64,6 +65,7 @@ query MediaDetail($id: Int) {
     studios { edges { isMain node { id name isAnimationStudio } } }
     relations { edges { relationType(version: 2) node { id idMal type format title { romaji } } } }
     nextAiringEpisode { episode airingAt }
+    streamingEpisodes { title url site }
     characters(perPage: 25, sort: [ROLE, RELEVANCE]) {
       edges {
         role

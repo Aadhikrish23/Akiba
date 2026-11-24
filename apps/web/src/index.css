@@ -1049,4 +1049,107 @@
       outline-width: 1.5px;
     }
   }
+
+  /* ---- One tile for a whole show: a stack of covers (Discover, Library) ---- */
+  .ftile {
+    position: relative;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    color: inherit;
+    text-decoration: none;
+    border-radius: var(--radius-md);
+  }
+  .ftile:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 6px;
+  }
+  .ftile__tag {
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    z-index: 5;
+    padding: 5px 8px;
+    border-radius: 5px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font: 800 0.6875rem/1 var(--sans);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .ftile__art {
+    position: relative;
+    display: block;
+    aspect-ratio: 2 / 3;
+    margin: 0 10px 14px;
+  }
+  .ftile__art > img,
+  .ftile__ph {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    border: 2px solid var(--paper);
+    box-shadow: 0 10px 22px -12px oklch(0% 0 0 / 0.8);
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .ftile__art > :nth-child(1) {
+    transform: translate(-7%, 2%) rotate(-6deg);
+    filter: brightness(0.72);
+  }
+  .ftile__art > :nth-child(2) {
+    transform: translate(7%, 2%) rotate(6deg);
+    filter: brightness(0.84);
+  }
+  .ftile__art > :nth-child(3) {
+    transform: none;
+  }
+  /* With fewer than three covers the first one is the front one. */
+  .ftile__art > :only-child {
+    transform: none;
+    filter: none;
+  }
+  .ftile:hover .ftile__art > :nth-child(1),
+  .ftile:focus-visible .ftile__art > :nth-child(1) {
+    transform: translate(-11%, 2%) rotate(-9deg);
+  }
+  .ftile:hover .ftile__art > :nth-child(2),
+  .ftile:focus-visible .ftile__art > :nth-child(2) {
+    transform: translate(11%, 2%) rotate(9deg);
+  }
+  .ftile__name {
+    font: 800 1.1875rem/1.05 var(--display);
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+  .ftile__meta {
+    color: var(--mute);
+    font-size: 0.84rem;
+    line-height: 1.3;
+  }
+  .ftile__meta--you {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .ftile__bar {
+    display: flex;
+    gap: 3px;
+    height: 6px;
+  }
+  .ftile__bar i {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    border-radius: 2px;
+    background: var(--raised-2);
+  }
+  .ftile__bar i::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: var(--w, 0%);
+    background: var(--accent);
+  }
 }

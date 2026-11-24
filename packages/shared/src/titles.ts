@@ -62,6 +62,8 @@ export const titleCardSchema = z.object({
   coverUrl: z.string().nullable(),
   /** `#rrggbb` of the cover art's dominant colour; null when the source has none. */
   coverColor: z.string().nullable().default(null),
+  /** The show's Crunchyroll series page, when AniList lists one. */
+  crunchyrollUrl: z.string().nullable().default(null),
   format: z.string().nullable(),
   status: titleStatusSchema,
   episodesTotal: z.number().int().nullable(),
@@ -112,6 +114,8 @@ export const titleDetailSchema = titleCardSchema.extend({
   nextAiring: z.object({ episode: z.number().int(), airsAt: z.iso.datetime() }).nullable(),
   /** The franchise this title belongs to; null when it has no related titles (or too many). */
   franchiseId: z.uuid().nullable(),
+  /** Episode number to its Crunchyroll watch page, as far as AniList lists them (often partial). */
+  crunchyrollEpisodes: z.record(z.string(), z.string()).default({}),
 });
 export type TitleDetail = z.infer<typeof titleDetailSchema>;
 

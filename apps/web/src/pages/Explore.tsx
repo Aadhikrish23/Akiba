@@ -1,4 +1,4 @@
-import { ROLE_LABEL, type Franchise, type FranchiseTitle } from '@akiba/shared';
+import { ROLE_LABEL } from '@akiba/shared';
 import type { ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
@@ -7,7 +7,7 @@ import { TitleResults } from '../components/TitleResults';
 import { Button, Notice } from '../components/ui';
 import { usePageTitle } from '../lib/page';
 import { useRemote, type Remote } from '../lib/remote';
-import { ENTRY_LABEL, RELATION_LABEL, displayTitle, metaLine, useTitleList } from '../lib/titles';
+import { useTitleList } from '../lib/titles';
 
 /** Franchise, studio and character pages (FR-EXP-001…004; doc 08 §4). */
 
@@ -58,110 +58,6 @@ function Unavailable<T>({
     );
   }
   return <>{children(state.value)}</>;
-}
-
-// ── Franchise ─────────────────────────────────────────────────────────────────
-
-/** "After this: Season 2 · Spin-offs: OVA" for one title, from the relations that start at it. */
-function relationLines(franchise: Franchise, title: FranchiseTitle): [string, string][] {
-  const byId = new Map(franchise.titles.map((item) => [item.id, item]));
-  const groups = new Map<string, string[]>();
-  for (const relation of franchise.relations) {
-    if (relation.fromTitleId !== title.id) continue;
-    const target = byId.get(relation.toTitleId);
-    if (target === undefined) continue;
-    const label = RELATION_LABEL[relation.relationType] ?? relation.relationType;
-    groups.set(label, [...(groups.get(label) ?? []), displayTitle(target)]);
-  }
-  return [...groups.entries()].map(([label, names]) => [label, names.join(', ')]);
-}
-
-function FranchiseView({ franchise }: { franchise: Franchise }) {
-  const { totals } = franchise;
-  return (
-    <div className="grid max-w-4xl gap-8">
-      <header className="grid gap-2">
-        <p className="text-mute text-sm font-medium tracking-wide uppercase">Franchise</p>
-        <h1 className="h-title">{franchise.name}</h1>
-        <p role="status">
-          {totals.titles} {totals.titles === 1 ? 'title' : 'titles'}.{' '}
-          {totals.inLibrary === 0
-            ? 'None of them are on your shelf yet.'
-            : `${totals.inLibrary} on your shelf, ${totals.completed} completed.`}
-        </p>
-      </header>
-      <ol aria-label="Titles in this franchise, oldest first" className="grid list-none gap-6 p-0">
-        {franchise.titles.map((title) => {
-          const name = displayTitle(title);
-          const lines = relationLines(franchise, title);
-          return (
-            <li key={title.id}>
-              <article className="has-[:focus-visible]:outline-accent border-rule relative grid grid-cols-[72px_1fr] gap-4 border-t pt-4 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4">
-                <div className="bg-raised border-rule aspect-[2/3] overflow-hidden rounded-sm border">
-                  {title.coverUrl === null ? (
-                    <div className="text-mute grid h-full place-items-center p-1 text-center text-xs font-display font-extrabold uppercase">
-                      {name}
-                    </div>
-                  ) : (
-                    <img
-                      src={title.coverUrl}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      className="size-full object-cover"
-                    />
-                  )}
-                </div>
-                <div className="grid content-start gap-1">
-                  <h2 className="h-sub">
-                    <Link
-                      to={`/title/${title.id}`}
-                      className="focus-visible:outline-none after:absolute after:inset-0"
-                    >
-                      {name}
-                    </Link>
-                  </h2>
-                  <p className="text-mute text-sm">
-                    {metaLine(title)}
-                    {title.startDate !== null && ` · ${title.startDate}`}
-                  </p>
-                  <p className="text-sm font-medium">
-                    {title.libraryStatus === null
-                      ? 'Not on your shelf'
-                      : `On your shelf: ${ENTRY_LABEL[title.libraryStatus]}`}
-                  </p>
-                  {lines.length > 0 && (
-                    <dl className="text-mute mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
-                      {lines.map(([label, names]) => (
-                        <div key={label} className="contents">
-                          <dt>{label}</dt>
-                          <dd>{names}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  )}
-                </div>
-              </article>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-export function FranchisePage() {
-  const { franchiseId = '' } = useParams();
-  const { client } = useAuth();
-  const { state, retry } = useRemote(`franchise:${franchiseId}`, () =>
-    client.explore.franchise(franchiseId),
-  );
-  usePageTitle(state.phase === 'ready' ? state.value.data.name : 'Franchise');
-  return (
-    <Unavailable state={state} what="franchise" retry={retry}>
-      {(response) => <FranchiseView franchise={response.data} />}
-    </Unavailable>
-  );
 }
 
 // ── Studio ────────────────────────────────────────────────────────────────────

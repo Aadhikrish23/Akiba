@@ -485,7 +485,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
       loaded.detailFetchedAt === null
         ? Infinity
         : now().getTime() - loaded.detailFetchedAt.getTime();
-    if (age > detailTtl(loaded.status)) {
+    if (age > detailTtl(loaded.status) || !loaded.linksFetched) {
       try {
         const source = await refreshDetail(titleId);
         loaded = (await loadDetail(db, titleId, userId, now(), adult)) ?? loaded;

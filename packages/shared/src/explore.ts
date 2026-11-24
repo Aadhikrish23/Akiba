@@ -14,6 +14,11 @@ import {
 export const franchiseTitleSchema = titleCardSchema.extend({
   /** `YYYY-MM-DD`, or null when the source knows only part of the date. */
   startDate: z.string().nullable(),
+  /** Where the caller stands on it: episodes watched and the count to reach (null: not in the library). */
+  entry: z
+    .object({ progress: z.number().int().min(0), total: z.number().int().min(1).nullable() })
+    .nullable()
+    .default(null),
 });
 export type FranchiseTitle = z.infer<typeof franchiseTitleSchema>;
 

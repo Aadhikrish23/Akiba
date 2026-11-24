@@ -58,6 +58,9 @@ const mediaSchema = z.looseObject({
     .object({ extraLarge: optionalString, large: optionalString, color: optionalString })
     .nullish(),
   bannerImage: optionalString,
+  externalLinks: z
+    .array(z.object({ site: optionalString, url: optionalString, type: optionalString }))
+    .nullish(),
   format: optionalString,
   status: optionalString,
   episodes: optionalInt,
@@ -108,6 +111,9 @@ const detailSchema = mediaSchema.extend({
     .nullish(),
   relations: relationsSchema,
   nextAiringEpisode: z.object({ episode: z.number().int(), airingAt: z.number().int() }).nullish(),
+  streamingEpisodes: z
+    .array(z.object({ title: optionalString, url: optionalString, site: optionalString }))
+    .nullish(),
   characters: z
     .object({
       edges: z.array(
@@ -218,6 +224,7 @@ export function normalizeMedia(media: Media): SourceTitle {
     coverUrl: httpUrl(media.coverImage?.extraLarge) ?? httpUrl(media.coverImage?.large),
     coverColor: hexColour(media.coverImage?.color),
     bannerUrl: httpUrl(media.bannerImage),
+    crunchyrollUrl: crunchyrollSeries(media),
     format: cleanString(media.format),
     status: STATUS_BY_SOURCE[media.status ?? ''] ?? 'not_yet_released',
     episodesTotal: intOrNull(media.episodes),
@@ -237,6 +244,43 @@ export function normalizeMedia(media: Media): SourceTitle {
   };
 }
 
+/** AniList lists http:// links; the series page of Crunchyroll, https. */
+const secure = (url: string | null | undefined): string | null => {
+  const checked = httpUrl(url);
+  return checked === null ? null : checked.replace(/^http:/i, 'https:');
+};
+
+function crunchyrollSeries(media: Media): string | null {
+  const link = (media.externalLinks ?? []).find(
+    (item) => item.site === 'Crunchyroll' && item.type === 'STREAMING',
+  );
+  return secure(link?.url);
+}
+
+/**
+ * "Episode 130 - Scent of Danger!" on Crunchyroll's watch page for that episode. AniList often lists a
+ * whole show's episodes under each of its seasons, numbered across seasons (139 to 159 on a 13-episode
+ * season 1): those cannot be this season's episodes, so a number past the season's own count is dropped.
+ */
+function crunchyrollEpisodes(
+  media: z.infer<typeof detailSchema>,
+): { episode: number; url: string }[] {
+  const found = new Map<number, string>();
+  for (const item of media.streamingEpisodes ?? []) {
+    if (item.site !== 'Crunchyroll') continue;
+    const episode = /^\s*Episode\s+(\d+)/i.exec(item.title ?? '')?.[1];
+    const url = secure(item.url);
+    if (episode === undefined || url === null) continue;
+    const number = Number(episode);
+    const total = media.episodes;
+    if (total !== null && total !== undefined && number > total) continue;
+    if (!found.has(number)) found.set(number, url);
+  }
+  return [...found.entries()]
+    .map(([episode, url]) => ({ episode, url }))
+    .sort((a, b) => a.episode - b.episode);
+}
+
 function normalizeDetail(media: z.infer<typeof detailSchema>): SourceTitleDetail {
   const studios: SourceStudio[] = (media.studios?.edges ?? []).map((edge) => ({
     externalId: String(edge.node.id),
@@ -248,6 +292,7 @@ function normalizeDetail(media: z.infer<typeof detailSchema>): SourceTitleDetail
     ...normalizeMedia(media),
     studios,
     relations: normalizeRelations(media),
+    crunchyrollEpisodes: crunchyrollEpisodes(media),
     characters: normalizeCharacters(media),
     nextAiring:
       media.nextAiringEpisode === null || media.nextAiringEpisode === undefined

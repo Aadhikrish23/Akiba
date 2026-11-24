@@ -12,7 +12,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { LibraryPoster, LibraryRow } from '../components/EntryParts';
-import { FranchiseBanner } from '../components/FranchiseBanner';
+import { FranchiseTile } from '../components/FranchiseTile';
 import { GridSkeleton } from '../components/TitleResults';
 import { Button, Field, Notice, Select } from '../components/ui';
 import { groupByFranchise, type Grouped } from '../lib/franchise';
@@ -32,23 +32,22 @@ const TABS: readonly Tab[] = ['all', ...ENTRY_STATUSES, 'favorites'];
 const TAB_LABEL = (tab: Tab): string =>
   tab === 'all' ? 'All' : tab === 'favorites' ? 'Favorites' : ENTRY_LABEL[tab];
 
-/** The seasons of one show you have in your library, as one banner that opens to show them. */
-function EntryBanner({
-  group,
-  children,
-}: {
-  group: Extract<Grouped<LibraryEntry>, { kind: 'banner' }>;
-  children: React.ReactNode;
-}) {
+/** The seasons of one show you have in your library as one tile: how many, how many finished, how far in each. */
+function EntryTile({ group }: { group: Extract<Grouped<LibraryEntry>, { kind: 'banner' }> }) {
   const done = group.items.filter((entry) => entry.status === 'completed').length;
   return (
-    <FranchiseBanner
+    <FranchiseTile
       franchise={group.franchise}
-      covers={group.items.map((entry) => entry.title.coverUrl)}
+      covers={group.items.map((entry) => entry.title)}
       standing={`${group.items.length} in your library${done > 0 ? `, ${done} completed` : ''}`}
-    >
-      {children}
-    </FranchiseBanner>
+      progress={group.items.map((entry) =>
+        entry.status === 'completed'
+          ? 1
+          : entry.effectiveTotal === null
+            ? 0
+            : Math.min(1, entry.progress / entry.effectiveTotal),
+      )}
+    />
   );
 }
 
@@ -251,14 +250,10 @@ export function LibraryPage() {
                   group.kind === 'one' ? (
                     <LibraryRow key={group.key} entry={group.item} />
                   ) : (
-                    <li key={group.key} className="py-3">
-                      <EntryBanner group={group}>
-                        <ul aria-label="Seasons in your library" className="m-0 list-none p-0">
-                          {group.items.map((entry) => (
-                            <LibraryRow key={entry.id} entry={entry} />
-                          ))}
-                        </ul>
-                      </EntryBanner>
+                    <li key={group.key} className="border-rule border-b py-3">
+                      <div className="max-w-60">
+                        <EntryTile group={group} />
+                      </div>
                     </li>
                   ),
                 )}
@@ -275,22 +270,8 @@ export function LibraryPage() {
                       <LibraryPoster entry={group.item} />
                     </li>
                   ) : (
-                    <li key={group.key} className="col-span-full">
-                      <EntryBanner group={group}>
-                        <ul
-                          aria-label="Seasons in your library"
-                          className="m-0 grid list-none gap-x-5 gap-y-8 p-0"
-                          style={{
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))',
-                          }}
-                        >
-                          {group.items.map((entry) => (
-                            <li key={entry.id}>
-                              <LibraryPoster entry={entry} />
-                            </li>
-                          ))}
-                        </ul>
-                      </EntryBanner>
+                    <li key={group.key}>
+                      <EntryTile group={group} />
                     </li>
                   ),
                 )}

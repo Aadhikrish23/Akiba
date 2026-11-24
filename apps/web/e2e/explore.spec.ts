@@ -65,19 +65,16 @@ test('journey: title → franchise, with my status on each entry (FR-EXP-001, FR
 
   await page.getByRole('link', { name: 'See the whole franchise' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Shingeki no Kyojin' })).toBeVisible();
-  const rows = page
-    .getByRole('list', { name: 'Titles in this franchise, oldest first' })
-    .getByRole('article');
+  const rows = page.getByRole('region', { name: /^Seasons/ }).getByRole('article');
   // `count()` does not wait: let the page load first, then count.
   await expect(rows.first()).toBeVisible();
-  expect(await rows.count()).toBeGreaterThan(3);
-  await expect(page.getByRole('status')).toContainText('1 on your shelf, 0 completed.');
-  // The one I added says so; the others do not, and each row says how it relates.
-  const mine = rows.filter({ hasText: 'On your shelf: Watching' });
+  expect(await rows.count()).toBeGreaterThan(1);
+  await expect(page.getByRole('status')).toContainText(/1 of \d+ seasons in your library/);
+  // The one I added says so, and has no Add button; the others offer one.
+  const mine = rows.filter({ hasText: 'Watching' });
   await expect(mine).toHaveCount(1);
   await expect(mine).toContainText('Shingeki no Kyojin');
-  await expect(mine.getByText('After this')).toBeVisible();
-  await expect(rows.filter({ hasText: 'Not on your shelf' }).first()).toBeVisible();
+  await expect(rows.filter({ hasText: 'Not added' }).first()).toBeVisible();
 
   // A row opens that title's own page.
   await page.getByRole('link', { name: 'Shingeki no Kyojin Season 2' }).first().click();
@@ -124,9 +121,7 @@ for (const scheme of ['light', 'dark'] as const) {
 
     await page.goBack();
     await page.getByRole('link', { name: 'See the whole franchise' }).click();
-    await expect(
-      page.getByRole('list', { name: 'Titles in this franchise, oldest first' }),
-    ).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Seasons/ })).toBeVisible();
     await check('franchise');
 
     await page.goBack();

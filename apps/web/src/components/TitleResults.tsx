@@ -1,5 +1,5 @@
 import { Button, Notice } from './ui';
-import { FranchiseBanner, FranchiseTitles } from './FranchiseBanner';
+import { FranchiseTile } from './FranchiseTile';
 import { PosterCard, PosterGrid } from './PosterCard';
 import { groupByFranchise } from '../lib/franchise';
 import type { ListState } from '../lib/titles';
@@ -85,18 +85,16 @@ export function TitleResults({
                   <PosterCard title={group.item} />
                 </li>
               ) : (
-                <li key={group.key} className="col-span-full">
-                  <FranchiseBanner
+                <li key={group.key}>
+                  <FranchiseTile
                     franchise={group.franchise}
-                    covers={group.items.map((item) => item.coverUrl)}
+                    covers={group.items}
                     standing={
                       group.items.some((item) => item.libraryStatus !== null)
                         ? `${group.items.filter((item) => item.libraryStatus !== null).length} in your library`
                         : undefined
                     }
-                  >
-                    <FranchiseTitles franchiseId={group.franchise.id} />
-                  </FranchiseBanner>
+                  />
                 </li>
               ),
             )}

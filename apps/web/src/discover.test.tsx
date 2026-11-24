@@ -226,11 +226,12 @@ describe('Discover: browse (FR-DISC-002, FR-DISC-006)', () => {
   });
 });
 
-describe('Discover: seasons in one banner', () => {
+describe('Discover: the seasons of one show are one tile', () => {
   const FRANCHISE = '00000000-0000-4000-8000-0000000000f1';
   const info = {
     id: FRANCHISE,
     size: 4,
+    seasons: 3,
     titleRomaji: 'My Hero Academia',
     titleEnglish: 'Boku no Hero Academia (English)',
     titleNative: null,
@@ -239,61 +240,45 @@ describe('Discover: seasons in one banner', () => {
   const catalog = server((call) => {
     if (call.path.endsWith('/genres')) return json(200, { data: [] });
     if (call.path.includes('/titles/search')) return list([...seasons, card(20)]);
-    if (call.path.includes('/franchises/')) {
-      return json(200, {
-        data: {
-          id: FRANCHISE,
-          name: 'Boku no Hero Academia',
-          titles: [...seasons, card(13, { franchise: info })].map((title) => ({
-            ...title,
-            startDate: '2016-04-03',
-          })),
-          // Seasons 1 to 3 follow each other; the fourth title is a movie off to the side.
-          relations: [
-            { fromTitleId: seasons[0]!.id, toTitleId: seasons[1]!.id, relationType: 'sequel' },
-            { fromTitleId: seasons[1]!.id, toTitleId: seasons[2]!.id, relationType: 'sequel' },
-            { fromTitleId: seasons[0]!.id, toTitleId: card(13).id, relationType: 'side_story' },
-          ],
-          totals: { titles: 4, inLibrary: 1, completed: 0 },
-        },
-        meta: { stale: false, source: 'cache' },
-      });
-    }
     return undefined;
   });
+  const tileName = 'Franchise My Hero Academia 3 seasons · 1 movie, special or spin-off';
 
-  it('shows the seasons of one show as one banner named after the first, not one card each', async () => {
+  it('shows the seasons as one tile named after the first, not one card each', async () => {
     renderApp({ route: '/discover?q=hero', handler: catalog });
-    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
-    expect(within(banner).getByText('4 titles')).toBeTruthy();
-    // The seasons are inside it, not beside it: only the other show is a card of its own.
+    const tile = await screen.findByRole('link', { name: tileName });
+    expect(tile.getAttribute('href')).toBe(`/franchise/${FRANCHISE}`);
+    // The seasons are behind it, not beside it: only the other show is a card of its own.
     expect(screen.queryByRole('link', { name: 'Show 10' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Show 20' })).toBeTruthy();
   });
 
-  it('opens to list every title of the franchise, oldest first, including ones not on the page', async () => {
+  it('is a plain link: nothing expands, and no season is fetched until the page is opened', async () => {
     const app = renderApp({ route: '/discover?q=hero', handler: catalog });
-    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
-    const toggle = within(banner).getByRole('button', { name: /My Hero Academia/ });
-    expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    await app.user.click(toggle);
-    expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    const seasonRows = await within(banner).findByRole('list', {
-      name: 'Seasons in this franchise',
-    });
-    expect(within(seasonRows).getAllByRole('listitem')).toHaveLength(3);
-    expect(within(seasonRows).getByText(/^Season 2 · /)).toBeTruthy();
-    // The movie is listed after them, with the other titles that are not seasons.
-    const others = within(banner).getByRole('list', { name: 'Other titles in this franchise' });
-    expect(within(others).getAllByRole('listitem')).toHaveLength(1);
-    expect(within(others).getByRole('link', { name: 'Show 13' })).toBeTruthy();
-    expect(app.to(`/franchises/${FRANCHISE}`).length).toBeGreaterThan(0);
+    await screen.findByRole('link', { name: tileName });
+    expect(app.to('/franchises/').length).toBe(0);
+    expect(screen.queryByRole('button', { name: /My Hero Academia/ })).toBeNull();
   });
 
-  it('does not ask for the seasons until the banner is opened', async () => {
-    const app = renderApp({ route: '/discover?q=hero', handler: catalog });
-    await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
-    expect(app.to(`/franchises/${FRANCHISE}`)).toHaveLength(0);
+  it('says how many of it you have in your library', async () => {
+    renderApp({
+      route: '/discover?q=hero',
+      handler: server((call) => {
+        if (call.path.endsWith('/genres')) return json(200, { data: [] });
+        if (call.path.includes('/titles/search')) {
+          return list([
+            card(10, {
+              franchise: info,
+              libraryStatus: 'completed',
+              libraryEntryId: '00000000-aaaa-4000-8000-0000000000e1',
+            }),
+            card(11, { franchise: info }),
+          ]);
+        }
+        return undefined;
+      }),
+    });
+    expect(await screen.findByRole('link', { name: `${tileName} 1 in your library` })).toBeTruthy();
   });
 
   it('keeps a title whose franchise has only itself on the page as an ordinary card', async () => {
@@ -308,14 +293,12 @@ describe('Discover: seasons in one banner', () => {
       }),
     });
     expect(await screen.findByRole('link', { name: 'Show 10' })).toBeTruthy();
-    expect(screen.queryByRole('article', { name: /titles$/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Franchise / })).toBeNull();
   });
 
-  it('has no axe violations with a banner open', async () => {
+  it('has no axe violations', async () => {
     const app = renderApp({ route: '/discover?q=hero', handler: catalog });
-    const banner = await screen.findByRole('article', { name: 'My Hero Academia, 4 titles' });
-    await app.user.click(within(banner).getByRole('button', { name: /My Hero Academia/ }));
-    await within(banner).findByRole('list', { name: 'Other titles in this franchise' });
+    await screen.findByRole('link', { name: tileName });
     expect(await violations(app.container)).toEqual([]);
   });
 });
