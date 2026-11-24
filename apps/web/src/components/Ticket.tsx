@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { useEntryProgress } from '../lib/progress';
 import { stockFor } from '../lib/stock';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
+import { countCeiling, useCountEdit } from './EntryParts';
 import { Button, Notice } from './ui';
 
 type TicketStyle = CSSProperties & { '--stock': string; '--p': number };
@@ -16,7 +17,8 @@ type TicketStyle = CSSProperties & { '--stock': string; '--p': number };
 export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 'sm' }) {
   const name = displayTitle(entry.title);
   const track = useEntryProgress(entry);
-  const total = entry.effectiveTotal;
+  const edit = useCountEdit(track, name);
+  const total = entry.effectiveTotal ?? entry.episodesAired;
   const fraction = total === null || total === 0 ? 0.5 : Math.min(1, track.progress / total);
   const [stamp, setStamp] = useState({ count: 0, at: '' });
 
@@ -34,7 +36,9 @@ export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 's
     ? `Next: episode ${next}`
     : track.status === 'completed'
       ? 'Completed'
-      : 'Last episode watched';
+      : entry.effectiveTotal === null
+        ? 'Caught up'
+        : 'Last episode watched';
   const style: TicketStyle = { '--stock': stockFor(entry.title), '--p': fraction };
 
   return (
@@ -88,8 +92,8 @@ export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 's
             data-testid="episode-count"
             data-pad={track.progress < 10 ? 'true' : undefined}
           >
-            {track.progress}
-            <span> / {total ?? '?'}</span>
+            {edit.input}
+            <span> / {countCeiling(track)}</span>
           </p>
           {track.canAdvance ? (
             <button
@@ -115,7 +119,9 @@ export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 's
           </div>
         )}
       </div>
-      {track.error !== null && <Notice tone="error">{track.error}</Notice>}
+      {(edit.problem ?? track.error) !== null && (
+        <Notice tone="error">{edit.problem ?? track.error}</Notice>
+      )}
       {track.suggest && (
         <div role="status" className="flex flex-wrap items-center gap-3 text-sm">
           <span>That was the last episode. Mark completed?</span>

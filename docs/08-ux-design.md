@@ -43,11 +43,12 @@ Mobile/Electron receive the same values converted to sRGB hex by a build step.
 | **Inbox item** | Cover thumb, "Episode N of Title aired", relative time, unread dot in accent |
 
 ## 4. Screens
-**Web / Desktop (left rail ≥ 880 px; slim top bar and bottom tab bar below):** Home · Schedule (tonight as tickets; the week as a timetable in broadcast time, 25:30 = 1:30 am; a day agenda on a phone; `GET /library/schedule`) · Discover (search, browse, season chart) · Title detail · Franchise · Studio · Character · Library (grid/list, status tabs) · History · Inbox · Settings (profile, theme, title language, export, share link, delete account) · Auth screens · Shared list (public).
+**Web / Desktop (left rail ≥ 880 px; slim top bar and bottom tab bar below):** Home · Schedule (tonight as tickets; the week as a timetable in broadcast time, 25:30 = 1:30 am, or the month as a calendar with the chosen day beside it; step through any number of weeks or months or jump to a month and year; the view is remembered; a day agenda or dots-and-day-list on a phone; `GET /library/schedule`) · Discover (search, browse, season chart) · Title detail · Franchise · Studio · Character · Library (grid/list, status tabs) · History · Inbox · Settings (profile, theme, title language, export, share link, delete account) · Auth screens · Shared list (public).
 **Mobile (tab bar):** Home · Discover · Library · Inbox · Me. Title detail, franchise, studio, character, history and settings are pushed screens.
 
 ### Key flows
 1. **Log an episode:** Home/Library/Title → `+1` → optimistic update → at final episode, inline prompt "Mark completed?".
+   **Catch up:** the episode count itself is a field: click it, type the episode you are on, click away or press Enter (Escape cancels). It cannot pass the total, nor, for a running show with no known total, the episodes that have aired (shown after the slash instead of `?`); the reason is said in place and nothing is saved.
 2. **Add to library:** Title page → status picker (one tap, defaults to Planned/Watching).
 3. **Rewatch:** Completed entry → "Rewatch" → new Run; history keeps both.
 4. **Override episode total:** Title/entry → "Episode count looks wrong?" → edit → badge "Edited" with reset.

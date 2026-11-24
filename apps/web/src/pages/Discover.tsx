@@ -6,7 +6,7 @@ import {
   type TitleSort,
   type TitleStatus,
 } from '@akiba/shared';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { TitleResults } from '../components/TitleResults';
@@ -27,6 +27,9 @@ const asStatus = (value: string | null): TitleStatus | undefined =>
 const asSort = (value: string | null): TitleSort | undefined =>
   (TITLE_SORTS as readonly string[]).includes(value ?? '') ? (value as TitleSort) : undefined;
 
+/** How long typing must pause before the search runs (Enter searches at once). */
+const SEARCH_DELAY_MS = 300;
+
 /**
  * Discover (FR-DISC-001, -002, -006): search by name, or browse with filters. The whole state is in
  * the URL, so the back button, a reload and a copied link all show the same list.
@@ -42,8 +45,10 @@ export function DiscoverPage() {
   const genre = params.get('genre') ?? '';
 
   const [draft, setDraft] = useState(q);
+  // A change to the address (back, a link, Clear search) shows in the box. What you are typing is
+  // left alone: the search trims it, so a trailing space must not be taken away mid-word.
   useEffect(() => {
-    setDraft(q);
+    setDraft((current) => (current.trim() === q ? current : q));
   }, [q]);
   const [genres, setGenres] = useState<string[]>([]);
   useEffect(() => {
@@ -76,14 +81,29 @@ export function DiscoverPage() {
         }),
   );
 
-  const update = (changes: Record<string, string | undefined>) => {
-    const next = new URLSearchParams(params);
-    for (const [name, value] of Object.entries(changes)) {
-      if (value === undefined || value === '') next.delete(name);
-      else next.set(name, value);
-    }
-    setParams(next, { replace: true });
-  };
+  const update = useCallback(
+    (changes: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(params);
+      for (const [name, value] of Object.entries(changes)) {
+        if (value === undefined || value === '') next.delete(name);
+        else next.set(name, value);
+      }
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
+
+  // Search as you type: once typing pauses, the box is the search.
+  useEffect(() => {
+    const wanted = draft.trim();
+    if (wanted === q) return;
+    const timer = setTimeout(() => {
+      update({ q: wanted });
+    }, SEARCH_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [draft, q, update]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();

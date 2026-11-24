@@ -84,7 +84,7 @@ interface SlotProps {
 }
 
 function slotLabel(slot: PlacedSlot, state: SlotState): string {
-  return `${displayTitle(slot.title)}, episode ${slot.episode}, ${DAY_NAMES[slot.dayIndex] ?? ''} ${clock(slot)}${slot.projected ? ' (expected)' : ''}, ${STATE_WORDS[state]}`;
+  return `${displayTitle(slot.title)}, episode ${slot.episode}, ${DAY_NAMES[((slot.dayIndex % 7) + 7) % 7] ?? ''} ${clock(slot)}${slot.projected ? ' (expected)' : ''}, ${STATE_WORDS[state]}`;
 }
 
 function SlotAction({

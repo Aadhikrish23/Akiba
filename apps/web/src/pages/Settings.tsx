@@ -44,13 +44,32 @@ function Feedback({ feedback }: { feedback: ReturnType<typeof useFeedback> }) {
   );
 }
 
-const timeZones = (): string[] => {
+/** "GMT+9" for a zone, so the list says what each name means. */
+function offsetOf(zone: string): string {
   try {
-    return Intl.supportedValuesOf('timeZone');
+    return (
+      new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
+        .formatToParts(new Date())
+        .find((part) => part.type === 'timeZoneName')?.value ?? ''
+    );
   } catch {
-    return [];
+    return '';
   }
-};
+}
+
+/** Every zone the browser knows, plus the one saved on the account (an old free-text value stays selectable). */
+function zoneOptions(saved: string): { value: string; label: string }[] {
+  let names: string[];
+  try {
+    names = Intl.supportedValuesOf('timeZone');
+  } catch {
+    names = [];
+  }
+  const all = new Set(['UTC', ...names, saved]);
+  return [...all]
+    .sort()
+    .map((value) => ({ value, label: `${value} (${offsetOf(value) || 'UTC'})` }));
+}
 
 /** Settings (FR-ACCT-001, FR-EXPT-001, FR-SHARE-001/002, FR-ACCT-002): profile, theme, export, share, delete. */
 export function SettingsPage() {
@@ -99,7 +118,6 @@ function ProfileSection() {
   const { profile, updateProfile } = useAuth();
   const feedback = useFeedback();
   const [name, setName] = useState(profile?.displayName ?? '');
-  const [zone, setZone] = useState(profile?.timeZone ?? 'UTC');
   // The two switches answer at once; the save happens behind them.
   const [alerts, setAlerts] = useState(profile?.alertsEnabled ?? true);
   const [adult, setAdult] = useState(profile?.showAdult ?? false);
@@ -152,33 +170,18 @@ function ProfileSection() {
             save({ titleLanguage: event.target.value as TitleLanguage });
           }}
         />
-        <form
-          onSubmit={(event: FormEvent) => {
-            event.preventDefault();
-            save({ timeZone: zone });
-          }}
-          className="flex items-end gap-2"
-        >
-          <div className="flex-1">
-            <Field
-              label="Time zone"
-              list="zones"
-              value={zone}
-              onChange={(event) => {
-                setZone(event.target.value);
-              }}
-              hint="Air times are shown in this zone."
-            />
-            <datalist id="zones">
-              {timeZones().map((value) => (
-                <option key={value} value={value} />
-              ))}
-            </datalist>
-          </div>
-          <Button type="submit" busy={busy}>
-            Save
-          </Button>
-        </form>
+        <div className="grid gap-1.5">
+          <Select
+            label="Time zone"
+            anyLabel=""
+            value={profile.timeZone}
+            options={zoneOptions(profile.timeZone)}
+            onChange={(event) => {
+              save({ timeZone: event.target.value });
+            }}
+          />
+          <p className="text-mute text-sm">Air times are shown in this zone.</p>
+        </div>
       </div>
       <label className="flex items-center gap-2">
         <input

@@ -1,6 +1,14 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { json, problem, renderApp, signedInHandler, violations, type Call } from './test/render';
+import {
+  countText,
+  json,
+  problem,
+  renderApp,
+  signedInHandler,
+  violations,
+  type Call,
+} from './test/render';
 
 /**
  * T18: Library, Home ("Continue watching" +1), the shelf panel on the title page and History.
@@ -80,7 +88,7 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     expect(await screen.findByRole('heading', { name: 'Continue watching' })).toBeTruthy();
     const cards = await screen.findAllByRole('article');
     expect(cards).toHaveLength(2);
-    expect(within(cards[0]!).getByTestId('episode-count').textContent).toBe('3 / 12');
+    expect(countText(within(cards[0]!).getByTestId('episode-count'))).toBe('3 / 12');
     expect(within(cards[0]!).getByRole('button', { name: '+1 episode of Show 1' })).toBeTruthy();
   });
 
@@ -105,13 +113,13 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     });
     await app.user.click(await screen.findByRole('button', { name: '+1 episode of Show 1' }));
     // Optimistic: the number moved before the server answered.
-    expect(screen.getByTestId('episode-count').textContent).toBe('4 / 12');
+    expect(countText(screen.getByTestId('episode-count'))).toBe('4 / 12');
     release();
     await waitFor(() => {
       expect(app.to('/progress')).toHaveLength(1);
     });
     expect(app.to('/progress')[0]?.body).toEqual({ delta: 1 });
-    expect(screen.getByTestId('episode-count').textContent).toBe('4 / 12');
+    expect(countText(screen.getByTestId('episode-count'))).toBe('4 / 12');
   });
 
   it('puts the count back and says why when the server refuses', async () => {
@@ -127,7 +135,7 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(
       /Something went wrong on our side/,
     );
-    expect(screen.getByTestId('episode-count').textContent).toBe('3 / 12');
+    expect(countText(screen.getByTestId('episode-count'))).toBe('3 / 12');
   });
 
   it('at the final episode asks "Mark completed?" inline, and completing hides +1', async () => {
@@ -150,6 +158,120 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     });
     expect(app.calls.find((call) => call.method === 'PATCH')?.body).toEqual({
       status: 'completed',
+    });
+  });
+
+  describe('typing the episode count (catching up without pressing +1 a thousand times)', () => {
+    const serving = (shows: unknown[], onProgress?: (call: Call) => Response) =>
+      server((call) => {
+        if (call.path.endsWith('/library')) return list(shows);
+        if (call.path.endsWith('/progress') && onProgress !== undefined) return onProgress(call);
+        return undefined;
+      });
+    const counter = () => within(screen.getByTestId('episode-count')).getByRole('textbox');
+
+    it('saves what you type when you click away, in one request', async () => {
+      const app = renderApp({
+        route: '/',
+        handler: serving([entry(1)], () =>
+          json(200, { data: detail(1, { progress: 9 }), suggestComplete: false }),
+        ),
+      });
+      await screen.findByTestId('episode-count');
+      await app.user.clear(counter());
+      await app.user.type(counter(), '9');
+      await app.user.tab();
+      await waitFor(() => {
+        expect(app.to('/progress')).toHaveLength(1);
+      });
+      expect(app.to('/progress')[0]?.body).toEqual({ set: 9 });
+      expect(countText(screen.getByTestId('episode-count'))).toBe('9 / 12');
+    });
+
+    it('Enter saves, and Escape puts the old number back without asking the server', async () => {
+      const app = renderApp({
+        route: '/',
+        handler: serving([entry(1)], () =>
+          json(200, { data: detail(1, { progress: 7 }), suggestComplete: false }),
+        ),
+      });
+      await screen.findByTestId('episode-count');
+      await app.user.clear(counter());
+      await app.user.type(counter(), '5{Escape}');
+      expect(countText(screen.getByTestId('episode-count'))).toBe('3 / 12');
+      expect(app.to('/progress')).toHaveLength(0);
+
+      await app.user.clear(counter());
+      await app.user.type(counter(), '7{Enter}');
+      await waitFor(() => {
+        expect(app.to('/progress')).toHaveLength(1);
+      });
+      expect(app.to('/progress')[0]?.body).toEqual({ set: 7 });
+    });
+
+    it('explains a number past the total and does not save it', async () => {
+      const app = renderApp({ route: '/', handler: serving([entry(1)]) });
+      await screen.findByTestId('episode-count');
+      await app.user.clear(counter());
+      await app.user.type(counter(), '13');
+      expect((await screen.findByRole('alert')).textContent).toBe('This show has 12 episodes.');
+      await app.user.tab();
+      expect(app.to('/progress')).toHaveLength(0);
+      expect(countText(screen.getByTestId('episode-count'))).toBe('3 / 12');
+    });
+
+    it('a running show with no total counts up to what has aired, and no further', async () => {
+      const running = entry(1, { progress: 21, effectiveTotal: null, episodesAired: 1180 });
+      const app = renderApp({
+        route: '/',
+        handler: serving([running], () =>
+          json(200, {
+            data: detail(1, { progress: 1180, effectiveTotal: null, episodesAired: 1180 }),
+            suggestComplete: false,
+          }),
+        ),
+      });
+      await screen.findByTestId('episode-count');
+      expect(countText(screen.getByTestId('episode-count'))).toBe('21 / 1180');
+
+      await app.user.clear(counter());
+      await app.user.type(counter(), '1181');
+      expect((await screen.findByRole('alert')).textContent).toBe(
+        'Only 1180 episodes have aired so far.',
+      );
+      await app.user.clear(counter());
+      await app.user.type(counter(), '1180{Enter}');
+      await waitFor(() => {
+        expect(app.to('/progress')).toHaveLength(1);
+      });
+      expect(app.to('/progress')[0]?.body).toEqual({ set: 1180 });
+      // Caught up: nothing to add with +1 until the next episode airs.
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: '+1 episode of Show 1' })).toBeNull();
+      });
+    });
+
+    it('puts the number back and says why when the server refuses', async () => {
+      const app = renderApp({
+        route: '/',
+        handler: serving([entry(1)], () => problem(500, 'INTERNAL_ERROR')),
+      });
+      await screen.findByTestId('episode-count');
+      await app.user.clear(counter());
+      await app.user.type(counter(), '8{Enter}');
+      expect((await screen.findByRole('alert')).textContent).toMatch(
+        /Something went wrong on our side/,
+      );
+      expect(countText(screen.getByTestId('episode-count'))).toBe('3 / 12');
+    });
+
+    it('is read-only once the title is completed', async () => {
+      renderApp({
+        route: '/',
+        handler: serving([entry(1, { status: 'completed', progress: 12 })]),
+      });
+      await screen.findByTestId('episode-count');
+      expect((counter() as HTMLInputElement).readOnly).toBe(true);
     });
   });
 

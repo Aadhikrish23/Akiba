@@ -24,8 +24,8 @@ test('journey: search for a title, open it, follow a related title (FR-DISC-001,
   await page.getByRole('link', { name: 'Discover' }).click();
   await expect(page.getByRole('heading', { name: 'Discover' })).toBeVisible();
 
-  await page.getByLabel('Search by name').fill('attack on titan');
-  await page.getByRole('button', { name: 'Search' }).click();
+  // No button press and no Enter: the search runs once typing pauses.
+  await page.getByLabel('Search by name').pressSequentially('attack on titan');
   await expect(page.getByRole('heading', { name: 'Results for “attack on titan”' })).toBeVisible();
   await expect(grid(page, 'Search results')).toHaveCount(3);
   await expect(page).toHaveURL(/q=attack\+on\+titan/);

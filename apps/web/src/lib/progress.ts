@@ -9,6 +9,8 @@ export interface TrackedEntry {
   readonly status: EntryStatus;
   readonly progress: number;
   readonly effectiveTotal: number | null;
+  /** Episodes of a running show that have aired, while its total is unknown. */
+  readonly episodesAired?: number | null;
 }
 
 /**
@@ -33,7 +35,11 @@ export function useEntryProgress(
     setStatus(entry.status);
   }, [entry.progress, entry.status]);
 
-  const atEnd = entry.effectiveTotal !== null && progress >= entry.effectiveTotal;
+  // The ceiling: the known total, else (for a running show) what has aired so far.
+  const total = entry.effectiveTotal;
+  const aired = total === null ? (entry.episodesAired ?? null) : null;
+  const limit = total ?? aired;
+  const atEnd = limit !== null && progress >= limit;
   const canAdvance = status !== 'completed' && !atEnd;
 
   // Taps can come faster than the server answers (a held Enter key, a double tap). Each one counts
@@ -64,6 +70,65 @@ export function useEntryProgress(
     }
   }, [canAdvance, status, client, entry.id, onChange]);
 
+  /** Why `value` cannot be the count, or null when it can (the same rules the server applies). */
+  const check = useCallback(
+    (value: number): string | null => {
+      if (!Number.isInteger(value) || value < 0) return 'Enter a whole number, 0 or more.';
+      if (total !== null && value > total) {
+        return `This show has ${total} episode${total === 1 ? '' : 's'}.`;
+      }
+      if (aired !== null && value > aired && value > progress) {
+        return `Only ${aired} episode${aired === 1 ? ' has' : 's have'} aired so far.`;
+      }
+      return null;
+    },
+    [total, aired, progress],
+  );
+
+  /** Set the count outright: for someone who is already caught up and should not press +1 a thousand times. */
+  const setTo = useCallback(
+    async (value: number) => {
+      if (value === progress || status === 'completed') return;
+      const issue = check(value);
+      if (issue !== null) {
+        setError(issue);
+        return;
+      }
+      const mine = ++latest.current;
+      const before = progress;
+      setError(null);
+      setProgress(value);
+      if (
+        value > before &&
+        (status === 'planned' || status === 'on_hold' || status === 'dropped')
+      ) {
+        setStatus('watching');
+      }
+      try {
+        const result = await client.library.progress(entry.id, { set: value });
+        if (mine === latest.current) {
+          setProgress(result.data.progress);
+          setStatus(result.data.status);
+          setSuggest(result.suggestComplete);
+        }
+        onChange?.(result.data);
+      } catch (caught) {
+        if (mine === latest.current) {
+          setProgress(before);
+          setStatus(entry.status);
+        }
+        setError(
+          caught instanceof ApiError && caught.code === 'PROGRESS_EXCEEDS_TOTAL'
+            ? 'That is past the last episode.'
+            : caught instanceof ApiError && caught.code === 'PROGRESS_EXCEEDS_AIRED'
+              ? 'That episode has not aired yet.'
+              : describeError(caught).message,
+        );
+      }
+    },
+    [progress, status, check, client, entry.id, entry.status, onChange],
+  );
+
   const complete = useCallback(async () => {
     setBusy(true);
     setError(null);
@@ -87,6 +152,10 @@ export function useEntryProgress(
     error,
     suggest,
     canAdvance,
+    total,
+    aired,
+    check,
+    setTo,
     plusOne,
     complete,
     dismissSuggestion: () => {

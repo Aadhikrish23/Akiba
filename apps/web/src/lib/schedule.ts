@@ -71,6 +71,36 @@ export function todayIn(now: Date, zone: string): CalendarDate {
   return { y, m, d };
 }
 
+/** Monday of the week that holds a calendar date. */
+export function mondayOfDate(date: CalendarDate): CalendarDate {
+  const weekday = new Date(Date.UTC(date.y, date.m - 1, date.d)).getUTCDay(); // 0 = Sunday
+  return addDays(date, -((weekday + 6) % 7));
+}
+
+/** Whole days from `a` to `b` (negative when b is earlier). */
+export const daysBetween = (a: CalendarDate, b: CalendarDate): number =>
+  dayNumber(b) - dayNumber(a);
+
+export const sameDate = (a: CalendarDate, b: CalendarDate): boolean =>
+  a.y === b.y && a.m === b.m && a.d === b.d;
+
+/** The first of the month `n` months from the one that holds `date`. */
+export function addMonths(date: CalendarDate, n: number): CalendarDate {
+  const moved = new Date(Date.UTC(date.y, date.m - 1 + n, 1));
+  return { y: moved.getUTCFullYear(), m: moved.getUTCMonth() + 1, d: 1 };
+}
+
+/**
+ * The calendar grid of a month: it starts on the Monday on or before the 1st and runs whole weeks
+ * (five or six) to the end of the month.
+ */
+export function monthGrid(date: CalendarDate): { start: CalendarDate; weeks: number } {
+  const first = { y: date.y, m: date.m, d: 1 };
+  const start = mondayOfDate(first);
+  const inMonth = new Date(Date.UTC(date.y, date.m, 0)).getUTCDate();
+  return { start, weeks: Math.ceil((daysBetween(start, first) + inMonth) / 7) };
+}
+
 export interface PlacedSlot extends ScheduleSlot {
   /** 0 = Monday … 6 = Sunday, counted from the week's Monday; outside 0 to 6 is another week. */
   readonly dayIndex: number;
@@ -126,25 +156,27 @@ export type WeekLoad =
   | { readonly phase: 'ready'; readonly slots: readonly PlacedSlot[] };
 
 /**
- * The schedule of one week. `setEntryProgress` records an episode logged from the schedule so every
- * slot of that show updates at once without asking the server again.
+ * The schedule of `weeks` whole weeks from the Monday `start` (one for the week view, five or six for
+ * a month grid). `dayIndex` of each slot counts from `start`. `setEntryProgress` records an episode
+ * logged from the schedule so every slot of that show updates at once without asking the server again.
  */
-export function useWeekSchedule(offset: number) {
+export function useSchedule(start: CalendarDate, weeks: number) {
   const { client, profile } = useAuth();
   const zone = safeZone(profile?.timeZone);
   const [load, setLoad] = useState<WeekLoad>({ phase: 'loading' });
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [attempt, setAttempt] = useState(0);
-  const monday = useMemo(() => mondayOf(new Date(), zone, offset), [zone, offset]);
+  const { y, m, d } = start;
+  const monday = useMemo(() => ({ y, m, d }), [y, m, d]);
 
   useEffect(() => {
     let live = true;
     setLoad({ phase: 'loading' });
     setProgress({});
-    // Seven days, plus the six small hours after the last night (they belong to Sunday).
+    // The days asked for, plus the six small hours after the last night (they belong to its evening).
     const from = startOfDay(monday, zone);
     const to = new Date(
-      startOfDay(addDays(monday, 7), zone).getTime() + BROADCAST_CUTOFF_HOUR * HOUR_MS,
+      startOfDay(addDays(monday, 7 * weeks), zone).getTime() + BROADCAST_CUTOFF_HOUR * HOUR_MS,
     );
     client.library
       .schedule({ from: from.toISOString(), to: to.toISOString() })
@@ -152,7 +184,7 @@ export function useWeekSchedule(offset: number) {
         if (!live) return;
         const placed = slots
           .map((slot) => place(slot, monday, zone))
-          .filter((slot) => slot.dayIndex >= 0 && slot.dayIndex <= 6);
+          .filter((slot) => slot.dayIndex >= 0 && slot.dayIndex < 7 * weeks);
         setLoad({ phase: 'ready', slots: placed });
       })
       .catch((caught: unknown) => {
@@ -161,7 +193,7 @@ export function useWeekSchedule(offset: number) {
     return () => {
       live = false;
     };
-  }, [client, monday, zone, attempt]);
+  }, [client, monday, weeks, zone, attempt]);
 
   const progressOf = useCallback(
     (slot: ScheduleSlot): number => progress[slot.entryId] ?? slot.progress,
@@ -175,4 +207,12 @@ export function useWeekSchedule(offset: number) {
   }, []);
 
   return { load, monday, zone, progressOf, setEntryProgress, retry };
+}
+
+/** The week that is `offset` weeks from this one (Home's strip uses offset 0). */
+export function useWeekSchedule(offset: number) {
+  const { profile } = useAuth();
+  const zone = safeZone(profile?.timeZone);
+  const monday = useMemo(() => mondayOf(new Date(), zone, offset), [zone, offset]);
+  return useSchedule(monday, 1);
 }

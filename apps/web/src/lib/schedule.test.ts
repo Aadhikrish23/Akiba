@@ -1,6 +1,17 @@
 import type { ScheduleSlot } from '@akiba/shared';
 import { describe, expect, it } from 'vitest';
-import { clock, mondayOf, place, safeZone, startOfDay, stateOf } from './schedule';
+import {
+  addMonths,
+  clock,
+  daysBetween,
+  monthGrid,
+  mondayOf,
+  mondayOfDate,
+  place,
+  safeZone,
+  startOfDay,
+  stateOf,
+} from './schedule';
 import { stockFor } from './stock';
 
 const slotAt = (airsAt: string, extra: Partial<ScheduleSlot> = {}): ScheduleSlot => ({
@@ -111,6 +122,53 @@ describe('the week', () => {
     expect(safeZone('Mars/Olympus')).toBe('UTC');
     expect(safeZone('Asia/Tokyo')).toBe('Asia/Tokyo');
     expect(safeZone(undefined)).toBe('UTC');
+  });
+});
+
+describe('calendar months', () => {
+  it('finds the Monday of any date', () => {
+    expect(mondayOfDate({ y: 2026, m: 11, d: 25 })).toEqual({ y: 2026, m: 11, d: 23 });
+    expect(mondayOfDate({ y: 2026, m: 11, d: 29 })).toEqual({ y: 2026, m: 11, d: 23 }); // a Sunday
+    expect(mondayOfDate({ y: 2026, m: 11, d: 23 })).toEqual({ y: 2026, m: 11, d: 23 });
+    expect(mondayOfDate({ y: 2027, m: 1, d: 1 })).toEqual({ y: 2026, m: 12, d: 28 });
+  });
+
+  it('lays a month out in whole weeks from the Monday on or before the 1st', () => {
+    // November 2026 starts on a Sunday and has 30 days: six weeks.
+    expect(monthGrid({ y: 2026, m: 11, d: 14 })).toEqual({
+      start: { y: 2026, m: 10, d: 26 },
+      weeks: 6,
+    });
+    // February 2027 starts on a Monday and has 28 days: exactly four weeks.
+    expect(monthGrid({ y: 2027, m: 2, d: 1 })).toEqual({
+      start: { y: 2027, m: 2, d: 1 },
+      weeks: 4,
+    });
+    // March 2027 starts on a Monday and has 31 days: five weeks.
+    expect(monthGrid({ y: 2027, m: 3, d: 9 })).toEqual({
+      start: { y: 2027, m: 3, d: 1 },
+      weeks: 5,
+    });
+    // A leap February.
+    expect(monthGrid({ y: 2028, m: 2, d: 1 })).toEqual({
+      start: { y: 2028, m: 1, d: 31 },
+      weeks: 5,
+    });
+  });
+
+  it('never needs more than six weeks', () => {
+    for (let m = 1; m <= 12; m += 1) {
+      const { weeks } = monthGrid({ y: 2026, m, d: 1 });
+      expect(weeks).toBeGreaterThanOrEqual(4);
+      expect(weeks).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('moves by months across a year, and counts days between dates', () => {
+    expect(addMonths({ y: 2026, m: 11, d: 24 }, 2)).toEqual({ y: 2027, m: 1, d: 1 });
+    expect(addMonths({ y: 2026, m: 1, d: 31 }, -1)).toEqual({ y: 2025, m: 12, d: 1 });
+    expect(daysBetween({ y: 2026, m: 11, d: 23 }, { y: 2026, m: 12, d: 7 })).toBe(14);
+    expect(daysBetween({ y: 2026, m: 12, d: 7 }, { y: 2026, m: 11, d: 23 })).toBe(-14);
   });
 });
 

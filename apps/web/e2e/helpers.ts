@@ -85,3 +85,11 @@ export function runJob(name: 'airing-sync' | 'inbox-fanout'): string {
     },
   });
 }
+
+/** The episode count reads "3 / 25": the 3 is an input you can type in, the rest is text. */
+export async function expectCount(page: Page, text: string): Promise<void> {
+  const [value, total] = text.split(' / ');
+  const count = page.getByTestId('episode-count');
+  await expect(count.getByRole('textbox')).toHaveValue(value!);
+  await expect(count).toHaveText(`/ ${total}`);
+}

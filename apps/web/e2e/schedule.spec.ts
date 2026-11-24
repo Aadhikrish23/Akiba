@@ -149,8 +149,7 @@ test('an aired episode waits on your week, +1 stamps it, and Home shows the same
 test('the week is in the account time zone, and 1-6 am is written past 24', async ({ page }) => {
   const email = await watchingAnAiredEpisode(page, 'schedule-zone');
   await page.goto('/settings');
-  await page.getByLabel('Time zone').fill('Asia/Tokyo');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByLabel('Time zone').selectOption('Asia/Tokyo');
   await expect(page.getByText('Saved.')).toBeVisible();
 
   // What the page must say, worked out here from the server's own air time.
@@ -179,7 +178,9 @@ test('the week is in the account time zone, and 1-6 am is written past 24', asyn
   await expect(slotGroup(page, `${day} ${clock}, aired, not yet watched`).first()).toBeVisible();
 });
 
-test('steps to next week and back, and says so when nothing airs', async ({ page }) => {
+test('steps through weeks without a limit and back, and says so when nothing airs', async ({
+  page,
+}) => {
   await signedIn(page, 'schedule-empty');
   await page.goto('/schedule');
   await expect(page.getByRole('heading', { level: 1, name: 'Your week, on air.' })).toBeVisible();
@@ -190,12 +191,69 @@ test('steps to next week and back, and says so when nothing airs', async ({ page
   const thisWeek = await range.textContent();
   await page.getByRole('button', { name: 'Next week' }).click();
   await expect(range).not.toHaveText(thisWeek!);
-  await expect(page.getByRole('button', { name: 'Next week' })).toBeDisabled();
+  for (let i = 0; i < 8; i += 1) await page.getByRole('button', { name: 'Next week' }).click();
+  await expect(page.getByRole('button', { name: 'Next week' })).toBeEnabled();
   await page.getByRole('button', { name: 'This week' }).click();
   await expect(range).toHaveText(thisWeek!);
 
   await page.getByRole('link', { name: 'Find something to watch' }).click();
   await expect(page).toHaveURL(/\/discover/);
+});
+
+test('the month view: a calendar of the month, a day panel, +1, stepping and jumping', async ({
+  page,
+}) => {
+  const email = await watchingAnAiredEpisode(page, 'schedule-month');
+  await page.goto('/schedule');
+  await page.getByRole('radio', { name: 'month' }).check();
+  await expect(page.getByRole('table', { name: /episodes airing from your list/ })).toBeVisible();
+  const label = page.getByText(/^[A-Z][a-z]+ \d{4}$/);
+  const thisMonth = await label.textContent();
+
+  // The episode aired an hour ago. The broadcast day turns over at 6 am, so work out its day from
+  // the server's own time and pick that day in the grid: the panel lists it, ready for a stamp.
+  const { airsAt } = await airedSlot(email);
+  const day = new Date(Date.parse(airsAt) - 6 * 3_600_000);
+  const weekday = day
+    .toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' })
+    .toUpperCase();
+  const monthName = day.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+  await page
+    .getByRole('button', { name: new RegExp(`^${weekday} ${day.getUTCDate()} ${monthName},`) })
+    .click();
+  const panel = page.getByRole('complementary');
+  const waiting = panel.getByRole('group', {
+    name: new RegExp(
+      `^${SHOW}, episode ${nextEpisode}, [A-Z]{3} \\d+:\\d{2}, aired, not yet watched$`,
+    ),
+  });
+  await expect(waiting).toBeVisible();
+  await waiting.getByRole('button', { name: `+1 episode of ${SHOW}` }).click();
+  await expect(
+    panel.getByRole('group', { name: new RegExp(`episode ${nextEpisode}, .*, watched$`) }),
+  ).toBeVisible();
+
+  // The choice of view is remembered across a reload.
+  await page.reload();
+  await expect(page.getByRole('table', { name: /episodes airing from your list/ })).toBeVisible();
+
+  // Step by month, jump to any month and year, and come back.
+  await expect(label).toHaveText(thisMonth!);
+  await page.getByRole('button', { name: 'Next month' }).click();
+  await expect(label).not.toHaveText(thisMonth!);
+  await page
+    .getByRole('combobox', { name: 'Year' })
+    .selectOption(String(new Date().getFullYear() + 2));
+  await page.getByRole('combobox', { name: 'Month' }).selectOption('February');
+  await expect(label).toHaveText(`February ${new Date().getFullYear() + 2}`);
+  await page.getByRole('button', { name: 'This month' }).click();
+  await expect(label).toHaveText(thisMonth!);
+
+  // Keys: W switches to the week, M back to the month.
+  await page.keyboard.press('w');
+  await expect(page.getByRole('table', { name: /Weekly airing schedule/ })).toBeVisible();
+  await page.keyboard.press('m');
+  await expect(page.getByRole('table', { name: /episodes airing from your list/ })).toBeVisible();
 });
 
 for (const scheme of ['light', 'dark'] as const) {
@@ -235,5 +293,14 @@ for (const scheme of ['light', 'dark'] as const) {
     await expect(page.getByRole('button', { name: 'This week' })).toBeVisible();
     await expect(page.getByText('Loading your week…')).toHaveCount(0);
     await check('next week');
+
+    // The month: the calendar and its day panel, then the same on a phone.
+    await page.getByRole('radio', { name: 'month' }).check();
+    await expect(page.getByRole('table', { name: /episodes airing from your list/ })).toBeVisible();
+    await check('month');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.getByRole('table', { name: /episodes airing from your list/ })).toBeVisible();
+    await check('month on a phone');
+    await page.setViewportSize({ width: 1280, height: 720 });
   });
 }

@@ -245,6 +245,35 @@ describe('Discover: search (FR-DISC-001)', () => {
     expect(await screen.findByRole('list', { name: 'Search results' })).toBeTruthy();
   });
 
+  it('searches as you type: once typing pauses, with no Enter, and not for every letter', async () => {
+    const app = renderApp({ route: '/discover', handler: catalog });
+    await screen.findByRole('list', { name: 'Titles' });
+    await app.user.type(screen.getByLabelText('Search by name'), 'naruto');
+    expect(await screen.findByRole('heading', { name: 'Results for “naruto”' })).toBeTruthy();
+    expect(await screen.findByRole('list', { name: 'Search results' })).toBeTruthy();
+    expect(app.to('/titles/search').map((call) => query(call).get('q'))).toEqual(['naruto']);
+  });
+
+  it('does not take away a space you just typed, so a second word can follow', async () => {
+    const app = renderApp({ route: '/discover', handler: catalog });
+    await screen.findByRole('list', { name: 'Titles' });
+    const box = screen.getByLabelText<HTMLInputElement>('Search by name');
+    await app.user.type(box, 'my hero ');
+    await screen.findByRole('heading', { name: 'Results for “my hero”' });
+    expect(box.value).toBe('my hero ');
+    await app.user.type(box, 'academia');
+    await screen.findByRole('heading', { name: 'Results for “my hero academia”' });
+    expect(box.value).toBe('my hero academia');
+  });
+
+  it('emptying the box returns to browsing', async () => {
+    const app = renderApp({ route: '/discover?q=attack', handler: catalog });
+    await screen.findByRole('list', { name: 'Search results' });
+    await app.user.clear(screen.getByLabelText('Search by name'));
+    expect(await screen.findByRole('heading', { name: 'Browse' })).toBeTruthy();
+    expect(await screen.findByRole('list', { name: 'Titles' })).toBeTruthy();
+  });
+
   it('turns off the filters search cannot use, and says why', async () => {
     renderApp({ route: '/discover?q=attack', handler: catalog });
     await screen.findByRole('list', { name: 'Search results' });

@@ -145,8 +145,7 @@ test('the airing time is shown in the reader’s own time zone (Settings → Tim
 }) => {
   await account(page, 'inbox-zone');
   await page.goto('/settings');
-  await page.getByLabel('Time zone').fill('Asia/Tokyo');
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByLabel('Time zone').selectOption('Asia/Tokyo');
   await expect(page.getByText('Saved.')).toBeVisible();
   await watchTheShow(page);
   runJob('airing-sync');

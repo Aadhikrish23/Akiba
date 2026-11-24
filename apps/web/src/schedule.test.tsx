@@ -72,6 +72,11 @@ const serving = (slots: unknown[], onProgress?: (call: Call) => Response) =>
 
 describe('Schedule', () => {
   beforeEach(() => {
+    try {
+      localStorage.clear();
+    } catch {
+      // no storage: the default view is the week
+    }
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(NOW));
   });
@@ -141,23 +146,154 @@ describe('Schedule', () => {
     expect(screen.getByRole('link', { name: 'Find something to watch' })).toBeTruthy();
   });
 
-  it('steps to the next week and back', async () => {
+  const fromOf = (call: Call | undefined) =>
+    new URLSearchParams(call?.search).get('from')?.slice(0, 10);
+  const lastFrom = (app: { to: (suffix: string) => Call[] }) =>
+    fromOf(app.to('/library/schedule').at(-1));
+
+  it('steps through weeks without a limit, and back to this one', async () => {
     const app = renderApp({ route: '/schedule', handler: serving([]) });
     await screen.findByRole('button', { name: 'Next week' });
     await waitFor(() => {
-      expect(app.to('/library/schedule').length).toBeGreaterThan(0);
+      expect(lastFrom(app)).toBe('2026-11-23');
     });
-    const first = app.to('/library/schedule').length;
-    await app.user.click(screen.getByRole('button', { name: 'Next week' }));
+    for (let i = 0; i < 10; i += 1) {
+      await app.user.click(screen.getByRole('button', { name: 'Next week' }));
+    }
+    // Ten weeks on is the week of 1 February: nothing stops you, and nothing is greyed out.
     await waitFor(() => {
-      expect(app.to('/library/schedule')).toHaveLength(first + 1);
+      expect(lastFrom(app)).toBe('2027-02-01');
     });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Next week' }).disabled).toBe(
-      true,
+      false,
     );
+    expect(screen.getByText('Feb 1 – 7, 2027')).toBeTruthy();
+    for (let i = 0; i < 3; i += 1) {
+      await app.user.click(screen.getByRole('button', { name: 'Previous week' }));
+    }
+    await waitFor(() => {
+      expect(lastFrom(app)).toBe('2027-01-11');
+    });
     await app.user.click(screen.getByRole('button', { name: 'This week' }));
     await waitFor(() => {
-      expect(app.to('/library/schedule')).toHaveLength(first + 2);
+      expect(lastFrom(app)).toBe('2026-11-23');
+    });
+  });
+
+  describe('the month view', () => {
+    const toMonth = async (app: ReturnType<typeof renderApp>) => {
+      await app.user.click(await screen.findByRole('radio', { name: 'month' }));
+    };
+
+    it('asks for the six-week grid in one request, and remembers the choice', async () => {
+      const app = renderApp({ route: '/schedule', handler: serving([slot()]) });
+      await toMonth(app);
+      expect(
+        await screen.findByRole('table', { name: /November 2026: episodes airing/ }),
+      ).toBeTruthy();
+      const calls = app.to('/library/schedule');
+      const query = new URLSearchParams(calls.at(-1)?.search);
+      // November 2026 starts on a Sunday: the grid runs Mon 26 Oct to Sun 6 Dec, plus the small hours.
+      expect(query.get('from')?.slice(0, 10)).toBe('2026-10-26');
+      expect(Date.parse(query.get('to') ?? '') - Date.parse(query.get('from') ?? '')).toBe(
+        (42 * 24 + 6) * 3_600_000,
+      );
+      expect(localStorage.getItem('akiba.schedule.mode')).toBe('month');
+    });
+
+    it('opens in the month when that is what was chosen last time', async () => {
+      localStorage.setItem('akiba.schedule.mode', 'month');
+      renderApp({ route: '/schedule', handler: serving([slot()]) });
+      expect(
+        await screen.findByRole('table', { name: /November 2026: episodes airing/ }),
+      ).toBeTruthy();
+    });
+
+    it('shows the chosen day beside the grid, and +1 works from there', async () => {
+      const app = renderApp({
+        route: '/schedule',
+        handler: serving([slot()], () => json(200, { data: detail(8), suggestComplete: false })),
+      });
+      await toMonth(app);
+      // Today is selected: the panel lists what airs, the grid cell says what is in it.
+      const panel = await screen.findByRole('complementary');
+      expect(within(panel).getByRole('heading', { name: 'WED 25 Nov' })).toBeTruthy();
+      expect(
+        screen.getByRole('button', { name: 'WED 25 November, 1 episode, waiting for a stamp' }),
+      ).toBeTruthy();
+      await app.user.click(within(panel).getByRole('button', { name: '+1 episode of Show 1' }));
+      await waitFor(() => {
+        expect(app.to('/progress')).toHaveLength(1);
+      });
+      expect(within(panel).getAllByRole('group', { name: /episode 8, .*watched$/ })).toHaveLength(
+        1,
+      );
+    });
+
+    it('picking another day shows that day, and an empty one says so', async () => {
+      const app = renderApp({ route: '/schedule', handler: serving([slot()]) });
+      await toMonth(app);
+      await app.user.click(
+        await screen.findByRole('button', { name: 'FRI 27 November, nothing airing' }),
+      );
+      const panel = screen.getByRole('complementary');
+      expect(within(panel).getByRole('heading', { name: 'FRI 27 Nov' })).toBeTruthy();
+      expect(within(panel).getByText('Nothing from your list airs on this day.')).toBeTruthy();
+      expect(within(panel).getByText(/In 2 days/)).toBeTruthy();
+    });
+
+    it('picking a day of the neighbouring month opens that month on that day', async () => {
+      const app = renderApp({ route: '/schedule', handler: serving([]) });
+      await toMonth(app);
+      await app.user.click(
+        await screen.findByRole('button', { name: 'MON 26 October, nothing airing' }),
+      );
+      expect(await screen.findByText('October 2026')).toBeTruthy();
+      const panel = await screen.findByRole('complementary');
+      expect(within(panel).getByRole('heading', { name: 'MON 26 Oct' })).toBeTruthy();
+    });
+
+    it('steps by month and jumps to any month and year', async () => {
+      const app = renderApp({ route: '/schedule', handler: serving([]) });
+      await toMonth(app);
+      await app.user.click(await screen.findByRole('button', { name: 'Next month' }));
+      expect(await screen.findByText('December 2026')).toBeTruthy();
+      await waitFor(() => {
+        // December 2026 starts on a Tuesday: the grid begins on Monday 30 November.
+        expect(lastFrom(app)).toBe('2026-11-30');
+      });
+
+      await app.user.selectOptions(screen.getByRole('combobox', { name: 'Year' }), '2028');
+      await app.user.selectOptions(screen.getByRole('combobox', { name: 'Month' }), 'February');
+      expect(await screen.findByText('February 2028')).toBeTruthy();
+      await waitFor(() => {
+        expect(lastFrom(app)).toBe('2028-01-31');
+      });
+
+      await app.user.click(screen.getByRole('button', { name: 'This month' }));
+      expect(await screen.findByText('November 2026')).toBeTruthy();
+    });
+
+    it('keys step and switch views when no field has focus', async () => {
+      const app = renderApp({ route: '/schedule', handler: serving([]) });
+      await screen.findByRole('button', { name: 'Next week' });
+      await app.user.keyboard('{ArrowRight}');
+      await waitFor(() => {
+        expect(lastFrom(app)).toBe('2026-11-30');
+      });
+      await app.user.keyboard('m');
+      expect(await screen.findByRole('table', { name: /December 2026/ })).toBeTruthy();
+      await app.user.keyboard('t');
+      expect(await screen.findByRole('table', { name: /November 2026/ })).toBeTruthy();
+      await app.user.keyboard('w');
+      expect(await screen.findByRole('button', { name: 'Next week' })).toBeTruthy();
+    });
+
+    it('has no axe violations (WCAG 2.2 AA)', async () => {
+      const app = renderApp({ route: '/schedule', handler: serving([slot()]) });
+      await toMonth(app);
+      await screen.findByRole('table', { name: /November 2026: episodes airing/ });
+      expect(await violations(app.container)).toEqual([]);
     });
   });
 
