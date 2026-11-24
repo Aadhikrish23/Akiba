@@ -26,6 +26,7 @@ const slotAt = (airsAt: string, extra: Partial<ScheduleSlot> = {}): ScheduleSlot
     coverColor: null,
     franchise: null,
     crunchyrollUrl: null,
+    streamingLinks: [],
     format: 'TV',
     status: 'releasing',
     episodesTotal: 12,

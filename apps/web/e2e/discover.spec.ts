@@ -240,7 +240,12 @@ test('seasons of one show are one tile; its page lists them, adds them and sends
   const episodes = page.getByRole('list', { name: 'Episodes of My Hero Academia' });
   await expect(episodes.getByRole('listitem')).toHaveCount(13);
   const watch = episodes.getByRole('link', { name: /^Watch/ }).first();
-  await expect(watch).toHaveAttribute('href', /crunchyroll\.com/);
+  await expect(watch).toHaveAttribute('href', 'https://www.crunchyroll.com/my-hero-academia');
+  // The season row lists the services that stream it.
+  await expect(page.getByRole('link', { name: /^Netflix/ }).first()).toHaveAttribute(
+    'href',
+    /netflix\.com/,
+  );
   await expect(watch).toHaveAttribute('target', '_blank');
 
   // Mark where I am: everything up to episode 3 counts as watched.

@@ -44,6 +44,7 @@ export function titleColumns(title: SourceTitle, now: Date): Prisma.TitleUncheck
     sourceUpdatedAt: title.sourceUpdatedAt,
     // Only when the source says (the fallback source does not): never blank a link we have.
     ...(title.crunchyrollUrl === undefined ? {} : { crunchyrollUrl: title.crunchyrollUrl }),
+    ...(title.streamingLinks === undefined ? {} : { streamingLinks: [...title.streamingLinks] }),
     fetchedAt: now,
     stale: false,
   };

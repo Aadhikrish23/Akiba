@@ -40,6 +40,15 @@ function heroSeasons() {
     description: null,
     coverImage: { extraLarge: null, large: null, color: '#e4a128' },
     bannerImage: null,
+    externalLinks: [
+      { site: 'Official Site', url: 'https://example.test/hero', type: 'INFO' },
+      {
+        site: 'Crunchyroll',
+        url: 'http://www.crunchyroll.com/my-hero-academia',
+        type: 'STREAMING',
+      },
+      { site: 'Netflix', url: 'https://www.netflix.com/title/80000000', type: 'STREAMING' },
+    ],
     format,
     status: 'FINISHED',
     episodes: format === 'TV' ? 13 : 1,
@@ -125,6 +134,20 @@ const server = createServer((request, response) => {
 
     const { query = '', variables = {} } = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     if (query.includes('query MediaDetail')) {
+      const hero = heroSeasons().find((season) => season.id === variables.id);
+      if (hero !== undefined) {
+        return send(response, 200, {
+          data: {
+            Media: {
+              ...hero,
+              studios: { edges: [] },
+              nextAiringEpisode: null,
+              streamingEpisodes: [],
+              characters: { edges: [] },
+            },
+          },
+        });
+      }
       return answer(response, variables.id === 16498 ? fixtures.detail : fixtures.notFound);
     }
     if (query.includes('query Airing')) {

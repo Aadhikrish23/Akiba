@@ -257,6 +257,8 @@ model Title {
   crunchyrollUrl String? @map("crunchyroll_url")
   /// Episode number to Crunchyroll watch URL, as far as AniList lists them (often partial). {"1": "https://..."}
   crunchyrollEpisodes Json? @map("crunchyroll_episodes")
+  /// Every streaming service AniList lists for the show: [{"site": "Netflix", "url": "https://..."}].
+  streamingLinks Json? @map("streaming_links")
   bannerUrl       String?                  @map("banner_url")
   /// The source's own format label, kept verbatim; `kind` is the normalised value.
   format          String?

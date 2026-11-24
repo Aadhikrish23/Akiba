@@ -225,6 +225,7 @@ export function normalizeMedia(media: Media): SourceTitle {
     coverColor: hexColour(media.coverImage?.color),
     bannerUrl: httpUrl(media.bannerImage),
     crunchyrollUrl: crunchyrollSeries(media),
+    streamingLinks: streamingLinks(media),
     format: cleanString(media.format),
     status: STATUS_BY_SOURCE[media.status ?? ''] ?? 'not_yet_released',
     episodesTotal: intOrNull(media.episodes),
@@ -249,6 +250,23 @@ const secure = (url: string | null | undefined): string | null => {
   const checked = httpUrl(url);
   return checked === null ? null : checked.replace(/^http:/i, 'https:');
 };
+
+/** The services that stream the show (not its official site or social pages), Crunchyroll first. */
+function streamingLinks(media: Media): { site: string; url: string }[] {
+  const seen = new Set<string>();
+  const links: { site: string; url: string }[] = [];
+  for (const item of media.externalLinks ?? []) {
+    const site = item.site?.trim();
+    const url = secure(item.url);
+    if (item.type !== 'STREAMING' || !site || url === null) continue;
+    // One link per service (Crunchyroll lists its dubbed version separately).
+    if (seen.has(site)) continue;
+    seen.add(site);
+    links.push({ site, url });
+  }
+  links.sort((a, b) => Number(b.site === 'Crunchyroll') - Number(a.site === 'Crunchyroll'));
+  return links.slice(0, 8);
+}
 
 function crunchyrollSeries(media: Media): string | null {
   const link = (media.externalLinks ?? []).find(

@@ -20,6 +20,7 @@ const card = (n: number, extra: Record<string, unknown> = {}) => ({
   coverUrl: null,
   coverColor: null,
   crunchyrollUrl: null,
+  streamingLinks: [],
   franchise: null,
   format: n === 4 ? 'MOVIE' : 'TV',
   status: 'finished',
@@ -172,6 +173,54 @@ describe('The franchise page: a show you have not added', () => {
   });
 });
 
+describe('The franchise page: where to watch', () => {
+  it('lists the services that stream each season, each opening in a new tab', async () => {
+    renderApp({
+      route: `/franchise/${FRANCHISE}`,
+      handler: server([
+        card(1, {
+          streamingLinks: [
+            { site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' },
+            { site: 'Netflix', url: 'https://www.netflix.com/title/1' },
+          ],
+        }),
+        card(2),
+        card(3),
+        card(4),
+      ]),
+    });
+    const first = (await screen.findAllByRole('article'))[0]!;
+    const links = within(first).getAllByRole('link', { name: /opens in a new tab/ });
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      'https://www.crunchyroll.com/the-show',
+      'https://www.netflix.com/title/1',
+    ]);
+    expect(links.every((link) => link.getAttribute('target') === '_blank')).toBe(true);
+    expect(first.textContent).toMatch(/Watch on\s*Crunchyroll.*Netflix/);
+  });
+
+  it('fetches the services of a season stored before they were kept, when the page opens', async () => {
+    const app = renderApp({
+      route: `/franchise/${FRANCHISE}`,
+      handler: server(fresh(), (call) =>
+        call.path.endsWith(`/titles/${id(1)}`)
+          ? detailOf(1, {
+              streamingLinks: [{ site: 'Netflix', url: 'https://www.netflix.com/title/1' }],
+            })
+          : undefined,
+      ),
+    });
+    expect(await screen.findByRole('link', { name: /Netflix/ })).toBeTruthy();
+    expect(app.to(`/titles/${id(1)}`).length).toBeGreaterThan(0);
+  });
+
+  it('says nothing about where to watch a season no service lists', async () => {
+    renderApp({ route: `/franchise/${FRANCHISE}`, handler: server(fresh()) });
+    await screen.findByRole('heading', { level: 1, name: 'Season 1' });
+    expect(screen.queryByText(/Watch on/)).toBeNull();
+  });
+});
+
 describe('The franchise page: episodes and Crunchyroll', () => {
   const opening = async (
     n: number,
@@ -190,7 +239,10 @@ describe('The franchise page: episodes and Crunchyroll', () => {
   };
 
   it('opens a season to its episodes, each with a Watch link that opens in a new tab', async () => {
-    await opening(1, fresh(), () => detailOf(1));
+    const crunchyroll = { site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' };
+    await opening(1, [card(1, { streamingLinks: [crunchyroll] }), card(2), card(3), card(4)], () =>
+      detailOf(1, { streamingLinks: [crunchyroll] }),
+    );
     const list = await screen.findByRole('list', { name: 'Episodes of Season 1' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(5);
     const watch = within(list).getAllByRole('link', { name: /^Watch/ });
@@ -201,18 +253,20 @@ describe('The franchise page: episodes and Crunchyroll', () => {
     }
   });
 
-  it('links an episode to its own page when AniList lists it, else the show on Crunchyroll, else a search', async () => {
+  it('links an episode to its own Crunchyroll page when AniList lists it, else to the show there', async () => {
     await opening(
       2,
       [
         card(1),
-        card(2, { crunchyrollUrl: 'https://www.crunchyroll.com/the-show' }),
+        card(2, {
+          streamingLinks: [{ site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' }],
+        }),
         card(3),
         card(4),
       ],
       () =>
         detailOf(2, {
-          crunchyrollUrl: 'https://www.crunchyroll.com/the-show',
+          streamingLinks: [{ site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' }],
           crunchyrollEpisodes: { '2': 'https://www.crunchyroll.com/watch/GEP2/two' },
         }),
     );
@@ -225,12 +279,24 @@ describe('The franchise page: episodes and Crunchyroll', () => {
     expect(href(3)).toBe('https://www.crunchyroll.com/the-show');
   });
 
-  it('falls back to a Crunchyroll search when the show has no page of its own', async () => {
-    await opening(1, fresh(), () => detailOf(1));
+  it('never guesses with a search: a show not on Crunchyroll has no episode links', async () => {
+    await opening(
+      1,
+      [
+        card(1, { streamingLinks: [{ site: 'Netflix', url: 'https://www.netflix.com/title/1' }] }),
+        card(2),
+        card(3),
+        card(4),
+      ],
+      () =>
+        detailOf(1, {
+          streamingLinks: [{ site: 'Netflix', url: 'https://www.netflix.com/title/1' }],
+        }),
+    );
     const list = await screen.findByRole('list', { name: 'Episodes of Season 1' });
-    const link = within(list).getAllByRole('link', { name: /^Watch/ })[0]!;
-    expect(link.getAttribute('href')).toBe('https://www.crunchyroll.com/search?q=Season%201');
-    expect(link.textContent).toMatch(/the show.s page/);
+    expect(within(list).getAllByRole('listitem')).toHaveLength(5);
+    expect(within(list).queryByRole('link')).toBeNull();
+    expect(document.body.innerHTML).not.toContain('crunchyroll.com/search');
   });
 
   it('marks where you are: everything up to the episode counts as watched', async () => {

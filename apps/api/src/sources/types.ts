@@ -42,6 +42,8 @@ export interface SourceTitle {
   readonly relations?: readonly SourceRelation[];
   /** The Crunchyroll series page, when the source lists one (undefined: the source does not say). */
   readonly crunchyrollUrl?: string | null;
+  /** Every streaming service the source lists for the show (undefined: the source does not say). */
+  readonly streamingLinks?: readonly { readonly site: string; readonly url: string }[];
   readonly source: SourceName;
   readonly externalIds: ExternalIds;
   readonly kind: TitleKind;

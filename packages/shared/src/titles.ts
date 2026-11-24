@@ -64,6 +64,8 @@ export const titleCardSchema = z.object({
   coverColor: z.string().nullable().default(null),
   /** The show's Crunchyroll series page, when AniList lists one. */
   crunchyrollUrl: z.string().nullable().default(null),
+  /** Every streaming service AniList lists for the show, Crunchyroll first. */
+  streamingLinks: z.array(z.object({ site: z.string(), url: z.string() })).default([]),
   format: z.string().nullable(),
   status: titleStatusSchema,
   episodesTotal: z.number().int().nullable(),

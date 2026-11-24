@@ -14,6 +14,7 @@ export const cardSelect = (userId: string) =>
     coverUrl: true,
     coverColor: true,
     crunchyrollUrl: true,
+    streamingLinks: true,
     format: true,
     status: true,
     episodesTotal: true,
@@ -42,6 +43,18 @@ export const cardSelect = (userId: string) =>
 
 type CardRow = Prisma.TitleGetPayload<{ select: ReturnType<typeof cardSelect> }>;
 
+/** The stored [{site, url}] as the API's list, ignoring anything that is not a link. */
+function serviceLinks(value: unknown): { site: string; url: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item: unknown) => {
+    if (typeof item !== 'object' || item === null) return [];
+    const { site, url } = item as { site?: unknown; url?: unknown };
+    return typeof site === 'string' && typeof url === 'string' && url.startsWith('https://')
+      ? [{ site, url }]
+      : [];
+  });
+}
+
 /** A franchise of one title is no franchise: only two or more are shown as a group. */
 function franchiseOf(row: CardRow['franchise']): TitleCard['franchise'] {
   if (row === null || row._count.titles < 2) return null;
@@ -66,6 +79,7 @@ export function toCard(row: CardRow): TitleCard {
     coverUrl: row.coverUrl,
     coverColor: row.coverColor,
     crunchyrollUrl: row.crunchyrollUrl,
+    streamingLinks: serviceLinks(row.streamingLinks),
     format: row.format,
     status: row.status,
     episodesTotal: row.episodesTotal,

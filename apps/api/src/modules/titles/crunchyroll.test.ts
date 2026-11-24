@@ -116,6 +116,7 @@ describe('Crunchyroll links', () => {
       id: string;
       titleRomaji: string;
       crunchyrollUrl: string | null;
+      streamingLinks: { site: string; url: string }[];
     }>;
 
   it('puts the Crunchyroll series page on a card, as https, and nothing for a show without one', async () => {
@@ -124,6 +125,15 @@ describe('Crunchyroll links', () => {
       'https://www.crunchyroll.com/one-piece',
     );
     expect(cards.find((card) => card.titleRomaji === 'Unlisted Show')?.crunchyrollUrl).toBeNull();
+  });
+
+  it('lists every service that streams the show, Crunchyroll first, and leaves out its official site', async () => {
+    const cards = await search();
+    expect(cards.find((card) => card.titleRomaji === 'One Piece')?.streamingLinks).toEqual([
+      { site: 'Crunchyroll', url: 'https://www.crunchyroll.com/one-piece' },
+      { site: 'Hulu', url: 'https://www.hulu.com/one-piece' },
+    ]);
+    expect(cards.find((card) => card.titleRomaji === 'Unlisted Show')?.streamingLinks).toEqual([]);
   });
 
   it('keeps the episode pages AniList lists, by number, only Crunchyroll ones that are episodes', async () => {
