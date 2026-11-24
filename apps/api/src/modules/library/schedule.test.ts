@@ -131,6 +131,55 @@ describe('library schedule API', () => {
     expect(later.body.data.map((slot: Slot) => slot.episode)).toEqual([11]);
   });
 
+  it('serves a whole month grid in one request (six weeks)', async () => {
+    const show = await newTitle('Month', { episodes: null });
+    await add(show);
+    await airs(show, 8, WEEK_START + 1 * DAY + 13 * 3_600_000);
+    const response = await schedule(WEEK_START, WEEK_START + 42 * DAY + 6 * 3_600_000);
+    expect(response.status).toBe(200);
+    // The announced episode, then one a week for the next five weeks.
+    expect(response.body.data.map((slot: Slot) => slot.episode)).toEqual([8, 9, 10, 11, 12, 13]);
+  });
+
+  it('carries a weekly run forward to a window months away, with the right episode numbers', async () => {
+    const show = await newTitle('Far ahead', { episodes: null });
+    await add(show);
+    await airs(show, 8, WEEK_START + 1 * DAY + 13 * 3_600_000);
+    // Twenty weeks on: the Tuesday is 20 weeks after the announced one, so it is episode 28.
+    const from = WEEK_START + 20 * 7 * DAY;
+    const response = await schedule(from, from + 7 * DAY);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0]).toMatchObject({ episode: 28, projected: true });
+    expect(response.body.data[0].airsAt).toBe(
+      iso(WEEK_START + (20 * 7 + 1) * DAY + 13 * 3_600_000),
+    );
+  });
+
+  it('stops carrying a run forward after three years', async () => {
+    const show = await newTitle('Endless', { episodes: null });
+    await add(show);
+    await airs(show, 8, WEEK_START + 1 * DAY + 13 * 3_600_000);
+    const from = WEEK_START + 160 * 7 * DAY;
+    expect((await schedule(from, from + 7 * DAY)).body.data).toEqual([]);
+  });
+
+  it('shows the past from what the source recorded, and fills the weeks since the newest record', async () => {
+    const show = await newTitle('Recorded');
+    await add(show);
+    await airs(show, 4, WEEK_START - 20 * DAY);
+    await airs(show, 5, WEEK_START - 13 * DAY);
+    const response = await schedule(WEEK_START - 28 * DAY, WEEK_START);
+    expect(response.body.data.map((slot: Slot) => [slot.episode, slot.projected])).toEqual([
+      [4, false],
+      [5, false],
+      // The week after the newest record has passed too: carried forward, still marked as not announced.
+      [6, true],
+    ]);
+    // Nothing is invented before the first record.
+    const before = await schedule(WEEK_START - 42 * DAY, WEEK_START - 28 * DAY);
+    expect(before.body.data).toEqual([]);
+  });
+
   it('does not project a show that has finished or whose run went quiet', async () => {
     const finished = await newTitle('Finished', { status: 'finished' });
     const stale = await newTitle('Gone quiet');
@@ -154,7 +203,7 @@ describe('library schedule API', () => {
   it('refuses a missing, backwards or too long window, and anonymous callers', async () => {
     expect((await t.get('/library/schedule', auth)).status).toBe(422);
     expect((await schedule(WEEK_START + DAY, WEEK_START)).status).toBe(422);
-    expect((await schedule(WEEK_START, WEEK_START + 15 * DAY)).status).toBe(422);
+    expect((await schedule(WEEK_START, WEEK_START + 44 * DAY)).status).toBe(422);
     expect((await request(t.app).get('/v1/library/schedule')).status).toBe(401);
   });
 });

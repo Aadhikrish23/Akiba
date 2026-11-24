@@ -5,10 +5,8 @@ import { cardSelect, toCard } from '../titles/catalog.js';
 const DAY_MS = 86_400_000;
 /** How far back an airing row still counts as "this show is on a weekly run". */
 const RUN_FRESH_DAYS = 14;
-/** Rows older than this before the window are not read: only the newest one per title matters. */
-const LOOKBACK_DAYS = 28;
-/** A season is never longer than this many weekly episodes; stops a runaway projection. */
-const MAX_PROJECTED = 60;
+/** A weekly run is carried forward at most this many weeks (three years): stops a runaway projection. */
+const MAX_PROJECTED = 156;
 
 export interface ScheduleService {
   /**
@@ -43,18 +41,23 @@ export function createScheduleService(options: {
       });
       if (entries.length === 0) return [];
 
-      const rows = await db.airingEpisode.findMany({
-        where: {
-          titleId: { in: entries.map((entry) => entry.titleId) },
-          airsAt: { gte: new Date(from.getTime() - LOOKBACK_DAYS * DAY_MS) },
-        },
+      const titleIds = entries.map((entry) => entry.titleId);
+      // What the source has recorded inside the window, and the newest row per title, which is
+      // where a weekly run is carried forward from (wherever the window is, even years ahead).
+      const announced = await db.airingEpisode.findMany({
+        where: { titleId: { in: titleIds }, airsAt: { gte: from, lt: to } },
         select: { titleId: true, episodeNumber: true, airsAt: true },
         orderBy: { airsAt: 'asc' },
+      });
+      const newest = await db.airingEpisode.findMany({
+        where: { titleId: { in: titleIds } },
+        select: { titleId: true, episodeNumber: true, airsAt: true },
+        orderBy: { airsAt: 'desc' },
+        distinct: ['titleId'],
       });
 
       const slots: ScheduleSlot[] = [];
       for (const entry of entries) {
-        const mine = rows.filter((row) => row.titleId === entry.titleId);
         const total = entry.episodesTotalOverride ?? entry.title.episodesTotal;
         const push = (episode: number, airsAt: Date, projected: boolean) => {
           slots.push({
@@ -69,11 +72,11 @@ export function createScheduleService(options: {
           });
         };
 
-        for (const row of mine) {
-          if (row.airsAt >= from && row.airsAt < to) push(row.episodeNumber, row.airsAt, false);
+        for (const row of announced) {
+          if (row.titleId === entry.titleId) push(row.episodeNumber, row.airsAt, false);
         }
 
-        const latest = mine[mine.length - 1];
+        const latest = newest.find((row) => row.titleId === entry.titleId);
         const onWeeklyRun =
           latest !== undefined &&
           entry.title.status === 'releasing' &&

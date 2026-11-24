@@ -54,13 +54,13 @@ All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `
 | `GET /library/:entryId` | Entry with runs |
 | `PATCH /library/:entryId` | `{status?, rating?, review?, isFavorite?, alertsEnabled?, notes?}` |
 | `DELETE /library/:entryId` | Remove (tombstone: the entry and its events are kept) → 204 |
-| `POST /library/:entryId/progress` | `{ delta: 1 }` (or `-1`) or `{ set: 12 }` → `{ data: entry, suggestComplete }`. 422 `PROGRESS_EXCEEDS_TOTAL` (with `total`) past a known total; 409 `ENTRY_COMPLETED` on a completed entry; the first episode moves Planned to Watching |
+| `POST /library/:entryId/progress` | `{ delta: 1 }` (or `-1`) or `{ set: 12 }` → `{ data: entry, suggestComplete }`. 422 `PROGRESS_EXCEEDS_TOTAL` (with `total`) past a known total; 422 `PROGRESS_EXCEEDS_AIRED` (with `aired`) past what has aired when the total is unknown and the show's airing times are known (entries carry `episodesAired`); 409 `ENTRY_COMPLETED` on a completed entry; the first episode moves Planned to Watching |
 | `PUT /library/:entryId/episodes-total` | `{ total: 24 }` override · `DELETE` clears it. 422 `TOTAL_BELOW_PROGRESS` if it would drop below the episodes watched (refused, never clamped) |
 | `POST /library/:entryId/runs` | Start a rewatch (entry must be Completed, else 409 `NOT_COMPLETED`) → 201 with run N+1 open; earlier runs unchanged |
 | `GET /history?type=&titleId=&from=&to=&limit=&cursor=` | Event timeline, newest first (`type` may list several, comma separated; `from` inclusive, `to` exclusive; keyset cursor). Events have no write routes: they are append-only |
 | `GET /stats` | Aggregates (later) |
 | `GET /library/favorites` | Favorite entries |
-| `GET /library/schedule?from=&to=` | Episodes of your Watching and Planned titles airing in `[from, to)` (ISO UTC, at most 14 days): `{ entryId, title, entryStatus, episode, airsAt, projected, watched }`. `projected` marks a weekly slot carried forward from the latest announced episode, up to the last episode; the source has not announced it. 422 on a bad window |
+| `GET /library/schedule?from=&to=` | Episodes of your Watching and Planned titles airing in `[from, to)` (ISO UTC, at most 43 days: a month grid): `{ entryId, title, entryStatus, episode, airsAt, projected, watched }`. `projected` marks a weekly slot carried forward from the latest announced episode, up to the last episode (at most three years ahead); the source has not announced it. Past weeks show only episodes the source recorded. 422 on a bad window |
 
 ## 5. Inbox
 | Method & path | Purpose |

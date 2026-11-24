@@ -17,12 +17,20 @@ import {
   notCompleted,
   notFound,
   progressBelowZero,
+  progressExceedsAired,
   progressExceedsTotal,
   totalBelowProgress,
 } from '../../lib/errors.js';
 import { EventWriter } from './events.js';
 import { decodeOffset, encodeOffset } from './cursor.js';
-import { effectiveTotal, entrySelect, toDetail, toEntry, type EntryRow } from './view.js';
+import {
+  effectiveTotal,
+  entrySelect,
+  episodesAired,
+  toDetail,
+  toEntry,
+  type EntryRow,
+} from './view.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -497,6 +505,12 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
       if (to < 0) throw progressBelowZero();
       // FR-TRK-007: never past a known total; the user raises the count if the source is wrong.
       if (total !== null && to > total) throw progressExceedsTotal(total);
+      // A running show with no known total: not past what has aired, unless the count is already
+      // there (an old entry, or one added before the airing times were known).
+      if (total === null && to > from) {
+        const aired = episodesAired(entry.title, now());
+        if (aired !== null && to > aired) throw progressExceedsAired(aired);
+      }
       if (to === from) return total !== null && to === total;
 
       const at = now();

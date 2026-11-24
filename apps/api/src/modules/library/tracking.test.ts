@@ -187,6 +187,66 @@ describe('tracking and history (T16)', () => {
       expect(response.body.data.effectiveTotal).toBeNull();
     });
 
+    describe('a running show with no known total', () => {
+      /** A releasing show whose newest airing row is episode `episode`, `hoursFromNow` from now. */
+      const runningShow = async (episode: number, hoursFromNow: number) => {
+        const title = (
+          await sql().query<{ id: string }>(
+            `INSERT INTO title (kind, status, title_romaji, episodes_total, fetched_at, detail_fetched_at)
+             VALUES ('tv', 'releasing', 'Long runner', NULL, now(), now()) RETURNING id`,
+          )
+        ).rows[0]!.id;
+        await sql().query(
+          `INSERT INTO airing_episode (title_id, episode_number, airs_at, source)
+           VALUES ($1, $2, now() + make_interval(hours => $3::int), 'anilist')`,
+          [title, episode, hoursFromNow],
+        );
+        const response = await call('post', '/library', { titleId: title, status: 'watching' });
+        expect(response.status).toBe(201);
+        return response.body.data as { id: string };
+      };
+
+      it('reports how many episodes have aired: the next one is still to come', async () => {
+        const entry = await runningShow(1181, 24 * 3);
+        const got = await call('get', `/library/${entry.id}`);
+        expect(got.body.data).toMatchObject({ effectiveTotal: null, episodesAired: 1180 });
+      });
+
+      it('counts the newest episode once its time has passed', async () => {
+        const entry = await runningShow(1180, -2);
+        const got = await call('get', `/library/${entry.id}`);
+        expect(got.body.data.episodesAired).toBe(1180);
+      });
+
+      it('lets you catch up in one step, to the last aired episode and no further', async () => {
+        const entry = await runningShow(1181, 24 * 3);
+        const caughtUp = await progress(entry.id, { set: 1180 });
+        expect(caughtUp.status).toBe(200);
+        expect(caughtUp.body.data.progress).toBe(1180);
+
+        const ahead = await progress(entry.id, { set: 1181 });
+        expect(ahead.status).toBe(422);
+        expect(ahead.body).toMatchObject({ code: 'PROGRESS_EXCEEDS_AIRED', aired: 1180 });
+        expect((await progress(entry.id, { delta: 1 })).body.code).toBe('PROGRESS_EXCEEDS_AIRED');
+        expect(await scalar('SELECT progress FROM library_entry WHERE id = $1', [entry.id])).toBe(
+          1180,
+        );
+      });
+
+      it('never blocks going back, even when the count is already past what we think has aired', async () => {
+        const entry = await runningShow(21, 24 * 3);
+        await sql().query('UPDATE library_entry SET progress = 30 WHERE id = $1', [entry.id]);
+        expect((await progress(entry.id, { set: 25 })).status).toBe(200);
+        expect((await progress(entry.id, { set: 26 })).body.code).toBe('PROGRESS_EXCEEDS_AIRED');
+      });
+
+      it('knows nothing about a finished show or one with no airing times, so there is no ceiling', async () => {
+        const entry = await addEntry('watching', null);
+        const got = await call('get', `/library/${entry.id}`);
+        expect(got.body.data.episodesAired).toBeNull();
+      });
+    });
+
     it('a completed entry refuses progress with a pointer to rewatch', async () => {
       const entry = await addEntry('completed', 12);
       const response = await progress(entry.id, { delta: 1 });
