@@ -12,6 +12,7 @@ import { useAuth } from '../auth/AuthContext';
 import { Button, Field, Notice, Select } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { usePageTitle } from '../lib/page';
+import { KNOWN_SERVICES, readServices, saveServices } from '../lib/services';
 import { applyTheme, readTheme, type ThemeChoice } from '../lib/theme';
 import { ENTRY_LABEL } from '../lib/titles';
 
@@ -85,6 +86,7 @@ export function SettingsPage() {
       ) : (
         <>
           <ProfileSection />
+          <WatchSection />
           <ThemeSection />
           <ExportSection />
           <ShareSection />
@@ -211,6 +213,40 @@ function ProfileSection() {
           </span>
         </span>
       </label>
+    </Section>
+  );
+}
+
+/** The streaming services the reader has: a Watch button goes to the first of these that carries the show. */
+function WatchSection() {
+  const [mine, setMine] = useState<string[]>(readServices);
+  const toggle = (name: string, on: boolean) => {
+    const next = on ? [...mine, name] : mine.filter((item) => item !== name);
+    setMine(next);
+    saveServices(next);
+  };
+  return (
+    <Section id="watch-heading" title="Where I watch">
+      <fieldset className="grid gap-3">
+        <legend className="text-mute max-w-prose text-sm">
+          A Watch button goes to the services you pick here, the first one that carries the show.
+          Pick none and it offers every service that does. Kept on this device.
+        </legend>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          {KNOWN_SERVICES.map((name) => (
+            <label key={name} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={mine.includes(name)}
+                onChange={(event) => {
+                  toggle(name, event.target.checked);
+                }}
+              />
+              {name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
     </Section>
   );
 }

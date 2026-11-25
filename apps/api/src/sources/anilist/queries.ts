@@ -24,6 +24,7 @@ const MEDIA_CARD = `
   popularity
   isAdult
   genres
+  tags { name rank }
   updatedAt
 `;
 
@@ -33,6 +34,7 @@ const MEDIA_ARGUMENTS = `
   type: ANIME
   search: $search
   genre: $genre
+  tag: $tag
   season: $season
   seasonYear: $seasonYear
   format: $format
@@ -42,7 +44,7 @@ const MEDIA_ARGUMENTS = `
 `;
 
 const PAGE_VARIABLES = `
-  $page: Int, $perPage: Int, $search: String, $genre: String, $season: MediaSeason,
+  $page: Int, $perPage: Int, $search: String, $genre: String, $tag: String, $season: MediaSeason,
   $seasonYear: Int, $format: MediaFormat, $status: MediaStatus, $isAdult: Boolean,
   $sort: [MediaSort]
 `;

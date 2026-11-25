@@ -4,7 +4,9 @@ import { Link } from 'react-router';
 import { useEntryProgress } from '../lib/progress';
 import { stockFor } from '../lib/stock';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
-import { countCeiling, useCountEdit } from './EntryParts';
+import { EpisodeBrief } from './EpisodeBrief';
+import { useCountPicker } from './EpisodePicker';
+import { countCeiling } from './EntryParts';
 import { Button, Notice } from './ui';
 
 type TicketStyle = CSSProperties & { '--stock': string; '--p': number };
@@ -17,7 +19,7 @@ type TicketStyle = CSSProperties & { '--stock': string; '--p': number };
 export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 'sm' }) {
   const name = displayTitle(entry.title);
   const track = useEntryProgress(entry);
-  const edit = useCountEdit(track, name);
+  const edit = useCountPicker(track, name);
   const total = entry.effectiveTotal ?? entry.episodesAired;
   const fraction = total === null || total === 0 ? 0.5 : Math.min(1, track.progress / total);
   const [stamp, setStamp] = useState({ count: 0, at: '' });
@@ -36,7 +38,7 @@ export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 's
     ? `Next: episode ${next}`
     : track.status === 'completed'
       ? 'Completed'
-      : entry.effectiveTotal === null
+      : entry.effectiveTotal === null || track.caughtUp
         ? 'Caught up'
         : 'Last episode watched';
   const style: TicketStyle = { '--stock': stockFor(entry.title), '--p': fraction };
@@ -69,6 +71,9 @@ export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 's
               </p>
             )}
           </div>
+          {size === 'hero' && (
+            <EpisodeBrief entry={entry} progress={track.progress} canAdvance={track.canAdvance} />
+          )}
           <div className="grid gap-2">
             <p className="ticket__meta">{metaLine(entry.title)}</p>
             <div
@@ -119,9 +124,7 @@ export function Ticket({ entry, size }: { entry: LibraryEntry; size: 'hero' | 's
           </div>
         )}
       </div>
-      {(edit.problem ?? track.error) !== null && (
-        <Notice tone="error">{edit.problem ?? track.error}</Notice>
-      )}
+      {track.error !== null && <Notice tone="error">{track.error}</Notice>}
       {track.suggest && (
         <div role="status" className="flex flex-wrap items-center gap-3 text-sm">
           <span>That was the last episode. Mark completed?</span>

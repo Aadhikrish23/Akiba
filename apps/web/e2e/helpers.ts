@@ -86,12 +86,17 @@ export function runJob(name: 'airing-sync' | 'inbox-fanout'): string {
   });
 }
 
-/** The episode count reads "3 / 25": the 3 is an input you can type in, the rest is text. */
+/** The episode count reads "3 / 25": the 3 is a button that opens the episode picker. */
 export async function expectCount(page: Page, text: string): Promise<void> {
-  const [value, total] = text.split(' / ');
-  const count = page.getByTestId('episode-count');
-  await expect(count.getByRole('textbox')).toHaveValue(value!);
-  await expect(count).toHaveText(`/ ${total}`);
+  await expect(page.getByTestId('episode-count')).toHaveText(text);
+}
+
+/** Opens the episode picker from the count and returns it. */
+export async function openPicker(page: Page) {
+  await page.getByTestId('episode-count').getByRole('button').click();
+  const dialog = page.getByRole('dialog', { name: /up to episode/i });
+  await expect(dialog).toBeVisible();
+  return dialog;
 }
 
 /**

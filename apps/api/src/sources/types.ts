@@ -163,6 +163,13 @@ export interface TitleFilters {
   readonly includeAdult?: boolean;
 }
 
+/** What a source says about one episode. Either field may be missing. */
+export interface SourceEpisode {
+  readonly episode: number;
+  readonly name: string | null;
+  readonly synopsis: string | null;
+}
+
 export interface SourceAdapter {
   readonly name: SourceName;
   /** What this source can answer; the gateway only asks for what is listed. */
@@ -180,6 +187,8 @@ export interface SourceAdapter {
     to: Date,
   ): Promise<readonly SourceAiringEpisode[]>;
   getGenres(): Promise<readonly string[]>;
+  /** The name and synopsis of one episode; `null` when the source has none. Only some sources do. */
+  getEpisode?(externalId: string, episode: number): Promise<SourceEpisode | null>;
 }
 
 export type SourceErrorKind =

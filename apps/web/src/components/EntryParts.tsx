@@ -1,9 +1,10 @@
 import type { LibraryEntry } from '@akiba/shared';
-import { useRef, useState, type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { Link } from 'react-router';
 import { useEntryProgress } from '../lib/progress';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
 import { stockFor } from '../lib/stock';
+import { useCountPicker } from './EpisodePicker';
 import { Button, Notice } from './ui';
 
 /** A 4 px bar on a track that is visible on its own (doc 08 §6: the track has contrast). */
@@ -31,78 +32,18 @@ export function ProgressMeter({
   );
 }
 
-/** What follows the count: the total, else (a running show) how many have aired, else "?". */
+/**
+ * What follows the count: how many have aired while that is less than the total (a 12-episode
+ * season with 8 aired reads "/ 8"), else the total, else "?".
+ */
 export const countCeiling = (track: { total: number | null; aired: number | null }): string =>
-  String(track.total ?? track.aired ?? '?');
+  String(
+    track.aired !== null && (track.total === null || track.aired < track.total)
+      ? track.aired
+      : (track.total ?? '?'),
+  );
 
 type Tracked = ReturnType<typeof useEntryProgress>;
-
-/**
- * The episode count as a field you can click and type in: click the number, type how far you are,
- * and click away or press Enter. Escape puts the old number back. A number the show cannot have
- * (past the total, or past what has aired) is explained and not saved. The caller shows `problem`.
- */
-export function useCountEdit(
-  track: Tracked,
-  name: string,
-): { input: ReactElement; problem: string | null } {
-  const [draft, setDraft] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
-  const editable = track.status !== 'completed';
-  // Escape blurs the field too, and that blur must not save what was typed.
-  const cancelled = useRef(false);
-
-  const finish = () => {
-    if (cancelled.current) {
-      cancelled.current = false;
-      return;
-    }
-    if (draft === null) return;
-    const text = draft;
-    setDraft(null);
-    if (text === '') {
-      setProblem(null);
-      return;
-    }
-    const issue = track.check(Number(text));
-    setProblem(issue);
-    if (issue === null) void track.setTo(Number(text));
-  };
-
-  const input = (
-    <input
-      type="text"
-      inputMode="numeric"
-      autoComplete="off"
-      className="count-input"
-      aria-label={`Episodes watched of ${name}`}
-      aria-invalid={problem !== null}
-      title={editable ? 'Click to change how many episodes you have watched' : undefined}
-      readOnly={!editable}
-      value={draft ?? String(track.progress)}
-      size={Math.max(1, (draft ?? String(track.progress)).length)}
-      onFocus={(event) => {
-        event.currentTarget.select();
-      }}
-      onChange={(event) => {
-        const digits = event.target.value.replace(/D/g, '').slice(0, 6);
-        setDraft(digits);
-        setProblem(digits === '' ? null : track.check(Number(digits)));
-      }}
-      onBlur={finish}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') event.currentTarget.blur();
-        if (event.key === 'Escape') {
-          cancelled.current = true;
-          setDraft(null);
-          setProblem(null);
-          event.currentTarget.blur();
-        }
-      }}
-    />
-  );
-  return { input, problem };
-}
 
 /** `16 / 28` in the display face, tabular figures (doc 08 §8); the first number is editable. */
 export function EpisodeCount({ track, input }: { track: Tracked; input: ReactElement }) {
@@ -136,7 +77,7 @@ function Cover({ entry, size }: { entry: LibraryEntry; size: string }) {
  */
 export function PlusOne({ entry, name }: { entry: LibraryEntry; name: string }) {
   const track = useEntryProgress(entry);
-  const edit = useCountEdit(track, name);
+  const edit = useCountPicker(track, name);
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-3">
@@ -156,9 +97,7 @@ export function PlusOne({ entry, name }: { entry: LibraryEntry; name: string }) 
         total={entry.effectiveTotal ?? entry.episodesAired}
         label={`Progress in ${name}`}
       />
-      {(edit.problem ?? track.error) !== null && (
-        <Notice tone="error">{edit.problem ?? track.error}</Notice>
-      )}
+      {track.error !== null && <Notice tone="error">{track.error}</Notice>}
       {track.suggest && (
         <div
           role="status"

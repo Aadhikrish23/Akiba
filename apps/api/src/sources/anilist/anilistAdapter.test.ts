@@ -7,7 +7,7 @@ import {
   jsonResponse,
 } from '../../testing/sources.js';
 import { SourceError } from '../types.js';
-import { createAniListAdapter } from './anilistAdapter.js';
+import { createAniListAdapter, englishFromSynonyms } from './anilistAdapter.js';
 
 function adapterFor(net: FakeNet, extra: Parameters<typeof createAniListAdapter>[0] = {}) {
   const time = new ManualTime();
@@ -356,5 +356,27 @@ describe('AniList adapter: failures (NFR-REL-001)', () => {
     const before = net.requests.length;
     await expect(adapter.getGenres()).rejects.toMatchObject({ kind: 'circuit_open' });
     expect(net.requests).toHaveLength(before);
+  });
+
+  describe('englishFromSynonyms', () => {
+    it('takes the English synonym when AniList has no English title', () => {
+      expect(
+        englishFromSynonyms('Kusuriya no Hitorigoto 3rd Season Part 2', [
+          '薬屋のひとりごと',
+          'The Apothecary Diaries Season 3 Part 2',
+          'The Apothecary Diaries Season 3 Cour 2',
+        ]),
+      ).toBe('The Apothecary Diaries Season 3 Part 2');
+    });
+
+    it('leaves a romaji synonym alone, and never repeats the romaji', () => {
+      expect(
+        englishFromSynonyms('Hotaru no Yomeiri: Choitashi', [
+          'Hotaru no Yomeiri Mini Anime',
+          'ホタルの嫁入り',
+          'Hotaru no Yomeiri: Choitashi',
+        ]),
+      ).toBeNull();
+    });
   });
 });

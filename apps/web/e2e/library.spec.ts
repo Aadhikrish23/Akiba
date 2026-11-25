@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { expectCount, openResult, setAniList, showResult, signedIn } from './helpers';
+import { expectCount, openPicker, openResult, setAniList, showResult, signedIn } from './helpers';
 
 /**
  * T18 journeys 1–3 of doc 11 §4, in real Chrome against the built app, the built API, a real
@@ -59,7 +59,7 @@ test('journey 1: search, add to Watching, +1 three times, rate, see it kept', as
   await expectCount(page, '4 / 25');
 });
 
-test('catching up: click the count, type the episode you are on, and it is saved', async ({
+test('catching up: press the count, pick or type the episode you are on, and it is saved', async ({
   page,
 }) => {
   await signedIn(page, 'lib-catchup');
@@ -67,29 +67,34 @@ test('catching up: click the count, type the episode you are on, and it is saved
   await addAs(page, 'watching');
   await expectCount(page, '0 / 25');
 
-  const field = page.getByRole('textbox', { name: /^Episodes watched of / });
-  await field.fill('18');
-  await field.press('Enter');
+  // Type it and press Enter.
+  let picker = await openPicker(page);
+  await picker.getByRole('textbox').fill('18');
+  await picker.getByRole('textbox').press('Enter');
   await expectCount(page, '18 / 25');
   await page.reload();
   await expectCount(page, '18 / 25');
 
-  // Past the total: explained, not saved, and the number goes back.
-  await field.fill('26');
-  await expect(page.getByRole('alert')).toHaveText('This show has 25 episodes.');
-  await field.press('Tab');
+  // Past the total: explained, not saved, and the picker stays open.
+  picker = await openPicker(page);
+  await picker.getByRole('textbox').fill('26');
+  await picker.getByRole('textbox').press('Enter');
+  await expect(picker.getByRole('alert')).toHaveText('This show has 25 episodes.');
+  // Escape closes it without asking the server.
+  await page.keyboard.press('Escape');
+  await expect(picker).toBeHidden();
   await expectCount(page, '18 / 25');
   await page.reload();
   await expectCount(page, '18 / 25');
 
-  // Escape puts the old number back without asking the server.
-  await field.fill('5');
-  await field.press('Escape');
-  await expectCount(page, '18 / 25');
+  // Or pick the episode from the grid.
+  picker = await openPicker(page);
+  await picker.getByRole('button', { name: 'Episode 5' }).click();
+  await expectCount(page, '5 / 25');
 
-  // Typing the total ends the show: the page offers to mark it completed.
-  await field.fill('25');
-  await field.press('Enter');
+  // Picking the last episode ends the show: the page offers to mark it completed.
+  picker = await openPicker(page);
+  await picker.getByRole('button', { name: 'Episode 25' }).click();
   await expect(page.getByText('That was the last episode. Mark completed?')).toBeVisible();
 });
 

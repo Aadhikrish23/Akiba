@@ -505,9 +505,10 @@ export function createLibraryService(options: LibraryServiceOptions): LibrarySer
       if (to < 0) throw progressBelowZero();
       // FR-TRK-007: never past a known total; the user raises the count if the source is wrong.
       if (total !== null && to > total) throw progressExceedsTotal(total);
-      // A running show with no known total: not past what has aired, unless the count is already
-      // there (an old entry, or one added before the airing times were known).
-      if (total === null && to > from) {
+      // A running show: not past what has aired, whether or not its total is known (a 20-episode
+      // season with 8 aired stops at 8), unless the count is already there (an old entry, or one
+      // added before the airing times were known).
+      if (to > from) {
         const aired = episodesAired(entry.title, now());
         if (aired !== null && to > aired) throw progressExceedsAired(aired);
       }

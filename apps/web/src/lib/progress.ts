@@ -35,12 +35,15 @@ export function useEntryProgress(
     setStatus(entry.status);
   }, [entry.progress, entry.status]);
 
-  // The ceiling: the known total, else (for a running show) what has aired so far.
+  // The ceiling: what has aired so far (a running show), never past the known total. A season of 20
+  // with 8 aired stops at 8.
   const total = entry.effectiveTotal;
-  const aired = total === null ? (entry.episodesAired ?? null) : null;
-  const limit = total ?? aired;
+  const aired = entry.episodesAired ?? null;
+  const limit = total !== null && aired !== null ? Math.min(total, aired) : (total ?? aired);
   const atEnd = limit !== null && progress >= limit;
   const canAdvance = status !== 'completed' && !atEnd;
+  /** Up to date with what has aired, with episodes still to come (as opposed to the last episode). */
+  const caughtUp = aired !== null && progress >= aired && (total === null || progress < total);
 
   // Taps can come faster than the server answers (a held Enter key, a double tap). Each one counts
   // at once; only the newest answer may set the number, so replies arriving out of order cannot
@@ -65,7 +68,9 @@ export function useEntryProgress(
       setError(
         caught instanceof ApiError && caught.code === 'PROGRESS_EXCEEDS_TOTAL'
           ? 'That is past the last episode.'
-          : describeError(caught).message,
+          : caught instanceof ApiError && caught.code === 'PROGRESS_EXCEEDS_AIRED'
+            ? 'The next episode has not aired yet.'
+            : describeError(caught).message,
       );
     }
   }, [canAdvance, status, client, entry.id, onChange]);
@@ -152,8 +157,10 @@ export function useEntryProgress(
     error,
     suggest,
     canAdvance,
+    caughtUp,
     total,
     aired,
+    limit,
     check,
     setTo,
     plusOne,

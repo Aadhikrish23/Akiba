@@ -1,18 +1,14 @@
-import {
-  ENTRY_STATUSES,
-  mainLineOf,
-  type EntryStatus,
-  type FranchiseTitle,
-  type TitleDetail,
-} from '@akiba/shared';
+import { ENTRY_STATUSES, mainLineOf, type EntryStatus, type FranchiseTitle } from '@akiba/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { franchiseSummary } from '../lib/franchise';
+import { WatchChoice } from '../components/WatchChoice';
 import { usePageTitle } from '../lib/page';
 import { useRemote } from '../lib/remote';
+import { readServices, watchChoices } from '../lib/services';
 import { stockFor } from '../lib/stock';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
 
@@ -28,22 +24,6 @@ interface Mine {
 interface Service {
   readonly site: string;
   readonly url: string;
-}
-
-/**
- * Where to watch one episode: its own Crunchyroll page when AniList lists it for this season, else the
- * show's Crunchyroll page. Never a search: with no Crunchyroll page there is no episode link at all
- * (the services that do list the show are shown on the season).
- */
-function episodeLink(
-  services: readonly Service[],
-  detail: Pick<TitleDetail, 'crunchyrollEpisodes'> | null,
-  episode: number,
-): { href: string; exact: boolean } | null {
-  const own = detail?.crunchyrollEpisodes[String(episode)];
-  if (own !== undefined) return { href: own, exact: true };
-  const crunchyroll = services.find((service) => service.site === 'Crunchyroll');
-  return crunchyroll === undefined ? null : { href: crunchyroll.url, exact: false };
 }
 
 /** "Watch on Crunchyroll · Hulu · Netflix": the services that list the show, each opening in a new tab. */
@@ -70,37 +50,6 @@ function Services({ services }: { services: readonly Service[] }) {
   );
 }
 
-function WatchLink({
-  href,
-  exact,
-  label,
-  className = '',
-}: {
-  href: string;
-  exact: boolean;
-  label: string;
-  className?: string;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      title={exact ? 'Opens this episode on Crunchyroll' : 'Opens the show on Crunchyroll'}
-      className={`border-rule hover:border-ink inline-flex min-h-9 items-center gap-1.5 rounded-full border-[1.5px] px-3 text-sm font-bold whitespace-nowrap ${className}`}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-current">
-        <path d="M8 5v14l11-7z" />
-      </svg>
-      {label}
-      <span className="sr-only">
-        {' '}
-        on Crunchyroll{exact ? '' : ' (the show’s page)'}, opens in a new tab
-      </span>
-    </a>
-  );
-}
-
 const stateWords = (mine: Mine | undefined): { text: string; tone: string } => {
   if (mine === undefined) return { text: 'Not added', tone: 'border-rule text-mute' };
   if (mine.status === 'completed') return { text: 'Completed ✓', tone: 'border-ink text-ink' };
@@ -116,12 +65,14 @@ const stateWords = (mine: Mine | undefined): { text: string; tone: string } => {
 function Episodes({
   title,
   services,
+  myServices,
   mine,
   onSet,
   busy,
 }: {
   title: FranchiseTitle;
   services: readonly Service[];
+  myServices: readonly string[];
   mine: Mine | undefined;
   onSet: (episode: number) => void;
   busy: boolean;
@@ -145,6 +96,7 @@ function Episodes({
     return <p className="text-mute">No episodes have aired yet.</p>;
   }
   const watched = mine?.progress ?? 0;
+  const aired = title.episodesAired;
   return (
     <div className="grid gap-3">
       {state.phase === 'error' && (
@@ -162,12 +114,16 @@ function Episodes({
         className="m-0 grid list-none gap-x-6 gap-y-1 p-0 min-[760px]:grid-cols-2"
       >
         {Array.from({ length: count }, (_, index) => index + 1).map((episode) => {
-          const link = episodeLink(
+          const choices = watchChoices(
             detail?.streamingLinks.length ? detail.streamingLinks : services,
-            detail,
+            myServices,
+            detail?.crunchyrollEpisodes ?? {},
             episode,
           );
           const seen = episode <= watched;
+          // A running season lists every episode it will have, but only the aired ones can be logged
+          // or watched.
+          const unaired = aired !== null && episode > aired && episode > watched;
           return (
             <li
               key={episode}
@@ -178,12 +134,18 @@ function Episodes({
                 Ep {episode}
               </span>
               <span
-                className={`text-sm ${seen ? 'text-ink font-bold' : episode === watched + 1 && mine !== undefined ? 'text-accent font-bold' : 'text-mute'}`}
+                className={`text-sm ${seen ? 'text-ink font-bold' : !unaired && episode === watched + 1 && mine !== undefined ? 'text-accent font-bold' : 'text-mute'}`}
               >
-                {seen ? 'Watched ✓' : episode === watched + 1 && mine !== undefined ? 'Next' : ''}
+                {seen
+                  ? 'Watched ✓'
+                  : unaired
+                    ? 'Not aired yet'
+                    : episode === watched + 1 && mine !== undefined
+                      ? 'Next'
+                      : ''}
               </span>
               <span className="ml-auto flex items-center gap-2">
-                {mine !== undefined && (
+                {!unaired && mine !== undefined && (
                   <button
                     type="button"
                     disabled={busy}
@@ -201,7 +163,7 @@ function Episodes({
                     {episode === watched ? 'Undo' : 'Up to here'}
                   </button>
                 )}
-                {link !== null && <WatchLink href={link.href} exact={link.exact} label="Watch" />}
+                {!unaired && <WatchChoice choices={choices} />}
               </span>
             </li>
           );
@@ -226,6 +188,7 @@ export function FranchisePage() {
   const [open, setOpen] = useState<string | null>(null);
   const [addAs, setAddAs] = useState<EntryStatus>('planned');
   const [busy, setBusy] = useState(false);
+  const [myServices] = useState(readServices);
   const [problem, setProblem] = useState<string | null>(null);
 
   const franchise = state.phase === 'ready' ? state.value.data : null;
@@ -343,7 +306,8 @@ export function FranchisePage() {
     return (
       entry !== undefined &&
       entry.status !== 'completed' &&
-      (entry.total === null || entry.progress < entry.total)
+      (entry.total === null || entry.progress < entry.total) &&
+      (title.episodesAired === null || entry.progress < title.episodesAired)
     );
   });
   const currentMine = current === undefined ? undefined : mine[current.id];
@@ -501,14 +465,17 @@ export function FranchisePage() {
               <h2 className="font-display text-3xl leading-none font-black uppercase min-[700px]:text-4xl">
                 Episode {currentMine.progress + 1} is next
               </h2>
-              {(() => {
-                const link = episodeLink(servicesOf(current), null, currentMine.progress + 1);
-                return link === null ? null : (
-                  <p>
-                    <WatchLink {...link} label="Watch it" className="!border-[var(--stub-ink)]" />
-                  </p>
-                );
-              })()}
+              <div>
+                <WatchChoice
+                  choices={watchChoices(
+                    servicesOf(current),
+                    myServices,
+                    {},
+                    currentMine.progress + 1,
+                  )}
+                  className="!border-[var(--stub-ink)]"
+                />
+              </div>
             </div>
             <div className="grid min-w-[110px] place-items-center gap-2 border-l-[2.5px] border-dashed border-[color-mix(in_oklab,var(--stub-ink)_40%,transparent)] p-3">
               <p className="font-display text-5xl leading-none font-black">
@@ -543,6 +510,7 @@ export function FranchisePage() {
             key={title.id}
             title={title}
             services={servicesOf(title)}
+            myServices={myServices}
             season={index + 1}
             mine={mine[title.id]}
             open={open === title.id}
@@ -573,6 +541,7 @@ export function FranchisePage() {
               key={title.id}
               title={title}
               services={servicesOf(title)}
+              myServices={myServices}
               season={null}
               mine={mine[title.id]}
               open={open === title.id}
@@ -598,6 +567,7 @@ export function FranchisePage() {
 function TitleBlock({
   title,
   services,
+  myServices,
   season,
   mine,
   open,
@@ -609,6 +579,7 @@ function TitleBlock({
 }: {
   title: FranchiseTitle;
   services: readonly Service[];
+  myServices: readonly string[];
   season: number | null;
   mine: Mine | undefined;
   open: boolean;
@@ -716,7 +687,14 @@ function TitleBlock({
         className="border-rule bg-raised/50 rounded-b-xl border-[1.5px] border-t-0 p-4"
       >
         {open && (
-          <Episodes title={title} services={services} mine={mine} busy={busy} onSet={onSet} />
+          <Episodes
+            title={title}
+            services={services}
+            myServices={myServices}
+            mine={mine}
+            busy={busy}
+            onSet={onSet}
+          />
         )}
       </div>
     </article>

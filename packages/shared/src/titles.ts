@@ -121,6 +121,16 @@ export const titleDetailSchema = titleCardSchema.extend({
 });
 export type TitleDetail = z.infer<typeof titleDetailSchema>;
 
+/** The name and synopsis of one episode, as far as a source has them (both may be null). */
+export const episodeInfoSchema = z.object({
+  episode: z.number().int().min(1),
+  name: z.string().nullable(),
+  synopsis: z.string().nullable(),
+});
+export type EpisodeInfo = z.infer<typeof episodeInfoSchema>;
+export const episodeInfoResponseSchema = z.object({ data: episodeInfoSchema });
+export type EpisodeInfoResponse = z.infer<typeof episodeInfoResponseSchema>;
+
 export const titleListResponseSchema = z.object({
   data: z.array(titleCardSchema),
   nextCursor: z.string().nullable(),

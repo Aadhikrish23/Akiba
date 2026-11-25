@@ -240,6 +240,22 @@ describe('tracking and history (T16)', () => {
         expect((await progress(entry.id, { set: 26 })).body.code).toBe('PROGRESS_EXCEEDS_AIRED');
       });
 
+      it('stops at what has aired even when the season has a known total', async () => {
+        const entry = await runningShow(9, 24 * 3);
+        await sql().query(
+          `UPDATE title SET episodes_total = 20 WHERE id = (SELECT title_id FROM library_entry WHERE id = $1)`,
+          [entry.id],
+        );
+        const got = await call('get', `/library/${entry.id}`);
+        expect(got.body.data).toMatchObject({ effectiveTotal: 20, episodesAired: 8 });
+        expect((await progress(entry.id, { set: 15 })).body).toMatchObject({
+          code: 'PROGRESS_EXCEEDS_AIRED',
+          aired: 8,
+        });
+        expect((await progress(entry.id, { set: 8 })).status).toBe(200);
+        expect((await progress(entry.id, { delta: 1 })).body.code).toBe('PROGRESS_EXCEEDS_AIRED');
+      });
+
       it('knows nothing about a finished show or one with no airing times, so there is no ceiling', async () => {
         const entry = await addEntry('watching', null);
         const got = await call('get', `/library/${entry.id}`);

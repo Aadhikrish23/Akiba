@@ -294,6 +294,7 @@ model Title {
   genres           TitleGenre[]
   characters       TitleCharacter[]
   airingEpisodes   AiringEpisode[]
+  episodeInfo      EpisodeInfo[]
   mappingOverrides MappingOverride[]
   libraryEntries   LibraryEntry[]
   events           Event[]
@@ -442,6 +443,20 @@ model TitleCharacter {
   @@id([titleId, characterId])
   @@index([characterId])
   @@map("title_character")
+}
+
+/// The name and synopsis of one episode, from Jikan, fetched the first time somebody asks for it.
+model EpisodeInfo {
+  titleId       String   @map("title_id") @db.Uuid
+  episodeNumber Int      @map("episode_number")
+  name          String?
+  synopsis      String?
+  fetchedAt     DateTime @map("fetched_at") @db.Timestamptz(3)
+
+  title Title @relation(fields: [titleId], references: [id], onDelete: Cascade)
+
+  @@id([titleId, episodeNumber])
+  @@map("episode_info")
 }
 
 model AiringEpisode {

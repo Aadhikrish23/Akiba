@@ -32,6 +32,8 @@ erDiagram
 **one_time_token**: `id`, `user_id`, `purpose` (`verify_email|reset_password`), `token_hash`, `sent_to` (the address the link was emailed to), `expires_at`, `used_at`.
 
 ### Catalog (shared, user-independent)
+**episode_info**: `title_id`, `episode_number` (the key), `name`, `synopsis`, `fetched_at`. The name and synopsis of one episode, from Jikan, filled the first time an episode is asked for (see `GET /titles/:titleId/episodes/:episode`).
+
 **title** (the Akiba ID): `id`, `kind` (`tv|movie|ova|ona|special|tv_short|music`), `title_romaji`, `title_english`, `title_native`, `synonyms[]`, `synopsis`, `cover_url`, `banner_url`, `format`, `status` (`finished|releasing|not_yet_released|cancelled|hiatus`), `episodes_total` (source), `duration_min`, `season`, `season_year`, `start_date`, `end_date`, `average_score`, `popularity`, `is_adult`, `franchise_id`, `crunchyroll_url` (the show's Crunchyroll page), `crunchyroll_episodes` (jsonb: episode number to watch URL, as far as AniList lists them), `source_updated_at`, `fetched_at`, `stale`.
 **title_external_id**: `id`, `title_id`, `source` (`anilist|mal|kitsu`), `external_id`; unique (`source`,`external_id`).
 **title_relation**: `from_title_id`, `to_title_id`, `relation_type` (`prequel|sequel|side_story|spin_off|parent_story|alternative|adaptation|summary|other`); PK of the three.

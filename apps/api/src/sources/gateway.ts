@@ -5,6 +5,7 @@ import {
   type PageRequest,
   type SourceAdapter,
   type SourceAiringEpisode,
+  type SourceEpisode,
   type SourceName,
   type SourcePage,
   type SourceRelation,
@@ -151,6 +152,16 @@ export class SourceGateway {
       'getAiring',
       (adapter) => adapter.getAiring(externalIds, from, to),
       (adapter) => adapter.capabilities.airing,
+    );
+  }
+
+  /** One episode's name and synopsis, from the sources that publish them (Jikan). */
+  getEpisode(ids: ExternalIds, episode: number): Promise<Sourced<SourceEpisode | null>> {
+    return this.#read(
+      'getEpisode',
+      (adapter) =>
+        adapter.getEpisode?.(idFor(adapter, ids) ?? '', episode) ?? Promise.resolve(null),
+      (adapter) => adapter.getEpisode !== undefined && idFor(adapter, ids) !== undefined,
     );
   }
 

@@ -180,6 +180,7 @@
   }
   .ticket__jp,
   .ticket__note,
+  .ticket__brief,
   .ticket__serial,
   .ticket__bars {
     display: none;
@@ -235,35 +236,181 @@
     font-variation-settings: 'wght' calc(300 + 600 * var(--p));
     transition: font-variation-settings 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  /* The episode count is a field that looks like the number it holds: click it and type. */
-  .count-input {
+  /* The episode count is a button that looks like the number it holds: a dotted underline and a
+     pencil say "press to change it". It opens the episode picker. */
+  .count-trigger {
     font: inherit;
     font-variation-settings: inherit;
     letter-spacing: inherit;
     color: inherit;
     background: transparent;
     border: 0;
-    border-radius: 4px;
+    border-radius: 6px;
     margin: 0;
-    padding: 0;
-    min-width: 1ch;
-    max-width: 7ch;
-    field-sizing: content;
-    cursor: text;
-    text-align: inherit;
-  }
-  .count-input:hover:not(:read-only) {
+    padding: 0 0.06em 0.04em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.12em;
     text-decoration: underline dotted;
-    text-underline-offset: 0.12em;
+    text-decoration-thickness: 0.06em;
+    text-underline-offset: 0.1em;
   }
-  .count-input:focus-visible {
+  .count-trigger:hover {
+    background: color-mix(in oklch, currentColor 12%, transparent);
+  }
+  .count-trigger:focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 4px;
-    text-decoration: none;
   }
-  .count-input[aria-invalid='true'] {
-    text-decoration: underline wavy var(--color-danger);
-    text-underline-offset: 0.12em;
+  .count-trigger__icon {
+    width: 0.34em;
+    height: 0.34em;
+    margin-top: 0.08em;
+    min-width: 12px;
+    min-height: 12px;
+    opacity: 0.8;
+  }
+
+  /* The episode picker: a dialog over the page, with every episode of the season as a button. */
+  .picker-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: color-mix(in oklch, black 62%, transparent);
+  }
+  .picker {
+    width: min(420px, 100%);
+    max-height: calc(100dvh - 32px);
+    overflow-y: auto;
+    display: grid;
+    gap: 12px;
+    padding: 20px;
+    border: 1.5px solid var(--accent);
+    border-radius: 16px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 0.9375rem;
+    font-variation-settings: normal;
+    letter-spacing: 0;
+    text-align: left;
+    box-shadow: 0 24px 60px -12px oklch(0% 0 0 / 0.7);
+  }
+  .picker__title {
+    margin: 0;
+    font: 800 1.5rem/1 var(--display);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .picker__name {
+    margin: -6px 0 0;
+    color: var(--mute);
+    font-size: 0.875rem;
+  }
+  .picker__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .picker__ep {
+    width: 100%;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 1.5px dashed var(--rule);
+    background: transparent;
+    color: var(--ink);
+    font: 700 0.9375rem var(--sans);
+    cursor: pointer;
+  }
+  .picker__ep:hover:not(:disabled) {
+    border-color: var(--ink);
+  }
+  .picker__ep[data-state='seen'] {
+    border: 1.5px solid transparent;
+    background: var(--raised-2);
+  }
+  .picker__ep[data-state='now'] {
+    border: 2px solid var(--accent);
+    color: var(--ink);
+  }
+  .picker__ep[data-state='locked'] {
+    cursor: not-allowed;
+    border-style: solid;
+    border-color: transparent;
+    color: var(--mute);
+    background: repeating-linear-gradient(135deg, var(--raised-2) 0 6px, transparent 6px 12px);
+  }
+  .picker__legend {
+    margin: 0;
+    color: var(--mute);
+    font-size: 0.8125rem;
+  }
+  .picker__form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .picker__form label {
+    color: var(--mute);
+    font-size: 0.875rem;
+  }
+  .picker__form input {
+    width: 5.5rem;
+    height: 44px;
+    border-radius: 10px;
+    border: 1.5px solid var(--rule);
+    background: var(--raised);
+    color: var(--ink);
+    font: 700 1.125rem var(--sans);
+    text-align: center;
+  }
+  .picker__form input[aria-invalid='true'] {
+    border-color: var(--color-danger);
+  }
+  .picker__go,
+  .picker__latest,
+  .picker__close {
+    height: 44px;
+    border-radius: 999px;
+    padding: 0 18px;
+    font: 700 0.875rem var(--sans);
+    cursor: pointer;
+  }
+  .picker__go {
+    border: 0;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .picker__latest,
+  .picker__close {
+    border: 1.5px solid var(--rule);
+    background: transparent;
+    color: var(--ink);
+  }
+  .picker__latest:hover,
+  .picker__close:hover {
+    border-color: var(--ink);
+  }
+  .picker__close {
+    justify-self: end;
+  }
+  .picker__problem {
+    margin: 0;
+    color: var(--ink);
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-left: 3px solid var(--color-danger);
+    padding-left: 10px;
   }
   .ticket__num[data-pad='true']::before {
     content: '0';
@@ -453,6 +600,7 @@
     }
     .ticket--hero .ticket__jp,
     .ticket--hero .ticket__note,
+    .ticket--hero .ticket__brief,
     .ticket--hero .ticket__serial,
     .ticket--hero .ticket__bars {
       display: block;
@@ -471,6 +619,69 @@
       background: oklch(98% 0.02 90 / 0.55);
       font: 1.125rem/1.35 var(--hand);
       transform: rotate(-1.2deg);
+    }
+    /* "Previously / Up next / My note": the text of the big ticket. */
+    .ticket__brief {
+      max-width: 44ch;
+    }
+    .brief__tabs {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      padding: 3px;
+      border-radius: 999px;
+      background: color-mix(in oklch, var(--stub-ink) 14%, transparent);
+    }
+    .brief__tabs button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 5px 12px;
+      min-height: 28px;
+      background: transparent;
+      color: var(--stub-ink);
+      font: 700 0.78rem var(--sans);
+      cursor: pointer;
+    }
+    .brief__tabs button[aria-pressed='true'] {
+      background: var(--stub-ink);
+      color: var(--ticket-mint);
+    }
+    .brief__body {
+      margin-top: 8px;
+      min-height: 4.6rem;
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+    .brief__body p {
+      margin: 0;
+    }
+    .brief__name {
+      margin-bottom: 3px !important;
+      font: 800 0.8rem var(--sans);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .brief__synopsis {
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .brief__reveal {
+      margin-top: 6px;
+      appearance: none;
+      cursor: pointer;
+      min-height: 28px;
+      border: 1.5px solid color-mix(in oklch, var(--stub-ink) 55%, transparent);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--stub-ink);
+      padding: 2px 12px;
+      font: 700 0.78rem var(--sans);
+    }
+    .brief__reveal:hover {
+      background: color-mix(in oklch, var(--stub-ink) 12%, transparent);
     }
     .ticket__serial {
       font: 500 0.6875rem/1 var(--sans);

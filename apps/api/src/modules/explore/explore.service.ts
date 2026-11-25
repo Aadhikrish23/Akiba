@@ -8,6 +8,7 @@ import type {
 } from '@akiba/shared';
 import type { DbClient } from '../../db/index.js';
 import { invalidCursor, notFound } from '../../lib/errors.js';
+import { episodesAired } from '../library/view.js';
 import { cardSelect, toCard } from '../titles/catalog.js';
 import { decodeCursor, encodeCursor } from '../titles/cursor.js';
 import { toVoiceActors, voiceActorSelect } from './characters.js';
@@ -60,7 +61,15 @@ export function createExploreService(options: { readonly db: DbClient }): Explor
     if (found === null) throw notFound();
     const rows = await db.title.findMany({
       where: { franchiseId, ...visible(adult) },
-      select: { ...cardSelect(userId), startDate: true },
+      select: {
+        ...cardSelect(userId),
+        startDate: true,
+        airingEpisodes: {
+          orderBy: { episodeNumber: 'desc' },
+          take: 1,
+          select: { episodeNumber: true, airsAt: true },
+        },
+      },
       take: FRANCHISE_PAGE_MAX,
     });
     if (rows.length === 0) throw notFound();
@@ -85,6 +94,7 @@ export function createExploreService(options: { readonly db: DbClient }): Explor
       return {
         ...toCard(row),
         startDate: dateOnly(row.startDate),
+        episodesAired: episodesAired(row, new Date()),
         entry:
           entry === undefined
             ? null

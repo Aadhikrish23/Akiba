@@ -432,6 +432,34 @@ export function createJikanAdapter(options: JikanAdapterOptions = {}): SourceAda
       );
     },
 
+    async getEpisode(externalId, episode) {
+      const id = Number(externalId);
+      if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(episode) || episode <= 0) {
+        return null;
+      }
+      let json: unknown;
+      try {
+        json = await get(`/anime/${id}/episodes/${episode}`);
+      } catch (error) {
+        // Jikan has no such episode (or no episode list for the show): nothing to say, not a failure.
+        if (error instanceof SourceError && error.status === 404) return null;
+        throw error;
+      }
+      const { data } = parse(
+        z.object({
+          data: z.object({
+            title: z.string().nullish(),
+            synopsis: z.string().nullish(),
+          }),
+        }),
+        json,
+        'episode',
+      );
+      const name = cleanString(data.title);
+      const synopsis = plainText(data.synopsis);
+      return name === null && synopsis === null ? null : { episode, name, synopsis };
+    },
+
     async getGenres() {
       const json = await get('/genres/anime');
       return parse(z.object({ data: z.array(namedSchema) }), json, 'genres')

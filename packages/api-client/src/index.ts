@@ -12,6 +12,7 @@ import {
   resetPasswordResponseSchema,
   verifyEmailResponseSchema,
   genresResponseSchema,
+  episodeInfoResponseSchema,
   deleteAccountResponseSchema,
   historyResponseSchema,
   libraryCountsSchema,
@@ -89,6 +90,7 @@ import {
   type FranchiseResponse,
   type StudioResponse,
   type StudioTitlesQuery,
+  type EpisodeInfoResponse,
   type TitleCharactersResponse,
 } from '@akiba/shared';
 import { ApiError, ContractError, NetworkError, NotSignedInError } from './errors.js';
@@ -178,6 +180,8 @@ export interface TitlesApi {
   relations(titleId: string): Promise<RelationsResponse>;
   /** The main cast with voice actors (`GET /titles/:titleId/characters`). */
   characters(titleId: string): Promise<TitleCharactersResponse>;
+  /** The name and synopsis of one episode (`GET /titles/:titleId/episodes/:episode`). */
+  episode(titleId: string, episode: number): Promise<EpisodeInfoResponse>;
   genres(): Promise<string[]>;
 }
 
@@ -634,6 +638,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     async characters(titleId) {
       const path = `/titles/${id(titleId)}/characters`;
       return parse(titleCharactersResponseSchema, path, await get(path));
+    },
+    async episode(titleId, episode) {
+      const path = `/titles/${id(titleId)}/episodes/${String(Math.trunc(episode))}`;
+      return parse(episodeInfoResponseSchema, path, await get(path));
     },
     async genres() {
       return parse(genresResponseSchema, '/genres', await get('/genres')).data;

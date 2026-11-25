@@ -1,4 +1,4 @@
-import type { TitleCard, TitleDetail } from '@akiba/shared';
+import { EXPLICIT_GENRES, type TitleCard, type TitleDetail } from '@akiba/shared';
 import { Prisma, type DbClient, type DbTransaction } from '../../db/index.js';
 import { titleColumns } from '../../mapping/titleData.js';
 import type { SourceName, SourceTitle, SourceTitleDetail } from '../../sources/types.js';
@@ -392,6 +392,9 @@ export async function localSearchIds(
   const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
     SELECT id::text FROM title
     WHERE search @@ websearch_to_tsquery('simple', ${query})
+      AND NOT EXISTS (
+        SELECT 1 FROM title_genre tg JOIN genre g ON g.id = tg.genre_id
+          WHERE tg.title_id = title.id AND lower(g.name) = ANY(${EXPLICIT_GENRES.map((name) => name.toLowerCase())}::text[]))
       ${filters.includeAdult === true ? Prisma.empty : Prisma.sql`AND NOT is_adult`}
       ${filters.kind === undefined ? Prisma.empty : Prisma.sql`AND kind = ${filters.kind}::title_kind`}
     ORDER BY ts_rank(search, websearch_to_tsquery('simple', ${query})) DESC,
@@ -407,6 +410,10 @@ export async function localBrowseIds(
   limit: number,
 ): Promise<string[]> {
   const where: Prisma.TitleWhereInput = {
+    // Explicit titles are never listed, whatever the reader's adult setting.
+    NOT: {
+      genres: { some: { genre: { name: { in: [...EXPLICIT_GENRES], mode: 'insensitive' } } } },
+    },
     ...(filters.includeAdult === true ? {} : { isAdult: false }),
     ...(filters.kind === undefined ? {} : { kind: filters.kind as never }),
     ...(filters.status === undefined ? {} : { status: filters.status as never }),

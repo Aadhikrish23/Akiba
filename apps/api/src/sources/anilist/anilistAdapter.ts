@@ -1,3 +1,4 @@
+import { isAdultTagGenre } from '@akiba/shared';
 import { z } from 'zod';
 import {
   CircuitBreaker,
@@ -73,6 +74,7 @@ const mediaSchema = z.looseObject({
   popularity: optionalInt,
   isAdult: z.boolean().nullish(),
   genres: z.array(z.string()).nullish(),
+  tags: z.array(z.object({ name: z.string(), rank: z.number().nullish() })).nullish(),
   updatedAt: optionalInt,
 });
 type Media = z.infer<typeof mediaSchema>;
@@ -203,6 +205,100 @@ function toDate(value: z.infer<typeof dateSchema>): SourceDate | null {
   return { year, month: month ?? null, day: day ?? null };
 }
 
+const ENGLISH_WORDS = new Set([
+  'the',
+  'of',
+  'and',
+  'a',
+  'an',
+  'in',
+  'is',
+  'my',
+  'for',
+  'with',
+  'on',
+  'at',
+  'from',
+  'his',
+  'her',
+  'who',
+  'that',
+  'this',
+  'you',
+  'your',
+  'me',
+  'we',
+  'it',
+  'season',
+  'part',
+  'cour',
+  'final',
+  'chapter',
+  'story',
+  'life',
+  'world',
+  'another',
+  'again',
+  'beyond',
+  'diaries',
+  'academia',
+]);
+const JAPANESE_PARTICLES = new Set([
+  'no',
+  'wa',
+  'ga',
+  'wo',
+  'ni',
+  'na',
+  'ka',
+  'mo',
+  'yo',
+  'ne',
+  'to',
+]);
+const key = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+/**
+ * AniList leaves `english` empty for many newer entries but often lists the English name among the
+ * synonyms ("The Apothecary Diaries Season 3 Part 2"). A synonym is taken for it only when it is
+ * plain Latin text, is not the romaji, has an English word in it and no Japanese particle on its
+ * own ("Hotaru no Yomeiri Mini Anime" is romaji too, and stays out). When nothing fits, the title
+ * simply has no English name and readers see the romaji.
+ */
+export function englishFromSynonyms(
+  romaji: string | null,
+  synonyms: readonly string[],
+): string | null {
+  for (const synonym of synonyms) {
+    const text = synonym.trim();
+    if (text.length < 3 || !/^[\x20-\x7E\u2018\u2019\u2026]+$/.test(text)) continue;
+    if (romaji !== null && key(romaji) === key(text)) continue;
+    const words = key(text).split(' ');
+    if (!words.some((word) => ENGLISH_WORDS.has(word))) continue;
+    if (words.some((word) => JAPANESE_PARTICLES.has(word)) && !words.includes('the')) continue;
+    return text;
+  }
+  return null;
+}
+
+/**
+ * A title's genres: AniList's own, plus the adult tags it carries (Harem, Gore…) once they are
+ * prominent enough to describe it (rank 50 or more), so they can be browsed like genres.
+ */
+function genresOf(media: Pick<Media, 'genres' | 'tags'>): string[] {
+  const genres = [...(media.genres ?? [])];
+  for (const tag of media.tags ?? []) {
+    if ((tag.rank ?? 0) >= 50 && isAdultTagGenre(tag.name) && !genres.includes(tag.name)) {
+      genres.push(tag.name);
+    }
+  }
+  return genres;
+}
+
 /** AniList "romaji", "english", "native" are Akiba's three display languages. */
 export function normalizeMedia(media: Media): SourceTitle {
   const externalIds: SourceTitle['externalIds'] = {
@@ -217,7 +313,9 @@ export function normalizeMedia(media: Media): SourceTitle {
     // verbatim `format` stays null so nothing pretends to be known.
     kind: KIND_BY_FORMAT[media.format ?? ''] ?? 'tv',
     titleRomaji: cleanString(media.title?.romaji),
-    titleEnglish: cleanString(media.title?.english),
+    titleEnglish:
+      cleanString(media.title?.english) ??
+      englishFromSynonyms(cleanString(media.title?.romaji), media.synonyms ?? []),
     titleNative: cleanString(media.title?.native),
     synonyms: (media.synonyms ?? []).map((value) => value.trim()).filter((value) => value !== ''),
     synopsis: plainText(media.description),
@@ -237,7 +335,7 @@ export function normalizeMedia(media: Media): SourceTitle {
     averageScore: intOrNull(media.averageScore),
     popularity: intOrNull(media.popularity),
     isAdult: media.isAdult === true,
-    genres: media.genres ?? [],
+    genres: genresOf(media),
     sourceUpdatedAt:
       media.updatedAt === null || media.updatedAt === undefined
         ? null
@@ -494,7 +592,11 @@ export function createAniListAdapter(options: AniListAdapterOptions = {}): Sourc
       page: page.page,
       perPage: Math.min(50, Math.max(1, page.perPage)),
       search: query,
-      genre: filters.genre,
+      // Harem, Gore and the like are tags on AniList, not genres: they are asked for as tags.
+      genre:
+        filters.genre !== undefined && isAdultTagGenre(filters.genre) ? undefined : filters.genre,
+      tag:
+        filters.genre !== undefined && isAdultTagGenre(filters.genre) ? filters.genre : undefined,
       season: filters.season?.toUpperCase(),
       seasonYear: filters.seasonYear,
       format: filters.kind === undefined ? undefined : FORMAT_BY_KIND[filters.kind],

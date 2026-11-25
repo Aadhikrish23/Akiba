@@ -107,10 +107,8 @@ describe('library schedule API', () => {
     const show = await newTitle('Show');
     const entry = (await add(show)).body.data.id;
     await airs(show, 3, WEEK_START + DAY);
-    await request(t.app)
-      .post(`/v1/library/${entry}/progress`)
-      .set('Authorization', auth)
-      .send({ set: 3 });
+    // Set directly: the progress route would refuse an episode that has not aired yet.
+    await sql().query('UPDATE library_entry SET progress = 3 WHERE id = $1', [entry]);
     const response = await schedule(WEEK_START, WEEK_START + 7 * DAY);
     expect(response.body.data[0]).toMatchObject({ episode: 3, watched: true, progress: 3 });
   });
