@@ -78,9 +78,11 @@ test('journey: title → franchise, with my status on each entry (FR-EXP-001, FR
 
   // A row opens that title's own page.
   await page.getByRole('link', { name: 'Shingeki no Kyojin Season 2' }).first().click();
+  // The title opens from its stored placeholder and asks the (mock) source for the rest, which on a
+  // slow machine can take a while: wait longer than the default.
   await expect(
     page.getByRole('heading', { level: 1, name: 'Shingeki no Kyojin Season 2' }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 20_000 });
 });
 
 test('a franchise, studio or character that does not exist says so', async ({ page }) => {

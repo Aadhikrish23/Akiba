@@ -169,7 +169,15 @@ for (const scheme of ['light', 'dark'] as const) {
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
         .analyze();
       expect(
-        results.violations.map((v) => `${label}: ${v.id} ${v.help} (${v.nodes.length})`),
+        // Name the elements and what axe measured, so a failure that only happens on another
+        // machine (CI) can be fixed from its log.
+        results.violations.map(
+          (v) =>
+            `${label}: ${v.id} ${v.help} (${v.nodes.length}): ` +
+            v.nodes
+              .map((node) => `${node.target.join(' ')} [${node.any[0]?.message ?? ''}]`)
+              .join(' | '),
+        ),
       ).toEqual([]);
     };
     await check('/title (shelf)');
