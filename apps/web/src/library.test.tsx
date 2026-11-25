@@ -468,6 +468,37 @@ describe('Library: the seasons of one show are one tile', () => {
     expect(screen.queryByRole('link', { name: 'Show 1' })).toBeNull();
   });
 
+  it('makes a single season of a show a tile too, saying how far you are, so the grid looks alike', async () => {
+    renderApp({
+      route: '/library',
+      handler: server((call) => {
+        if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+        if (call.path.endsWith('/library'))
+          return list([entry(1, { title: card(1, { franchise: info }) }), entry(2)]);
+        return undefined;
+      }),
+    });
+    expect(
+      await screen.findByRole('link', {
+        name: 'Franchise My Hero Academia 7 seasons Watching · 3 / 12',
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Show 1' })).toBeNull();
+  });
+
+  it('keeps a single season as its own row in the compact list, with its +1', async () => {
+    renderApp({
+      route: '/library',
+      handler: signedInHandler({ libraryView: 'list' }, (call) => {
+        if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+        if (call.path.endsWith('/library'))
+          return list([entry(1, { title: card(1, { franchise: info }) })]);
+        return problem(404, 'NOT_FOUND');
+      }),
+    });
+    expect(await screen.findByRole('button', { name: '+1 episode of Show 1' })).toBeTruthy();
+  });
+
   it('is a tile in the compact list too', async () => {
     renderApp({
       route: '/library',
@@ -525,12 +556,17 @@ describe('Library (FR-LIB-003…005)', () => {
     const app = renderApp({ route: '/library', handler: library });
     await screen.findByRole('list', { name: 'Library' });
     await app.user.selectOptions(screen.getByLabelText('Sort by'), 'rating');
-    await app.user.type(screen.getByLabelText('Search your library'), 'show{enter}');
+    const before = app.to('/library').length;
+    // No Search button: typing is the search, once it pauses.
+    expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
+    await app.user.type(screen.getByLabelText('Search your library'), 'show');
     await waitFor(() => {
       const last = query(app.to('/library').at(-1)!);
       expect(last.get('sort')).toBe('rating');
       expect(last.get('q')).toBe('show');
     });
+    // One request for the word, not one per key.
+    expect(app.to('/library').length - before).toBeLessThanOrEqual(2);
   });
 
   it('remembers the layout on the account and switches to the compact list', async () => {

@@ -34,7 +34,12 @@ export interface ResolveInput {
   /** What the source said about the title. Needed to create it; ignored if it already exists. */
   readonly title?: SourceTitle;
   /** Enough to create a placeholder when only a relation edge is known. */
-  readonly stub?: { readonly title: string; readonly kind: TitleKind | null };
+  readonly stub?: {
+    readonly title: string;
+    readonly kind: TitleKind | null;
+    readonly titleEnglish?: string | null;
+    readonly coverUrl?: string | null;
+  };
 }
 
 /** Nothing identifies the title, or it must be created and there is nothing to create it from. */
@@ -108,6 +113,8 @@ export function createTitleResolver(db: DbClient, options: ResolverOptions = {})
       data = {
         kind: input.stub.kind ?? 'tv',
         titleRomaji: input.stub.title,
+        titleEnglish: input.stub.titleEnglish ?? null,
+        coverUrl: input.stub.coverUrl ?? null,
         status: 'not_yet_released',
         fetchedAt: null,
         stale: true,
@@ -207,7 +214,16 @@ export function createTitleResolver(db: DbClient, options: ResolverOptions = {})
     resolveRelationTarget(target) {
       return resolve({
         externalIds: target.externalIds,
-        ...(target.title === null ? {} : { stub: { title: target.title, kind: target.kind } }),
+        ...(target.title === null
+          ? {}
+          : {
+              stub: {
+                title: target.title,
+                kind: target.kind,
+                titleEnglish: target.titleEnglish ?? null,
+                coverUrl: target.coverUrl ?? null,
+              },
+            }),
       });
     },
   };

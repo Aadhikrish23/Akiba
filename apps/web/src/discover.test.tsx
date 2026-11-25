@@ -311,7 +311,12 @@ describe('Discover: the seasons of one show are one tile', () => {
     const covers = [...container.querySelectorAll('.ftile__art img')].map((img) =>
       img.getAttribute('src'),
     );
-    expect(covers).toEqual(['https://img.example/a.jpg', 'https://img.example/b.jpg']);
+    // Always a stack of three: the two covers known are repeated to fill it.
+    expect(covers).toEqual([
+      'https://img.example/a.jpg',
+      'https://img.example/b.jpg',
+      'https://img.example/a.jpg',
+    ]);
   });
 
   it('has no axe violations', async () => {

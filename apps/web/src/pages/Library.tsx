@@ -35,11 +35,17 @@ const TAB_LABEL = (tab: Tab): string =>
 /** The seasons of one show you have in your library as one tile: how many, how many finished, how far in each. */
 function EntryTile({ group }: { group: Extract<Grouped<LibraryEntry>, { kind: 'banner' }> }) {
   const done = group.items.filter((entry) => entry.status === 'completed').length;
+  // One season of the show: say where you are in it, as a poster would.
+  const only = group.items.length === 1 ? group.items[0] : undefined;
   return (
     <FranchiseTile
       franchise={group.franchise}
       covers={group.items.map((entry) => entry.title)}
-      standing={`${group.items.length} in your library${done > 0 ? `, ${done} completed` : ''}`}
+      standing={
+        only === undefined
+          ? `${group.items.length} in your library${done > 0 ? `, ${done} completed` : ''}`
+          : `${ENTRY_LABEL[only.status]} · ${only.progress} / ${only.effectiveTotal ?? only.episodesAired ?? '?'}`
+      }
       progress={group.items.map((entry) =>
         entry.status === 'completed'
           ? 1
@@ -53,6 +59,9 @@ function EntryTile({ group }: { group: Extract<Grouped<LibraryEntry>, { kind: 'b
 
 const pick = <T extends string>(options: readonly T[], value: string | null): T | undefined =>
   (options as readonly string[]).includes(value ?? '') ? (value as T) : undefined;
+
+/** How long typing must pause before the library search runs. */
+const SEARCH_DELAY_MS = 300;
 
 /**
  * The library (FR-LIB-003…005): status tabs with counts, search, filters, sort, and a poster grid
@@ -72,8 +81,10 @@ export function LibraryPage() {
   const view = chosenView ?? profile?.libraryView ?? 'grid';
 
   const [draft, setDraft] = useState(q);
+  // A change to the address (back, a link) shows in the box. What you are typing is left alone: the
+  // search trims it, so a trailing space must not be taken away mid-word.
   useEffect(() => {
-    setDraft(q);
+    setDraft((current) => (current.trim() === q ? current : q));
   }, [q]);
   const [counts, setCounts] = useState<LibraryCounts | null>(null);
   useEffect(() => {
@@ -106,14 +117,31 @@ export function LibraryPage() {
     }
     setParams(next, { replace: true });
   };
-  const groups =
+  // Search as you type: once typing pauses, the box is the search.
+  useEffect(() => {
+    const wanted = draft.trim();
+    if (wanted === q) return;
+    const timer = setTimeout(() => {
+      update({ q: wanted });
+    }, SEARCH_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+    // `update` is rebuilt on every render; the timer only needs to restart when the text changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, q]);
+  // Posters: every title of a franchise is its tile, even one season, so the grid looks the same
+  // for all of them. The compact list keeps a lone season as the entry it is, with its +1.
+  const tilesOf = (minItems: number) =>
     state.phase === 'ready'
       ? groupByFranchise(
           state.items,
           (entry) => entry.title.franchise,
           (entry) => entry.id,
+          minItems,
         )
       : [];
+  const groups = tilesOf(view === 'list' ? 2 : 1);
   const count = (value: Tab): number | null =>
     counts === null
       ? null
@@ -167,7 +195,6 @@ export function LibraryPage() {
             }}
           />
         </div>
-        <Button type="submit">Search</Button>
         <Select
           label="Format"
           anyLabel="Any format"
@@ -261,7 +288,7 @@ export function LibraryPage() {
             ) : (
               <ul
                 aria-label="Library"
-                className="grid list-none gap-x-5 gap-y-8 p-0"
+                className="grid list-none gap-x-4 gap-y-10 min-[560px]:gap-x-7 p-0"
                 style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))' }}
               >
                 {groups.map((group) =>

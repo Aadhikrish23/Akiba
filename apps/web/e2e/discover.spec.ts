@@ -206,7 +206,7 @@ for (const scheme of ['light', 'dark'] as const) {
   });
 }
 
-test('seasons of one show are one tile; its page lists them, adds them and sends episodes to Crunchyroll', async ({
+test('seasons of one show are one tile; its page lists them, adds them and lists the services', async ({
   page,
 }) => {
   await signedIn(page, 'tile');
@@ -239,19 +239,13 @@ test('seasons of one show are one tile; its page lists them, adds them and sends
   await page.getByRole('button', { name: 'Episodes of My Hero Academia', exact: true }).click();
   const episodes = page.getByRole('list', { name: 'Episodes of My Hero Academia' });
   await expect(episodes.getByRole('listitem')).toHaveCount(13);
-  // Two services carry it, so Watch is a menu: the show's page on Crunchyroll, and on Netflix.
-  await episodes.getByText('Watch · 2 services').first().click();
-  const watch = episodes.getByRole('link', { name: /Crunchyroll/ }).first();
-  await expect(watch).toHaveAttribute('href', 'https://www.crunchyroll.com/my-hero-academia');
-  // The season row lists the services that stream it.
+  // The mock lists no episode links, so no episode has a Watch button (never a show page in its place),
+  // while the season row names the services that stream the show.
+  await expect(episodes.getByRole('link')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /^Netflix/ }).first()).toHaveAttribute(
     'href',
-    /netflix\.com/,
+    /netflix.com/,
   );
-  await expect(watch).toHaveAttribute('target', '_blank');
-  // Escape closes the menu, so it no longer covers the next rows.
-  await page.keyboard.press('Escape');
-  await expect(episodes.getByRole('link', { name: /Crunchyroll/ })).toHaveCount(0);
 
   // Mark where I am: everything up to episode 3 counts as watched.
   await episodes.getByRole('button', { name: 'Mark up to episode 3 as watched' }).click();

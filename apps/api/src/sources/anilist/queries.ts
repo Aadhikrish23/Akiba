@@ -55,7 +55,7 @@ query MediaPage(${PAGE_VARIABLES}) {
   Page(page: $page, perPage: $perPage) {
     ${PAGE_INFO}
     media(${MEDIA_ARGUMENTS}) {${MEDIA_CARD}
-      relations { edges { relationType(version: 2) node { id idMal type format title { romaji } } } }
+      relations { edges { relationType(version: 2) node { id idMal type format title { romaji english } coverImage { large } } } }
     }
   }
 }`;
@@ -65,7 +65,7 @@ query MediaDetail($id: Int) {
   Media(id: $id, type: ANIME) {
     ${MEDIA_CARD}
     studios { edges { isMain node { id name isAnimationStudio } } }
-    relations { edges { relationType(version: 2) node { id idMal type format title { romaji } } } }
+    relations { edges { relationType(version: 2) node { id idMal type format title { romaji english } coverImage { large } } } }
     nextAiringEpisode { episode airingAt }
     streamingEpisodes { title url site }
     characters(perPage: 25, sort: [ROLE, RELEVANCE]) {

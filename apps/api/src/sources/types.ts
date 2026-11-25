@@ -86,6 +86,9 @@ export interface SourceRelationTarget {
   readonly externalIds: ExternalIds;
   readonly kind: TitleKind | null;
   readonly title: string | null;
+  /** What the relation edge also tells about the other title, when the source says. */
+  readonly titleEnglish?: string | null;
+  readonly coverUrl?: string | null;
 }
 
 export interface SourceRelation {

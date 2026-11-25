@@ -8,7 +8,7 @@ import { franchiseSummary, inSeasonOrder } from '../lib/franchise';
 import { WatchChoice } from '../components/WatchChoice';
 import { usePageTitle } from '../lib/page';
 import { useRemote } from '../lib/remote';
-import { readServices, watchChoices } from '../lib/services';
+import { myServicesOf, readServices, watchChoices } from '../lib/services';
 import { stockFor } from '../lib/stock';
 import { ENTRY_LABEL, displayTitle, metaLine } from '../lib/titles';
 
@@ -61,17 +61,36 @@ const stateWords = (mine: Mine | undefined): { text: string; tone: string } => {
   return { text: ENTRY_LABEL[mine.status], tone: 'border-rule text-ink' };
 };
 
+/** The Watch button of the Continue ticket: the next episode's own link, found in the season's episode list. */
+function ContinueWatch({
+  title,
+  episode,
+  myServices,
+}: {
+  title: FranchiseTitle;
+  episode: number;
+  myServices: readonly string[];
+}) {
+  const { client } = useAuth();
+  const { state } = useRemote(`franchise-season:${title.id}`, () => client.titles.detail(title.id));
+  const links = state.phase === 'ready' ? state.value.data.crunchyrollEpisodes : {};
+  return (
+    <WatchChoice
+      choices={watchChoices(myServices, links, episode)}
+      className="!border-[var(--stub-ink)]"
+    />
+  );
+}
+
 /** The episodes of one season: each with where to watch it, and, if you track it, "I am here". */
 function Episodes({
   title,
-  services,
   myServices,
   mine,
   onSet,
   busy,
 }: {
   title: FranchiseTitle;
-  services: readonly Service[];
   myServices: readonly string[];
   mine: Mine | undefined;
   onSet: (episode: number) => void;
@@ -114,12 +133,7 @@ function Episodes({
         className="m-0 grid list-none gap-x-6 gap-y-1 p-0 min-[760px]:grid-cols-2"
       >
         {Array.from({ length: count }, (_, index) => index + 1).map((episode) => {
-          const choices = watchChoices(
-            detail?.streamingLinks.length ? detail.streamingLinks : services,
-            myServices,
-            detail?.crunchyrollEpisodes ?? {},
-            episode,
-          );
+          const choices = watchChoices(myServices, detail?.crunchyrollEpisodes ?? {}, episode);
           const seen = episode <= watched;
           // A running season lists every episode it will have, but only the aired ones can be logged
           // or watched.
@@ -480,17 +494,11 @@ export function FranchisePage() {
               <h2 className="font-display text-3xl leading-none font-black uppercase min-[700px]:text-4xl">
                 Episode {currentMine.progress + 1} is next
               </h2>
-              <div>
-                <WatchChoice
-                  choices={watchChoices(
-                    servicesOf(current),
-                    myServices,
-                    {},
-                    currentMine.progress + 1,
-                  )}
-                  className="!border-[var(--stub-ink)]"
-                />
-              </div>
+              <ContinueWatch
+                title={current}
+                episode={currentMine.progress + 1}
+                myServices={myServices}
+              />
             </div>
             <div className="grid min-w-[110px] place-items-center gap-2 border-l-[2.5px] border-dashed border-[color-mix(in_oklab,var(--stub-ink)_40%,transparent)] p-3">
               <p className="font-display text-5xl leading-none font-black">
@@ -651,7 +659,7 @@ function TitleBlock({
             {metaLine(title)}
             {title.startDate !== null && ` · ${title.startDate}`}
           </p>
-          <Services services={services} />
+          <Services services={myServicesOf(services, myServices)} />
           {mine !== undefined && mine.total !== null && mine.total > 0 && (
             <div
               role="progressbar"
@@ -729,14 +737,7 @@ function TitleBlock({
         className="border-rule bg-raised/50 rounded-b-xl border-[1.5px] border-t-0 p-4"
       >
         {open && (
-          <Episodes
-            title={title}
-            services={services}
-            myServices={myServices}
-            mine={mine}
-            busy={busy}
-            onSet={onSet}
-          />
+          <Episodes title={title} myServices={myServices} mine={mine} busy={busy} onSet={onSet} />
         )}
       </div>
     </article>

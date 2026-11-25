@@ -52,7 +52,7 @@ export function PosterGrid({ children, label }: { children: React.ReactNode; lab
   return (
     <ul
       aria-label={label}
-      className="grid list-none gap-x-5 gap-y-8 p-0"
+      className="grid list-none gap-x-4 gap-y-10 min-[560px]:gap-x-7 p-0"
       style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))' }}
     >
       {children}

@@ -241,10 +241,26 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
         });
       let known = await find();
       const have = new Set(known.map((row) => row.externalId));
-      const missing = new Map<string, { title: string; kind: TitleKind | null }>();
+      const missing = new Map<
+        string,
+        {
+          title: string;
+          kind: TitleKind | null;
+          titleEnglish: string | null;
+          coverUrl: string | null;
+        }
+      >();
+      // What a relation edge says about a placeholder already stored (its cover, its English name).
+      const said = new Map<string, { titleEnglish: string | null; coverUrl: string | null }>();
       for (const entry of withLinks) {
         for (const relation of entry.item.relations ?? []) {
           const id = relation.target.externalIds.anilist;
+          if (id !== undefined && have.has(id)) {
+            said.set(id, {
+              titleEnglish: relation.target.titleEnglish ?? null,
+              coverUrl: relation.target.coverUrl ?? null,
+            });
+          }
           if (
             id === undefined ||
             have.has(id) ||
@@ -253,7 +269,12 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
           ) {
             continue;
           }
-          missing.set(id, { title: relation.target.title, kind: relation.target.kind });
+          missing.set(id, {
+            title: relation.target.title,
+            kind: relation.target.kind,
+            titleEnglish: relation.target.titleEnglish ?? null,
+            coverUrl: relation.target.coverUrl ?? null,
+          });
         }
       }
       if (missing.size > 0) {
@@ -264,7 +285,12 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
             try {
               await resolver.resolve({
                 externalIds: { anilist: id },
-                stub: { title: target.title, kind: target.kind },
+                stub: {
+                  title: target.title,
+                  kind: target.kind,
+                  titleEnglish: target.titleEnglish,
+                  coverUrl: target.coverUrl,
+                },
               });
             } catch (error) {
               if (!(error instanceof UnresolvableTitleError)) throw error;
@@ -273,6 +299,26 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
         );
         known = await find();
       }
+      // A placeholder stored earlier gets its cover and English name now, if it has none yet.
+      await mapLimit(
+        known.filter((row) => said.has(row.externalId)),
+        RESOLVE_CONCURRENCY,
+        async (row) => {
+          const extra = said.get(row.externalId)!;
+          if (extra.coverUrl !== null) {
+            await db.title.updateMany({
+              where: { id: row.titleId, fetchedAt: null, coverUrl: null },
+              data: { coverUrl: extra.coverUrl },
+            });
+          }
+          if (extra.titleEnglish !== null) {
+            await db.title.updateMany({
+              where: { id: row.titleId, fetchedAt: null, titleEnglish: null },
+              data: { titleEnglish: extra.titleEnglish },
+            });
+          }
+        },
+      );
       const titleOf = new Map(known.map((row) => [row.externalId, row.titleId]));
       const rows = withLinks.flatMap((entry) =>
         (entry.item.relations ?? []).flatMap((relation) => {

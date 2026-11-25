@@ -89,7 +89,8 @@ const relationsSchema = z
           idMal: optionalInt,
           type: optionalString,
           format: optionalString,
-          title: z.object({ romaji: optionalString }).nullish(),
+          title: z.object({ romaji: optionalString, english: optionalString }).nullish(),
+          coverImage: z.object({ large: optionalString }).nullish(),
         }),
       }),
     ),
@@ -479,6 +480,8 @@ function normalizeRelations(media: {
             ? null
             : (KIND_BY_FORMAT[edge.node.format] ?? null),
         title: cleanString(edge.node.title?.romaji),
+        titleEnglish: cleanString(edge.node.title?.english),
+        coverUrl: httpUrl(edge.node.coverImage?.large),
       },
     });
   }

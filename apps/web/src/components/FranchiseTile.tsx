@@ -28,10 +28,19 @@ export function FranchiseTile({ franchise, covers, standing, progress }: TilePro
     id: `${franchise.id}-${index}`,
     coverUrl,
   }));
-  const shown = (own.length > 0 ? own : covers).slice(0, 3);
+  const base = own.length > 0 ? own : covers;
+  // Always a stack of three: a franchise with one or two covers known repeats them, so every tile
+  // has the same shape.
+  const shown =
+    base.length === 0
+      ? []
+      : Array.from({ length: 3 }, (_, index) => ({
+          ...base[index % base.length]!,
+          id: `${base[index % base.length]!.id}-${index}`,
+        }));
   return (
     <Link to={`/franchise/${franchise.id}`} className="ftile has-[:focus-visible]:outline-accent">
-      <span className="ftile__tag">Franchise</span>{' '}
+      <span className="sr-only">Franchise</span>{' '}
       <span className="ftile__art" aria-hidden="true">
         {shown.map((cover) =>
           cover.coverUrl === null ? (

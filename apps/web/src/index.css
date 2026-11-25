@@ -1275,24 +1275,12 @@
     outline: 2px solid var(--accent);
     outline-offset: 6px;
   }
-  .ftile__tag {
-    position: absolute;
-    left: 6px;
-    top: 6px;
-    z-index: 5;
-    padding: 5px 8px;
-    border-radius: 5px;
-    background: var(--accent);
-    color: var(--on-accent);
-    font: 800 0.6875rem/1 var(--sans);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
   .ftile__art {
     position: relative;
     display: block;
     aspect-ratio: 2 / 3;
-    margin: 0 10px 14px;
+    /* Side room for the covers fanned out behind the front one, so they stay inside the tile and never reach the next one. */
+    margin: 0 22px 14px;
   }
   .ftile__art > img,
   .ftile__ph {
@@ -1307,11 +1295,11 @@
     transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .ftile__art > :nth-child(1) {
-    transform: translate(-7%, 2%) rotate(-6deg);
+    transform: translate(-6%, 2%) rotate(-5deg);
     filter: brightness(0.72);
   }
   .ftile__art > :nth-child(2) {
-    transform: translate(7%, 2%) rotate(6deg);
+    transform: translate(6%, 2%) rotate(5deg);
     filter: brightness(0.84);
   }
   .ftile__art > :nth-child(3) {
@@ -1324,11 +1312,11 @@
   }
   .ftile:hover .ftile__art > :nth-child(1),
   .ftile:focus-visible .ftile__art > :nth-child(1) {
-    transform: translate(-11%, 2%) rotate(-9deg);
+    transform: translate(-9%, 2%) rotate(-7deg);
   }
   .ftile:hover .ftile__art > :nth-child(2),
   .ftile:focus-visible .ftile__art > :nth-child(2) {
-    transform: translate(11%, 2%) rotate(9deg);
+    transform: translate(9%, 2%) rotate(7deg);
   }
   .ftile__name {
     font: 800 1.1875rem/1.05 var(--display);

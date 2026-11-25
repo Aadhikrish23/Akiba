@@ -53,7 +53,8 @@ const media = (
         idMal: null,
         type: 'ANIME',
         format: 'TV',
-        title: { romaji: `Related ${edge.id}` },
+        title: { romaji: `Related ${edge.id}`, english: `Related ${edge.id} (en)` },
+        coverImage: { large: `https://img.example.test/related-${edge.id}.jpg` },
       },
     })),
   },
@@ -129,12 +130,20 @@ describe('seasons under one franchise on a list page', () => {
   it('keeps a related season that is not on the page as a named placeholder, never fetched, and not listed', async () => {
     const cards = await search();
     expect(cards).toHaveLength(5);
-    const titles = await testDb.sql.query<{ title_romaji: string; fetched_at: Date | null }>(
-      'SELECT title_romaji, fetched_at FROM title ORDER BY title_romaji',
+    const titles = await testDb.sql.query<{
+      title_romaji: string;
+      title_english: string | null;
+      cover_url: string | null;
+      fetched_at: Date | null;
+    }>(
+      'SELECT title_romaji, title_english, cover_url, fetched_at FROM title ORDER BY title_romaji',
     );
     expect(titles.rows).toHaveLength(6);
+    // The relation edge brings the placeholder its cover and English name, so a tile can show them.
     expect(titles.rows.find((row) => row.title_romaji === 'Related 4')).toMatchObject({
       fetched_at: null,
+      title_english: 'Related 4 (en)',
+      cover_url: 'https://img.example.test/related-4.jpg',
     });
   });
 
@@ -158,7 +167,7 @@ describe('seasons under one franchise on a list page', () => {
       'My Hero Academia 2',
       'My Hero Academia 3',
       'My Hero Academia: The Movie',
-      null,
+      'Related 4 (en)',
     ]);
     expect(response.body.data.totals).toMatchObject({ titles: 5, inLibrary: 0 });
   });

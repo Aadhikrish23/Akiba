@@ -238,101 +238,60 @@ describe('The franchise page: episodes and Crunchyroll', () => {
     return app;
   };
 
-  it('opens a season to its episodes, each with a Watch link that opens in a new tab', async () => {
-    const crunchyroll = { site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' };
-    await opening(1, [card(1, { streamingLinks: [crunchyroll] }), card(2), card(3), card(4)], () =>
-      detailOf(1, { streamingLinks: [crunchyroll] }),
-    );
-    const list = await screen.findByRole('list', { name: 'Episodes of Season 1' });
-    expect(within(list).getAllByRole('listitem')).toHaveLength(5);
-    const watch = within(list).getAllByRole('link', { name: /Crunchyroll/ });
-    expect(watch).toHaveLength(5);
-    for (const link of watch) {
-      expect(link.getAttribute('target')).toBe('_blank');
-      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
-    }
-  });
-
-  it('links an episode to its own Crunchyroll page when AniList lists it, else to the show there', async () => {
-    await opening(
-      2,
-      [
-        card(1),
-        card(2, {
-          streamingLinks: [{ site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' }],
-        }),
-        card(3),
-        card(4),
-      ],
-      () =>
-        detailOf(2, {
-          streamingLinks: [{ site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' }],
-          crunchyrollEpisodes: { '2': 'https://www.crunchyroll.com/watch/GEP2/two' },
-        }),
-    );
-    const list = await screen.findByRole('list', { name: 'Episodes of Season 2' });
-    const href = (episode: number) =>
-      within(list.querySelector(`[data-episode="${episode}"]`) as HTMLElement)
-        .getByRole('link', { name: /Crunchyroll/ })
-        .getAttribute('href');
-    expect(href(2)).toBe('https://www.crunchyroll.com/watch/GEP2/two');
-    expect(href(3)).toBe('https://www.crunchyroll.com/the-show');
-  });
-
-  describe('where to watch, on the services you have', () => {
+  describe('Watch: only a link that opens the episode itself', () => {
     const NF = { site: 'Netflix', url: 'https://www.netflix.com/title/1' };
     const CR = { site: 'Crunchyroll', url: 'https://www.crunchyroll.com/the-show' };
+    const EP2 = 'https://www.crunchyroll.com/watch/GEP2/two';
     afterEach(() => {
       window.localStorage.clear();
     });
 
-    it('a show on a service with no episode links opens its page there, and never a search', async () => {
-      await opening(1, [card(1, { streamingLinks: [NF] }), card(2), card(3), card(4)], () =>
-        detailOf(1, { streamingLinks: [NF] }),
+    it('has a Watch link on the episodes AniList lists, opening that episode in a new tab, and none on the others', async () => {
+      await opening(2, [card(1), card(2, { streamingLinks: [CR] }), card(3), card(4)], () =>
+        detailOf(2, { streamingLinks: [CR], crunchyrollEpisodes: { '2': EP2 } }),
+      );
+      const list = await screen.findByRole('list', { name: 'Episodes of Season 2' });
+      const links = within(list).getAllByRole('link');
+      expect(links).toHaveLength(1);
+      expect(links[0]?.getAttribute('href')).toBe(EP2);
+      expect(links[0]?.getAttribute('target')).toBe('_blank');
+      expect(links[0]?.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(
+        within(list.querySelector('[data-episode="2"]') as HTMLElement).getByRole('link'),
+      ).toBe(links[0]);
+      expect(
+        within(list.querySelector('[data-episode="3"]') as HTMLElement).queryByRole('link'),
+      ).toBeNull();
+    });
+
+    it('never sends an episode to the show page or a search: a show with no episode links has no Watch button', async () => {
+      await opening(1, [card(1, { streamingLinks: [CR, NF] }), card(2), card(3), card(4)], () =>
+        detailOf(1, { streamingLinks: [CR, NF] }),
       );
       const list = await screen.findByRole('list', { name: 'Episodes of Season 1' });
-      const links = within(list).getAllByRole('link', { name: /Netflix/ });
-      expect(links).toHaveLength(5);
-      expect(links.every((link) => link.getAttribute('href') === NF.url)).toBe(true);
-      expect(within(list).getAllByText(/show page/)).toHaveLength(5);
+      expect(within(list).queryByRole('link')).toBeNull();
+      expect(within(list).queryByText(/Watch/)).toBeNull();
       expect(document.body.innerHTML).not.toContain('/search');
+      // The season row still says which services have the show.
+      expect(screen.getAllByRole('link', { name: /Netflix/ }).length).toBeGreaterThan(0);
     });
 
     it('a show nobody lists gets no Watch control at all', async () => {
       await opening(1, [card(1), card(2), card(3), card(4)], () => detailOf(1));
       const list = await screen.findByRole('list', { name: 'Episodes of Season 1' });
       expect(within(list).queryByRole('link')).toBeNull();
-      expect(within(list).queryByText(/Watch · /)).toBeNull();
     });
 
-    it('with several services it is a menu: the episode on Crunchyroll first, then the show elsewhere', async () => {
-      await opening(2, [card(1), card(2, { streamingLinks: [NF, CR] }), card(3), card(4)], () =>
-        detailOf(2, {
-          streamingLinks: [NF, CR],
-          crunchyrollEpisodes: { '2': 'https://www.crunchyroll.com/watch/GEP2/two' },
-        }),
+    it('follows the services you picked: without Crunchyroll there is no episode link, and the season lists only yours', async () => {
+      window.localStorage.setItem('akiba.services', JSON.stringify(['Netflix']));
+      await opening(2, [card(1), card(2, { streamingLinks: [CR, NF] }), card(3), card(4)], () =>
+        detailOf(2, { streamingLinks: [CR, NF], crunchyrollEpisodes: { '2': EP2 } }),
       );
       const list = await screen.findByRole('list', { name: 'Episodes of Season 2' });
-      const row = list.querySelector('[data-episode="2"]') as HTMLElement;
-      expect(within(row).getByText('Watch · 2 services')).toBeTruthy();
-      const items = within(row).getAllByRole('link');
-      expect(items.map((link) => link.getAttribute('href'))).toEqual([
-        'https://www.crunchyroll.com/watch/GEP2/two',
-        NF.url,
-      ]);
-      expect(items[0]?.textContent).toMatch(/Opens this episode/);
-      expect(items[1]?.textContent).toMatch(/Opens the show page/);
-    });
-
-    it('goes only to the services you chose in Settings', async () => {
-      window.localStorage.setItem('akiba.services', JSON.stringify(['Netflix']));
-      await opening(1, [card(1, { streamingLinks: [CR, NF] }), card(2), card(3), card(4)], () =>
-        detailOf(1, { streamingLinks: [CR, NF] }),
-      );
-      const list = await screen.findByRole('list', { name: 'Episodes of Season 1' });
-      const links = within(list).getAllByRole('link');
-      expect(links).toHaveLength(5);
-      expect(links.every((link) => link.getAttribute('href') === NF.url)).toBe(true);
+      expect(within(list).queryByRole('link')).toBeNull();
+      const row = screen.getAllByRole('article')[1]!;
+      expect(within(row).queryByRole('link', { name: /Crunchyroll/ })).toBeNull();
+      expect(within(row).getByRole('link', { name: /Netflix/ })).toBeTruthy();
     });
   });
 

@@ -138,9 +138,6 @@ export function DiscoverPage() {
               autoComplete="off"
             />
           </div>
-          <Button type="submit" variant="primary">
-            Search
-          </Button>
           {searching && (
             <Button
               type="button"

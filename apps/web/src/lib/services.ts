@@ -54,44 +54,34 @@ export function saveServices(names: readonly string[]): void {
   }
 }
 
-/** A way to watch one episode: its own page (`exact`) or the show's page on that service. */
+/** A link to one episode itself, on the service that has it. */
 export interface WatchChoiceData {
   readonly site: string;
   readonly href: string;
-  readonly exact: boolean;
 }
 
 /**
- * Where to watch `episode`, on the services the reader has (all of them when none are chosen).
- * Crunchyroll can open the episode itself where AniList lists it; every other service opens the
- * show's page there. Episode-exact links come first, then the reader's own order. Never a search.
+ * Where to watch `episode`: only a link that opens that episode. AniList gives those for Crunchyroll
+ * (where it lists them), and no streaming service publishes episode links we could use for the
+ * rest, so every other service is left to the "Watch on" line of the season, which opens the show.
+ * Never a show page and never a search. A reader who picked services and not Crunchyroll gets none.
  */
 export function watchChoices(
-  services: readonly { readonly site: string; readonly url: string }[],
   mine: readonly string[],
   crunchyrollEpisodes: Readonly<Record<string, string>>,
   episode: number,
 ): WatchChoiceData[] {
-  const wanted =
-    mine.length === 0
-      ? services
-      : services.filter((service) => mine.includes(serviceName(service.site)));
-  const seen = new Set<string>();
-  const choices: WatchChoiceData[] = [];
-  for (const service of wanted) {
-    const site = serviceName(service.site);
-    if (seen.has(site)) continue;
-    seen.add(site);
-    const own = site === 'Crunchyroll' ? crunchyrollEpisodes[String(episode)] : undefined;
-    choices.push(
-      own === undefined
-        ? { site, href: service.url, exact: false }
-        : { site, href: own, exact: true },
-    );
-  }
-  const rank = (choice: WatchChoiceData): number => {
-    const index = mine.indexOf(choice.site);
-    return index < 0 ? mine.length : index;
-  };
-  return choices.sort((a, b) => Number(b.exact) - Number(a.exact) || rank(a) - rank(b));
+  const own = crunchyrollEpisodes[String(episode)];
+  if (own === undefined || (mine.length > 0 && !mine.includes('Crunchyroll'))) return [];
+  return [{ site: 'Crunchyroll', href: own }];
+}
+
+/** The services of a season that the reader has (all of them when none are picked). */
+export function myServicesOf<T extends { readonly site: string }>(
+  services: readonly T[],
+  mine: readonly string[],
+): T[] {
+  return mine.length === 0
+    ? [...services]
+    : services.filter((service) => mine.includes(serviceName(service.site)));
 }
