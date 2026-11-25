@@ -29,6 +29,11 @@ export const libraryEntrySchema = z.object({
   progress: z.number().int().min(0),
   /** The user's override if set, else the source's count; null while unknown. */
   effectiveTotal: z.number().int().min(1).nullable(),
+  /**
+   * Episodes of a running show that have aired so far, when we know (from its airing times). The
+   * count to catch up to while the total is unknown; null when there is nothing to go on.
+   */
+  episodesAired: z.number().int().min(0).nullable().default(null),
   /** True when `effectiveTotal` is the user's own number (doc 08 key flow 4: shown as "Edited"). */
   totalOverridden: z.boolean(),
   rating: z.number().int().min(1).max(10).nullable(),
@@ -199,3 +204,43 @@ export const historyQuerySchema = z.strictObject({
   cursor: z.string().max(512).optional(),
 });
 export type HistoryQuery = z.infer<typeof historyQuerySchema>;
+
+// ── Schedule: the week of the shows you follow ────────────────────────────────────────
+
+/** The longest window one schedule request may ask for: a six-week month grid and the small hours after it. */
+export const SCHEDULE_MAX_DAYS = 43;
+
+export const scheduleQuerySchema = z
+  .strictObject({
+    /** Start of the window (inclusive), UTC. Clients pass the start of the viewer's week. */
+    from: z.iso.datetime(),
+    /** End of the window (exclusive), UTC. */
+    to: z.iso.datetime(),
+  })
+  .refine(
+    ({ from, to }) => {
+      const span = Date.parse(to) - Date.parse(from);
+      return span > 0 && span <= SCHEDULE_MAX_DAYS * 86_400_000;
+    },
+    { error: `the window must be forward and at most ${SCHEDULE_MAX_DAYS} days`, path: ['to'] },
+  );
+export type ScheduleQuery = z.infer<typeof scheduleQuerySchema>;
+
+export const scheduleSlotSchema = z.object({
+  entryId: z.uuid(),
+  title: titleCardSchema,
+  /** The caller's own status for the entry: Watching or Planned. */
+  entryStatus: entryStatusSchema,
+  episode: z.number().int().min(1),
+  airsAt: z.iso.datetime(),
+  /** True when the time is the show's usual weekly slot carried forward; the source has not announced it. */
+  projected: z.boolean(),
+  /** Episodes watched so far in the entry's current run; `watched` is `progress >= episode`. */
+  progress: z.number().int().min(0),
+  /** The caller has already watched this episode in the current run. */
+  watched: z.boolean(),
+});
+export type ScheduleSlot = z.infer<typeof scheduleSlotSchema>;
+
+export const scheduleResponseSchema = z.object({ data: z.array(scheduleSlotSchema) });
+export type ScheduleResponse = z.infer<typeof scheduleResponseSchema>;

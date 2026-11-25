@@ -164,6 +164,7 @@ export function normalizeAnime(anime: Anime): SourceTitle | null {
     synonyms: (anime.title_synonyms ?? []).map((value) => value.trim()).filter((v) => v !== ''),
     synopsis: plainText(anime.synopsis),
     coverUrl: httpUrl(anime.images?.jpg?.large_image_url) ?? httpUrl(anime.images?.jpg?.image_url),
+    coverColor: null,
     bannerUrl: null,
     format: cleanString(anime.type),
     status: STATUS_BY_SOURCE[(anime.status ?? '').toLowerCase()] ?? 'not_yet_released',
@@ -429,6 +430,34 @@ export function createJikanAdapter(options: JikanAdapterOptions = {}): SourceAda
           message: 'jikan has no airing schedule per title',
         }),
       );
+    },
+
+    async getEpisode(externalId, episode) {
+      const id = Number(externalId);
+      if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(episode) || episode <= 0) {
+        return null;
+      }
+      let json: unknown;
+      try {
+        json = await get(`/anime/${id}/episodes/${episode}`);
+      } catch (error) {
+        // Jikan has no such episode (or no episode list for the show): nothing to say, not a failure.
+        if (error instanceof SourceError && error.status === 404) return null;
+        throw error;
+      }
+      const { data } = parse(
+        z.object({
+          data: z.object({
+            title: z.string().nullish(),
+            synopsis: z.string().nullish(),
+          }),
+        }),
+        json,
+        'episode',
+      );
+      const name = cleanString(data.title);
+      const synopsis = plainText(data.synopsis);
+      return name === null && synopsis === null ? null : { episode, name, synopsis };
     },
 
     async getGenres() {

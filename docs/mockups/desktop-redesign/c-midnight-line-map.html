@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Akiba · Midnight Line Map (desktop mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=Barlow+Condensed:wght@500;600;700&family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ground: oklch(20% .075 258);       /* midnight enamel */
+    --ground-2: oklch(24.5% .08 258);
+    --rule: oklch(34% .075 258);
+    --porcelain: oklch(97% .008 240);
+    --mute: oklch(76% .04 258);
+    --scarlet: oklch(66% .22 27);
+    --cobalt: oklch(66% .17 252);
+    --amber: oklch(82% .16 78);
+    --green: oklch(78% .17 150);
+    --violet: oklch(72% .15 305);
+    --sans: 'Zen Kaku Gothic New', system-ui, sans-serif;
+    --cond: 'Barlow Condensed', 'Zen Kaku Gothic New', sans-serif;
+    --dot: 'DotGothic16', monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--ground); color: var(--porcelain); font-family: var(--sans); font-size: 15px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+  ::selection { background: var(--amber); color: var(--ground); }
+  a { color: inherit; }
+  :focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; border-radius: 3px; }
+  ::-webkit-scrollbar { width: 12px; } ::-webkit-scrollbar-thumb { background: var(--rule); border: 3px solid var(--ground); border-radius: 6px; }
+
+  .app { display: grid; grid-template-columns: 236px minmax(0, 1fr) 356px; min-height: 100vh; }
+
+  /* station signboard nav ------------------------------------ */
+  .side { border-right: 1px solid var(--rule); padding: 24px 0 24px 22px; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+  .brand .roundel { width: 46px; height: 46px; border-radius: 50%; background: var(--porcelain); display: grid; place-items: center; border: 6px solid var(--scarlet); color: var(--ground); font-weight: 900; font-size: 19px; line-height: 1; }
+  .brand b { font-family: var(--cond); font-size: 30px; letter-spacing: .04em; line-height: 1; display: block; }
+  .brand span { font: 500 12px var(--sans); color: var(--mute); letter-spacing: .06em; }
+  .lines { list-style: none; margin: 0; padding: 0; position: relative; }
+  .lines::before { content: ""; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 6px; background: var(--rule); border-radius: 3px; }
+  .lines a { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; height: 54px; text-decoration: none; position: relative; border-radius: 6px 0 0 6px; padding-right: 14px; }
+  .lines a .stn { justify-self: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ground); border: 5px solid var(--mute); position: relative; z-index: 1; }
+  .lines a span.n { font-weight: 700; font-size: 16px; display: flex; align-items: baseline; gap: 8px; }
+  .lines a span.n small { font: 500 12px var(--sans); color: var(--mute); }
+  .lines a:hover { background: var(--ground-2); }
+  .lines a[aria-current="page"] { background: var(--ground-2); }
+  .lines a[aria-current="page"] .stn { border-color: var(--amber); background: var(--porcelain); width: 28px; height: 28px; }
+  .lines a .ct { margin-left: auto; background: var(--scarlet); color: #fff; border-radius: 99px; font: 700 12px var(--sans); padding: 1px 8px; }
+  .side .sp { flex: 1; }
+  .me { display: flex; align-items: center; gap: 10px; color: var(--mute); font-size: 14px; padding-right: 22px; }
+  .me i { width: 36px; height: 36px; border-radius: 50%; background: var(--amber); color: var(--ground); display: grid; place-items: center; font: 900 16px var(--sans); font-style: normal; }
+
+  /* centre -------------------------------------------------- */
+  .main { padding: 24px 36px 60px; min-width: 0; }
+  .topbar { display: flex; align-items: center; gap: 20px; margin-bottom: 22px; }
+  .search { flex: 1; max-width: 520px; background: var(--ground-2); border: 1.5px solid var(--rule); border-radius: 6px; padding: 10px 14px; color: var(--porcelain); font: inherit; }
+  .search::placeholder { color: var(--mute); }
+  .search:focus { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .clock { margin-left: auto; font: 400 15px var(--dot); color: var(--mute); }
+  .clock b { color: var(--porcelain); font-weight: 400; }
+
+  h1 { font-family: var(--cond); font-weight: 700; font-size: 58px; line-height: .95; letter-spacing: .01em; margin: 0 0 6px; text-transform: uppercase; }
+  h1 span { color: var(--amber); }
+  .lede { margin: 0 0 18px; color: var(--mute); font-size: 17px; max-width: 58ch; }
+  .lede b { color: var(--porcelain); font-weight: 500; }
+
+  .mapwrap { background: var(--ground-2); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px 10px; position: relative; }
+  .mapkey { display: flex; gap: 22px; font-size: 13px; color: var(--mute); padding: 0 4px 6px; align-items: center; flex-wrap: wrap; }
+  .mapkey span { display: inline-flex; align-items: center; gap: 7px; }
+  .k { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  .k.seen { background: var(--porcelain); border: 4px solid var(--amber); }
+  .k.aired { background: var(--ground-2); border: 3px dashed var(--porcelain); }
+  .k.future { background: var(--ground-2); border: 3px solid var(--rule); }
+  svg.map { width: 100%; height: auto; display: block; }
+  svg.map text { font-family: var(--sans); }
+  .lbl { font-weight: 900; font-size: 17px; fill: var(--porcelain); }
+  .lbl2 { font-weight: 500; font-size: 13px; fill: var(--mute); }
+  .stnlbl { font: 700 15px var(--cond); fill: var(--ground); letter-spacing: .04em; }
+  .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 2.4s cubic-bezier(.16,1,.3,1) infinite; }
+  @keyframes pulse { 0% { transform: scale(.7); opacity: .9; } 70%,100% { transform: scale(2.1); opacity: 0; } }
+  .hit { cursor: pointer; }
+  .hit:hover .stn-ring { stroke-width: 5; }
+  .tag rect { rx: 4; }
+  @media (prefers-reduced-motion: reduce) { .pulse { animation: none; opacity: 0; } }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 26px; }
+  h2 { font-family: var(--cond); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 24px; margin: 0 0 12px; display: flex; align-items: baseline; gap: 12px; }
+  h2 small { font: 500 13px var(--sans); text-transform: none; letter-spacing: 0; color: var(--mute); }
+  .shelf { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; list-style: none; margin: 0; padding: 0; }
+  .shelf li a { display: block; text-decoration: none; }
+  .shelf img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 6px; display: block; border: 2px solid var(--rule); }
+  .shelf b { display: block; font-size: 12.5px; margin-top: 6px; line-height: 1.2; font-weight: 700; }
+  .shelf small { font: 400 12px var(--dot); color: var(--mute); }
+  .journey { list-style: none; margin: 0; padding: 0 0 0 4px; position: relative; }
+  .journey::before { content: ""; position: absolute; left: 12px; top: 10px; bottom: 10px; width: 4px; background: var(--rule); }
+  .journey li { display: grid; grid-template-columns: 18px 1fr auto; gap: 14px; padding: 7px 0; align-items: center; position: relative; }
+  .journey li::before { content: ""; width: 18px; height: 18px; border-radius: 50%; background: var(--ground); border: 4px solid var(--c); position: relative; z-index: 1; }
+  .journey time { font: 400 13px var(--dot); color: var(--mute); }
+
+  /* departures board ---------------------------------------- */
+  .board { border-left: 1px solid var(--rule); padding: 24px 24px 60px; min-width: 0; }
+  .board h2 { margin-top: 6px; }
+  .dep { list-style: none; padding: 0; margin: 0 0 30px; display: grid; gap: 8px; }
+  .dep li { display: grid; grid-template-columns: 8px 52px 1fr auto; gap: 12px; align-items: center; background: oklch(16% .06 258); border: 1px solid var(--rule); border-radius: 6px; padding: 8px 12px 8px 0; overflow: hidden; }
+  .dep li .bar { align-self: stretch; background: var(--c); }
+  .dep img { width: 52px; height: 74px; object-fit: cover; border-radius: 3px; display: block; margin: 0; }
+  .dep b { font-weight: 700; font-size: 15px; display: block; line-height: 1.2; }
+  .dep .when { font: 400 13px var(--dot); color: var(--mute); display: block; margin-top: 4px; }
+  .dep .when em { font-style: normal; color: var(--amber); }
+  .dep .go {
+    appearance: none; border: 0; background: var(--porcelain); color: var(--ground); font: 700 15px var(--cond); letter-spacing: .06em;
+    padding: 6px 12px 5px; border-radius: 4px; cursor: pointer; transition: transform .12s cubic-bezier(.16,1,.3,1);
+  }
+  .dep .go:hover { transform: translateX(3px); background: var(--amber); }
+  .dep .done { font: 400 13px var(--dot); color: var(--mute); }
+  .interchange { font-size: 14px; color: var(--mute); margin: -14px 0 28px; }
+  .interchange b { color: var(--porcelain); font-weight: 500; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <nav class="side" aria-label="Main">
+    <div class="brand"><div class="roundel" aria-hidden="true">秋</div><div><b>AKIBA</b><span>秋葉 · your line map</span></div></div>
+    <ul class="lines">
+      <li><a href="#" aria-current="page"><i class="stn"></i><span class="n">Home <small>ホーム</small></span></a></li>
+      <li><a href="#"><i class="stn"></i><span class="n">Discover <small>探す</small></span></a></li>
+      <li><a href="#"><i class="stn"></i><span class="n">Library <small>棚</small></span></a></li>
+      <li><a href="#"><i class="stn"></i><span class="n">Inbox <small>便り</small></span><span class="ct">3</span></a></li>
+      <li><a href="#"><i class="stn"></i><span class="n">History <small>履歴</small></span></a></li>
+      <li><a href="#"><i class="stn"></i><span class="n">Settings <small>設定</small></span></a></li>
+    </ul>
+    <div class="sp"></div>
+    <div class="me"><i>H</i>Hana</div>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <label><span class="sr">Search</span><input class="search" type="search" placeholder="Search anime, studios, characters" style="width:420px"></label>
+      <div class="clock"><b>Tue 24 Nov</b> · 23:42 · Fall 2026</div>
+    </div>
+
+    <h1>Your lines tonight, <span>Hana</span></h1>
+    <p class="lede">Five series running. <b>Three have a new station waiting</b>. Kusuriya is one stop ahead of you.</p>
+
+    <section class="mapwrap" aria-labelledby="mapt">
+      <h2 id="mapt" class="sr">Map of the series you are watching</h2>
+      <div class="mapkey" aria-hidden="true">
+        <span><i class="k seen"></i>watched</span><span><i class="k aired"></i>aired, waiting for you</span><span><i class="k future"></i>not aired yet</span>
+        <span style="margin-left:auto">Interchanges: same studio</span>
+      </div>
+      <svg class="map" id="map" viewBox="0 0 940 540" role="img" aria-label="Five lines, one per series. Kusuriya: 7 of 12 watched, episode 8 aired. JoJo Steel Ball Run: 8 of 11, episode 9 aired. Hotaru no Yomeiri: 7 of 12, caught up. Tokyo Revengers: 5 of 13, three episodes waiting. Tougen Anki: 8 of 12, caught up."></svg>
+    </section>
+
+    <div class="two">
+      <section aria-labelledby="sh">
+        <h2 id="sh">Last arrivals <small>finished lately</small></h2>
+        <ul class="shelf">
+          <li><a href="#"><img src="covers/154587.jpg" alt="" width="100" height="150"><b>Sousou no Frieren</b><small>10 / 10 · 9★</small></a></li>
+          <li><a href="#"><img src="covers/16498.jpg" alt="" width="100" height="150"><b>Shingeki no Kyojin</b><small>25 / 25</small></a></li>
+          <li><a href="#"><img src="covers/9253.jpg" alt="" width="100" height="150"><b>Steins;Gate</b><small>24 / 24</small></a></li>
+          <li><a href="#"><img src="covers/1.png" alt="" width="100" height="150"><b>Cowboy Bebop</b><small>26 / 26</small></a></li>
+          <li><a href="#"><img src="covers/199.jpg" alt="" width="100" height="150"><b>Spirited Away</b><small>film · 9★</small></a></li>
+        </ul>
+      </section>
+      <section aria-labelledby="jy">
+        <h2 id="jy">This week's journey <small>history</small></h2>
+        <ol class="journey">
+          <li style="--c:var(--green)"><span><b>Tougen Anki</b> station 8</span><time>MON 23:58</time></li>
+          <li style="--c:var(--green)"><span><b>Hotaru no Yomeiri</b> station 7</span><time>MON 22:10</time></li>
+          <li style="--c:var(--scarlet)"><span><b>JoJo: Steel Ball Run</b> station 7</span><time>SUN 25:05</time></li>
+          <li style="--c:var(--amber)"><span><b>Kusuriya</b> station 7</span><time>SUN 23:40</time></li>
+        </ol>
+      </section>
+    </div>
+  </main>
+
+  <aside class="board" aria-labelledby="dep">
+    <h2 id="dep">Departures <small>new for you</small></h2>
+    <ul class="dep">
+      <li style="--c:var(--amber)"><i class="bar"></i><img src="covers/195516.jpg" alt="" width="52" height="74"><div><b>Kusuriya no Hitorigoto 3rd Season</b><span class="when">EP 8 · <em>AIRED</em> 2h ago</span></div><button class="go" type="button" aria-label="Log episode 8 of Kusuriya">+1 →</button></li>
+      <li style="--c:var(--scarlet)"><i class="bar"></i><img src="covers/210482.jpg" alt="" width="52" height="74"><div><b>JoJo: Steel Ball Run</b><span class="when">EP 9 · <em>AIRED</em> 5h ago</span></div><button class="go" type="button" aria-label="Log episode 9 of JoJo Steel Ball Run">+1 →</button></li>
+      <li style="--c:var(--violet)"><i class="bar"></i><img src="covers/178083.jpg" alt="" width="52" height="74"><div><b>Tokyo Revengers: Santen Sensou</b><span class="when">EP 6–8 · <em>3 WAITING</em></span></div><button class="go" type="button" aria-label="Log episode 6 of Tokyo Revengers">+1 →</button></li>
+      <li style="--c:var(--green)"><i class="bar"></i><img src="covers/205909.jpg" alt="" width="52" height="74"><div><b>Hotaru no Yomeiri</b><span class="when">EP 8 · 24:00 TONIGHT</span></div><span class="done">on time</span></li>
+      <li style="--c:var(--cobalt)"><i class="bar"></i><img src="covers/204650.png" alt="" width="52" height="74"><div><b>Tougen Anki: Nikko Kegon</b><span class="when">EP 9 · 25:30 TONIGHT</span></div><span class="done">on time</span></li>
+    </ul>
+    <p class="interchange"><b>Interchange tonight:</b> JoJo and Hotaru are both david production. Two lines, one platform.</p>
+
+    <h2>Next on the board <small>this week</small></h2>
+    <ul class="dep">
+      <li style="--c:var(--rule)"><i class="bar"></i><img src="covers/195604.jpg" alt="" width="52" height="74"><div><b>Black Clover 2nd Season</b><span class="when">EP 8 · SAT 22:30</span></div><span class="done">not on your lines</span></li>
+      <li style="--c:var(--rule)"><i class="bar"></i><img src="covers/213805.png" alt="" width="52" height="74"><div><b>Koori no Jouheki 2nd Season</b><span class="when">EP 9 · THU 24:30</span></div><span class="done">not on your lines</span></li>
+    </ul>
+  </aside>
+</div>
+
+<script>
+(function () {
+  var NS = 'http://www.w3.org/2000/svg';
+  var C = { amber: '#f0b73c', scarlet: '#f0584a', green: '#3fd484', cobalt: '#5a9dff', violet: '#b987f0' };
+  var svg = document.getElementById('map');
+  function el(n, a, p) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; }
+
+  // lines: polyline with 45/90-degree bends; stations spread evenly along the path
+  var lines = [
+    { name: 'Kusuriya no Hitorigoto 3rd Season', sub: 'OLM · 7 of 12', img: 'covers/195516.jpg', c: C.amber, total: 12, seen: 7, aired: 8,
+      pts: [[120,70],[420,70],[490,140],[800,140]], label: [830, 120] },
+    { name: 'JoJo: Steel Ball Run', sub: 'david production · 8 of 11', img: 'covers/210482.jpg', c: C.scarlet, total: 11, seen: 8, aired: 9,
+      pts: [[120,190],[290,190],[355,255],[560,255]], label: [590, 228] },
+    { name: 'Hotaru no Yomeiri', sub: 'david production · 7 of 12', img: 'covers/205909.jpg', c: C.green, total: 12, seen: 7, aired: 7,
+      pts: [[120,370],[290,370],[355,305],[560,305]], label: [590, 296] },
+    { name: 'Tokyo Revengers: Santen Sensou', sub: 'LIDENFILMS · 5 of 13', img: 'covers/178083.jpg', c: C.violet, total: 13, seen: 5, aired: 8,
+      pts: [[120,450],[500,450],[560,390],[800,390]], label: [830, 380] },
+    { name: 'Tougen Anki: Nikko Kegon', sub: 'Studio Hibari · 8 of 12', img: 'covers/204650.png', c: C.cobalt, total: 12, seen: 8, aired: 8,
+      pts: [[120,505],[820,505]], label: [850, 490] }
+  ];
+
+  function lengths(p) { var L = [0]; for (var i = 1; i < p.length; i++) L.push(L[i-1] + Math.hypot(p[i][0]-p[i-1][0], p[i][1]-p[i-1][1])); return L; }
+  function at(p, L, d) { for (var i = 1; i < p.length; i++) if (d <= L[i]) { var t = (d - L[i-1]) / (L[i] - L[i-1]); return [p[i-1][0] + (p[i][0]-p[i-1][0]) * t, p[i-1][1] + (p[i][1]-p[i-1][1]) * t]; } return p[p.length-1]; }
+
+  // interchange rings first (under the lines): david production crossing
+  el('circle', { cx: 330, cy: 235, r: 22, fill: '#0f1a38', stroke: '#f4f7fb', 'stroke-width': 5 }).setAttribute('opacity', '.0');
+
+  lines.forEach(function (ln, idx) {
+    var d = 'M' + ln.pts.map(function (p) { return p.join(','); }).join(' L');
+    // under-stroke (enamel edge) then the line
+    el('path', { d: d, fill: 'none', stroke: '#0f1a38', 'stroke-width': 18, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    el('path', { d: d, fill: 'none', stroke: ln.c, 'stroke-width': 11, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: .35 });
+    // travelled part: draw full-brightness up to the current station
+    var L = lengths(ln.pts), total = L[L.length-1];
+    var step = total / (ln.total - 1);
+    var upTo = step * (ln.seen - 1);
+    var tp = [ln.pts[0]];
+    for (var i = 1; i < ln.pts.length; i++) { if (L[i] < upTo) tp.push(ln.pts[i]); else { tp.push(at(ln.pts, L, upTo)); break; } }
+    el('path', { d: 'M' + tp.map(function (p) { return p.join(','); }).join(' L'), fill: 'none', stroke: ln.c, 'stroke-width': 11, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+
+    var g = el('g', { class: 'hit', tabindex: 0, role: 'link', 'aria-label': ln.name + ': ' + ln.sub });
+    for (var s = 0; s < ln.total; s++) {
+      var pos = at(ln.pts, L, step * s), n = s + 1;
+      var seen = n <= ln.seen, aired = !seen && n <= ln.aired;
+      var cur = n === ln.seen + 1 && aired;
+      if (cur) {
+        el('circle', { cx: pos[0], cy: pos[1], r: 12, fill: ln.c, class: 'pulse', opacity: .8 }, g);
+      }
+      el('circle', { class: 'stn-ring', cx: pos[0], cy: pos[1], r: cur ? 11 : 8, fill: seen ? '#f4f7fb' : '#16224a', stroke: seen ? ln.c : (aired ? '#f4f7fb' : '#3a4a7a'), 'stroke-width': 4, 'stroke-dasharray': aired && !seen ? '4 3' : 'none' }, g);
+      if (cur) {
+        var t = el('text', { x: pos[0], y: pos[1] - 24, 'text-anchor': 'middle', class: 'stnlbl', fill: '#fff' }, g);
+        el('rect', { x: pos[0] - 26, y: pos[1] - 42, width: 52, height: 22, rx: 4, fill: ln.c }, g);
+        g.appendChild(t); t.textContent = 'EP ' + n + ' →';
+        t.setAttribute('y', pos[1] - 26);
+      }
+    }
+    // terminus: cover + name
+    var lx = ln.label[0], ly = ln.label[1];
+    var end = ln.pts[ln.pts.length - 1];
+    el('line', { x1: end[0], y1: end[1], x2: lx - 6, y2: end[1], stroke: ln.c, 'stroke-width': 11 });
+    var cp = 'cp' + idx;
+    var defs = svg.querySelector('defs') || el('defs', {});
+    var clip = document.createElementNS(NS, 'clipPath'); clip.setAttribute('id', cp); var r = document.createElementNS(NS, 'rect'); r.setAttribute('x', lx); r.setAttribute('y', ly - 14); r.setAttribute('width', 40); r.setAttribute('height', 56); r.setAttribute('rx', 5); clip.appendChild(r); defs.appendChild(clip);
+    el('image', { href: ln.img, x: lx, y: ly - 14, width: 40, height: 56, preserveAspectRatio: 'xMidYMid slice', 'clip-path': 'url(#' + cp + ')' });
+    el('rect', { x: lx, y: ly - 14, width: 40, height: 56, rx: 5, fill: 'none', stroke: ln.c, 'stroke-width': 3 });
+    // title label below start on the left (start station)
+    var st = ln.pts[0];
+    var tx = el('text', { x: st[0] - 14, y: st[1] - 22, class: 'lbl' }); tx.textContent = ln.name;
+    var tx2 = el('text', { x: st[0] - 14, y: st[1] - 6, class: 'lbl2' }); tx2.textContent = ln.sub;
+  });
+
+  // interchange: JoJo (line 2) and Hotaru (line 3) share a platform where their lines meet (david production)
+  var inter = el('g', {});
+  el('rect', { x: 394, y: 237, width: 30, height: 86, rx: 15, fill: '#16224a', stroke: '#f4f7fb', 'stroke-width': 5 }, inter);
+  var it = el('text', { x: 436, y: 285, class: 'lbl2' }, inter); it.textContent = 'david production';
+  it.setAttribute('fill', '#f4f7fb');
+  it.setAttribute('style', 'font-weight:700;font-size:14px');
+})();
+</script>
+</body>
+</html>

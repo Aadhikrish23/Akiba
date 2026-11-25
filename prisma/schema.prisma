@@ -251,6 +251,14 @@ model Title {
   synonyms        String[]                 @default([])
   synopsis        String?
   coverUrl        String?                  @map("cover_url")
+  /// The cover art's dominant colour as `#rrggbb` when the source supplies one (AniList does); tickets are printed on it.
+  coverColor      String?                  @map("cover_color")
+  /// The show's Crunchyroll series page, when AniList lists one.
+  crunchyrollUrl String? @map("crunchyroll_url")
+  /// Episode number to Crunchyroll watch URL, as far as AniList lists them (often partial). {"1": "https://..."}
+  crunchyrollEpisodes Json? @map("crunchyroll_episodes")
+  /// Every streaming service AniList lists for the show: [{"site": "Netflix", "url": "https://..."}].
+  streamingLinks Json? @map("streaming_links")
   bannerUrl       String?                  @map("banner_url")
   /// The source's own format label, kept verbatim; `kind` is the normalised value.
   format          String?
@@ -286,6 +294,7 @@ model Title {
   genres           TitleGenre[]
   characters       TitleCharacter[]
   airingEpisodes   AiringEpisode[]
+  episodeInfo      EpisodeInfo[]
   mappingOverrides MappingOverride[]
   libraryEntries   LibraryEntry[]
   events           Event[]
@@ -327,6 +336,8 @@ model TitleRelation {
 model Franchise {
   id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name String
+  /// TV titles on the main line (prequel/sequel chain) of the franchise: its "seasons". Null until counted.
+  seasonCount Int? @map("season_count")
 
   titles Title[]
 
@@ -432,6 +443,20 @@ model TitleCharacter {
   @@id([titleId, characterId])
   @@index([characterId])
   @@map("title_character")
+}
+
+/// The name and synopsis of one episode, from Jikan, fetched the first time somebody asks for it.
+model EpisodeInfo {
+  titleId       String   @map("title_id") @db.Uuid
+  episodeNumber Int      @map("episode_number")
+  name          String?
+  synopsis      String?
+  fetchedAt     DateTime @map("fetched_at") @db.Timestamptz(3)
+
+  title Title @relation(fields: [titleId], references: [id], onDelete: Cascade)
+
+  @@id([titleId, episodeNumber])
+  @@map("episode_info")
 }
 
 model AiringEpisode {

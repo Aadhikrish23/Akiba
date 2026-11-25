@@ -16,7 +16,17 @@ export const entrySelect = (userId: string) =>
     completedAt: true,
     addedAt: true,
     updatedAt: true,
-    title: { select: cardSelect(userId) },
+    title: {
+      select: {
+        ...cardSelect(userId),
+        // The newest airing row, to work out how many episodes have aired (see `episodesAired`).
+        airingEpisodes: {
+          orderBy: { episodeNumber: 'desc' },
+          take: 1,
+          select: { episodeNumber: true, airsAt: true },
+        },
+      },
+    },
   }) satisfies Prisma.LibraryEntrySelect;
 
 export type EntryRow = Prisma.LibraryEntryGetPayload<{ select: ReturnType<typeof entrySelect> }>;
@@ -27,13 +37,28 @@ const iso = (value: Date | null): string | null => (value === null ? null : valu
 export const effectiveTotal = (override: number | null, source: number | null): number | null =>
   override ?? source;
 
-export function toEntry(row: EntryRow): LibraryEntry {
+/**
+ * How many episodes of a running show have aired, from its newest airing row: that row's episode
+ * once its time has passed, the one before it while it is still to come. Null for a title that is
+ * not releasing or that has no airing row (nothing to go on).
+ */
+export function episodesAired(
+  title: { status: string; airingEpisodes: readonly { episodeNumber: number; airsAt: Date }[] },
+  at: Date,
+): number | null {
+  const newest = title.airingEpisodes[0];
+  if (title.status !== 'releasing' || newest === undefined) return null;
+  return newest.airsAt <= at ? newest.episodeNumber : Math.max(0, newest.episodeNumber - 1);
+}
+
+export function toEntry(row: EntryRow, at: Date = new Date()): LibraryEntry {
   return {
     id: row.id,
     title: toCard(row.title),
     status: row.status,
     progress: row.progress,
     effectiveTotal: effectiveTotal(row.episodesTotalOverride, row.title.episodesTotal),
+    episodesAired: episodesAired(row.title, at),
     totalOverridden: row.episodesTotalOverride !== null,
     rating: row.rating,
     isFavorite: row.isFavorite,

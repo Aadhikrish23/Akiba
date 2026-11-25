@@ -8,6 +8,7 @@ const DOC_06_TABLES = [
   'airing_episode',
   'character',
   'character_voice_actor',
+  'episode_info',
   'event',
   'franchise',
   'genre',

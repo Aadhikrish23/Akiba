@@ -428,6 +428,89 @@ describe('titles read API (T12, FR-DISC-001…010)', () => {
     });
   });
 
+  describe('adult genres and explicit titles', () => {
+    const turnAdultOn = () =>
+      testDb.sql.query('UPDATE "user" SET show_adult = true WHERE id = $1', [userId]);
+
+    it('offers Ecchi, Harem and the other mature genres only once adult titles are on', async () => {
+      const before = (await t.get('/genres', auth)).body.data as string[];
+      for (const name of ['Ecchi', 'Harem', 'Gore']) expect(before).not.toContain(name);
+      await turnAdultOn();
+      const after = (await t.get('/genres', auth)).body.data as string[];
+      for (const name of ['Ecchi', 'Harem', 'Reverse Harem', 'Nudity', 'Gore', 'Erotica']) {
+        expect(after).toContain(name);
+      }
+      expect(after).toContain('Action');
+    });
+
+    it('never offers Hentai as a genre, whatever the setting', async () => {
+      await turnAdultOn();
+      const names = ((await t.get('/genres', auth)).body.data as string[]).map((name) =>
+        name.toLowerCase(),
+      );
+      expect(names).not.toContain('hentai');
+    });
+
+    it('asks AniList for a tag when the genre is one (Harem), and for a genre otherwise', async () => {
+      await turnAdultOn();
+      await t.get('/titles/browse?genre=Harem', auth);
+      expect(t.anilist.variables()['tag']).toBe('Harem');
+      expect(t.anilist.variables()['genre']).toBeUndefined();
+      const asked = t.anilist.requests.length;
+      await t.get('/titles/browse?genre=Action', auth);
+      expect(t.anilist.variables(asked)['genre']).toBe('Action');
+      expect(t.anilist.variables(asked)['tag']).toBeUndefined();
+    });
+
+    it('keeps explicit titles out of every list even for a reader who turned adult on', async () => {
+      await turnAdultOn();
+      const page = fixture('anilist', 'search-attack-on-titan').response as {
+        data: { Page: { media: Array<Record<string, unknown>> } };
+      };
+      const explicit = {
+        ...page.data.Page.media[0],
+        id: 999002,
+        idMal: 999002,
+        isAdult: true,
+        genres: ['Hentai'],
+      };
+      const mature = {
+        ...page.data.Page.media[0],
+        id: 999003,
+        idMal: 999003,
+        isAdult: false,
+        genres: ['Ecchi'],
+        tags: [{ name: 'Harem', rank: 80 }],
+      };
+      t.anilist.responder = () =>
+        jsonResponse(200, {
+          data: {
+            Page: {
+              pageInfo: { currentPage: 1, hasNextPage: false },
+              media: [explicit, mature],
+            },
+          },
+        });
+      const body = await searchBody();
+      expect(body.data).toHaveLength(1);
+      expect(
+        await count(`title_external_id WHERE source = 'anilist' AND external_id = '999002'`),
+      ).toBe(0);
+      // The mature one is kept, and its Harem tag is stored as one of its genres.
+      expect(
+        await count(`title_external_id WHERE source = 'anilist' AND external_id = '999003'`),
+      ).toBe(1);
+      expect(
+        (
+          await testDb.sql.query<{ name: string }>(
+            `SELECT g.name FROM title_genre tg JOIN genre g ON g.id = tg.genre_id
+             JOIN title_external_id e ON e.title_id = tg.title_id WHERE e.external_id = '999003'`,
+          )
+        ).rows.map((row) => row.name),
+      ).toEqual(expect.arrayContaining(['Ecchi', 'Harem']));
+    });
+  });
+
   describe('genres', () => {
     it('lists genres from the source once, then from the database, without adult-only labels', async () => {
       const first = await t.get('/genres', auth);

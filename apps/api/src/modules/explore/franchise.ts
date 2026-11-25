@@ -1,4 +1,4 @@
-import type { RelationType } from '@akiba/shared';
+import { mainLineOf, type RelationType } from '@akiba/shared';
 import { Prisma, type DbClient, type DbTransaction } from '../../db/index.js';
 
 /**
@@ -120,6 +120,7 @@ export function groupFranchises(
 
 interface TitleInfo {
   readonly id: string;
+  readonly kind: string;
   readonly franchiseId: string | null;
   readonly name: string;
   readonly startDate: string;
@@ -205,6 +206,7 @@ export async function recomputeFranchises(
     where: { id: { in: ids } },
     select: {
       id: true,
+      kind: true,
       franchiseId: true,
       titleRomaji: true,
       titleEnglish: true,
@@ -218,6 +220,7 @@ export async function recomputeFranchises(
       row.id,
       {
         id: row.id,
+        kind: row.kind,
         franchiseId: row.franchiseId,
         name: row.titleRomaji ?? row.titleEnglish ?? row.titleNative ?? 'Untitled',
         startDate: row.startDate?.toISOString().slice(0, 10) ?? '9999-12-31',
@@ -245,13 +248,21 @@ export async function recomputeFranchises(
     const kept = [...votes.entries()].sort(
       (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
     )[0]?.[0];
-    const name = pickRoot(members).name;
+    const root = pickRoot(members);
+    const name = root.name;
+    // The seasons: TV titles on the prequel/sequel chain through the root.
+    const line = mainLineOf(root.id, edges);
+    const seasonCount = members.filter(
+      (member) => line.has(member.id) && member.kind === 'tv',
+    ).length;
     let franchiseId: string;
     if (kept === undefined) {
-      franchiseId = (await tx.franchise.create({ data: { name }, select: { id: true } })).id;
+      franchiseId = (
+        await tx.franchise.create({ data: { name, seasonCount }, select: { id: true } })
+      ).id;
     } else {
       franchiseId = kept;
-      await tx.franchise.update({ where: { id: kept }, data: { name } });
+      await tx.franchise.update({ where: { id: kept }, data: { name, seasonCount } });
     }
     taken.add(franchiseId);
     await tx.title.updateMany({ where: { id: { in: group } }, data: { franchiseId } });

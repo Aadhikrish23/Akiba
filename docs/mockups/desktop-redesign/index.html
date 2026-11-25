@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Akiba desktop redesign: three directions</title>
+<style>
+  :root { --bg: oklch(97% .004 250); --ink: oklch(18% .02 265); --mute: oklch(45% .02 265); color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, sans-serif; padding: 40px clamp(16px, 4vw, 56px) 80px; }
+  h1 { font-size: 34px; margin: 0 0 6px; }
+  p.lead { color: var(--mute); max-width: 62ch; margin: 0 0 32px; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 28px; }
+  a.card { display: block; text-decoration: none; color: inherit; border: 2px solid var(--ink); border-radius: 8px; overflow: hidden; background: #fff; }
+  a.card:hover, a.card:focus-visible { outline: 3px solid oklch(55% .2 262); outline-offset: 3px; }
+  .frame { aspect-ratio: 16 / 10; overflow: hidden; border-bottom: 2px solid var(--ink); background: #ddd; position: relative; }
+  .frame iframe { width: 1440px; height: 900px; border: 0; transform-origin: 0 0; transform: scale(.25); pointer-events: none; }
+  .txt { padding: 16px 18px 18px; }
+  .txt h2 { margin: 0 0 4px; font-size: 21px; }
+  .txt p { margin: 0; color: var(--mute); font-size: 14.5px; }
+</style>
+</head>
+<body>
+<h1>Akiba desktop: three directions</h1>
+<p class="lead">Same data, same screen (Home), three different worlds. Open each one full size. Sample schedule and progress are synthetic; covers are real AniList art.</p>
+<div class="row">
+  <div style="grid-column: 1 / -1;">
+    <h2 style="margin: 0 0 12px; font-size: 24px;">Chosen: Ticket Stub Night with the schedule (full desktop set)</h2>
+    <div class="row" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px;">
+      <a class="card" href="home.html#home"><div class="frame"><iframe src="home.html#home" title="Home" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>Home</h2><p>Resume tickets, this week's strip.</p></div></a>
+      <a class="card" href="home.html#schedule"><div class="frame"><iframe src="home.html#schedule" title="Schedule" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>Schedule</h2><p>Tonight and the week in broadcast time.</p></div></a>
+      <a class="card" href="discover.html"><div class="frame"><iframe src="discover.html" title="Discover" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>Discover</h2><p>This season and classics, filterable.</p></div></a>
+      <a class="card" href="title.html"><div class="frame"><iframe src="title.html" title="Title" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>Title</h2><p>Episode stubs, your ticket, score, note.</p></div></a>
+      <a class="card" href="library.html"><div class="frame"><iframe src="library.html" title="Library" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>Library</h2><p>The collection as shelves, or a list.</p></div></a>
+      <a class="card" href="inbox.html"><div class="frame"><iframe src="inbox.html" title="Inbox" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>Inbox</h2><p>What aired, stamped from one place.</p></div></a>
+    </div>
+    <h2 style="margin: 36px 0 4px; font-size: 20px; color: var(--mute);">The first round, for reference</h2>
+  </div>
+  <a class="card" href="a-ticket-stub-night.html"><div class="frame"><iframe src="a-ticket-stub-night.html" title="Preview A" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>A · Ticket Stub Night</h2><p>Every episode is a punched stub. +1 stamps it; the numeral gets heavier as you progress.</p></div></a>
+  <a class="card" href="b-broadcast-guide.html"><div class="frame"><iframe src="b-broadcast-guide.html" title="Preview B" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>B · Broadcast Guide</h2><p>The Japanese newspaper TV listing: your week as a timetable, tonight's slots, late-night 25:30 times.</p></div></a>
+  <a class="card" href="c-midnight-line-map.html"><div class="frame"><iframe src="c-midnight-line-map.html" title="Preview C" tabindex="-1" loading="lazy"></iframe></div><div class="txt"><h2>C · Midnight Line Map</h2><p>Each series is a transit line; episodes are stations. Shared studios are interchanges.</p></div></a>
+</div>
+<script>
+  // scale the 1440 px previews to whatever width the card has
+  function fit() { document.querySelectorAll('.frame').forEach(function (f) { f.querySelector('iframe').style.transform = 'scale(' + (f.clientWidth / 1440) + ')'; }); }
+  addEventListener('resize', fit); addEventListener('load', fit); fit();
+</script>
+</body>
+</html>

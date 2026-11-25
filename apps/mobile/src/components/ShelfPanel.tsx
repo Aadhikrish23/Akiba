@@ -268,7 +268,7 @@ export function ShelfPanel({ title }: { title: TitleDetail }) {
         />
       ) : (
         <View style={{ gap: theme.space(2) }}>
-          <Notice tone="error">Remove this title? Your history is kept.</Notice>
+          <Notice tone="error">Remove this title? Your viewings are kept.</Notice>
           <View style={{ flexDirection: 'row', gap: theme.space(4), flexWrap: 'wrap' }}>
             <Button
               label="Yes, remove it"

@@ -482,16 +482,16 @@ describe('The shelf on a title screen (doc 08 key flows 2–4)', () => {
     expect(screen.getByText(/Run 1: started .*, finished .*, rated 9 \/ 10/)).toBeTruthy();
   });
 
-  it('removing asks first, keeps the history, and returns to "Add to your library"', async () => {
+  it('removing asks first, keeps the viewings, and returns to "Add to your library"', async () => {
     const app = await open(
       shelf({}, (call) =>
         call.method === 'DELETE' ? new Response(null, { status: 204 }) : undefined,
       ),
     );
     await app.user.press(await screen.findByRole('button', { name: 'Remove from library' }));
-    expect(screen.getByText('Remove this title? Your history is kept.')).toBeTruthy();
+    expect(screen.getByText('Remove this title? Your viewings are kept.')).toBeTruthy();
     await app.user.press(screen.getByRole('button', { name: 'Keep it' }));
-    expect(screen.queryByText(/Your history is kept/)).toBeNull();
+    expect(screen.queryByText(/Your viewings are kept/)).toBeNull();
     await app.user.press(screen.getByRole('button', { name: 'Remove from library' }));
     await app.user.press(screen.getByRole('button', { name: 'Yes, remove it' }));
     expect(await screen.findByRole('header', { name: 'Add to your library' })).toBeTruthy();
@@ -521,83 +521,5 @@ describe('The shelf on a title screen (doc 08 key flows 2–4)', () => {
     for (const target of targets) {
       expect(Number(flatten(target.props.style)?.minHeight ?? 0)).toBeGreaterThanOrEqual(44);
     }
-  });
-});
-
-describe('History (FR-REM-003)', () => {
-  const event = (
-    n: number,
-    type: string,
-    payload: Record<string, unknown>,
-    day = '2026-11-18',
-  ) => ({
-    id: `55555555-5555-4555-8555-${String(n).padStart(12, '0')}`,
-    type,
-    occurredAt: `${day}T1${n % 10}:00:00.000Z`,
-    payload,
-    entryId: ENTRY,
-    title: card(1),
-  });
-  const history = (items: unknown[], extra: Record<string, unknown> = {}) =>
-    server((call) =>
-      call.path.endsWith('/history')
-        ? json(200, { data: items, nextCursor: null, ...extra })
-        : noSeason(call),
-    );
-
-  async function openHistory(handler: Handler) {
-    const app = await renderApp({ handler, storedRefreshToken: STORED });
-    await screen.findByText('Welcome, Reader');
-    await app.user.press(tab('Me'));
-    await app.user.press(await screen.findByRole('link', { name: 'History' }));
-    return app;
-  }
-
-  it('tells what happened as sentences, newest first, grouped by day', async () => {
-    await openHistory(
-      history([
-        event(3, 'progress_changed', { from: 2, to: 3, run: 1 }),
-        event(2, 'rated', { from: null, to: 9 }),
-        event(1, 'entry_added', { status: 'watching' }, '2026-11-17'),
-      ]),
-    );
-    expect(await screen.findByText('Watched episode 3')).toBeTruthy();
-    expect(screen.getByText('Rated 9 out of 10')).toBeTruthy();
-    expect(screen.getByText('Added to your library as Watching')).toBeTruthy();
-    // One header per day (the date's format depends on the device's locale; the year does not).
-    const days = screen
-      .getAllByRole('header')
-      .map((header) => JSON.stringify(header.props.children))
-      .filter((text) => text.includes('2026'));
-    expect(days).toHaveLength(2);
-    expect(screen.getAllByRole('link', { name: /^Show 1: / }).length).toBeGreaterThanOrEqual(3);
-  });
-
-  it('filters by kind through the API', async () => {
-    const app = await openHistory(history([event(2, 'rated', { from: null, to: 9 })]));
-    await screen.findByText('Rated 9 out of 10');
-    await app.user.press(screen.getByRole('radio', { name: 'Ratings' }));
-    await waitFor(() => app.to('/history').some((call) => query(call).get('type') === 'rated'));
-  });
-
-  it('says what to do when there is nothing yet, and pages with Load more', async () => {
-    await openHistory(history([]));
-    expect(await screen.findByText(/Nothing has happened yet/)).toBeTruthy();
-  });
-
-  it('pages', async () => {
-    const app = await openHistory(
-      server((call) => {
-        if (!call.path.endsWith('/history')) return noSeason(call);
-        return query(call).get('cursor') === 'more'
-          ? json(200, { data: [event(1, 'favorited', {})], nextCursor: null })
-          : json(200, { data: [event(2, 'rated', { from: null, to: 9 })], nextCursor: 'more' });
-      }),
-    );
-    await app.user.press(await screen.findByRole('button', { name: 'Load more' }));
-    expect(await screen.findByText('Marked as a favorite')).toBeTruthy();
-    expect(app.to('/history').filter((call) => query(call).get('cursor') === 'more')).toHaveLength(
-      1,
-    );
   });
 });

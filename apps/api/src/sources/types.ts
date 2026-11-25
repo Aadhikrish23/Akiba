@@ -38,6 +38,12 @@ export interface SourceDate {
 
 /** What search and browse return for each title: enough for a card. */
 export interface SourceTitle {
+  /** How the source says this title relates to others (AniList lists send them, so seasons can be grouped). */
+  readonly relations?: readonly SourceRelation[];
+  /** The Crunchyroll series page, when the source lists one (undefined: the source does not say). */
+  readonly crunchyrollUrl?: string | null;
+  /** Every streaming service the source lists for the show (undefined: the source does not say). */
+  readonly streamingLinks?: readonly { readonly site: string; readonly url: string }[];
   readonly source: SourceName;
   readonly externalIds: ExternalIds;
   readonly kind: TitleKind;
@@ -48,6 +54,8 @@ export interface SourceTitle {
   /** Plain text (markup removed). */
   readonly synopsis: string | null;
   readonly coverUrl: string | null;
+  /** `#rrggbb`, lower case, or null when the source has no colour for the cover. */
+  readonly coverColor: string | null;
   readonly bannerUrl: string | null;
   /** The source's own format label, verbatim. */
   readonly format: string | null;
@@ -78,6 +86,9 @@ export interface SourceRelationTarget {
   readonly externalIds: ExternalIds;
   readonly kind: TitleKind | null;
   readonly title: string | null;
+  /** What the relation edge also tells about the other title, when the source says. */
+  readonly titleEnglish?: string | null;
+  readonly coverUrl?: string | null;
 }
 
 export interface SourceRelation {
@@ -120,6 +131,8 @@ export interface SourceTitleDetail extends SourceTitle {
   readonly characters: readonly SourceCharacter[];
   /** The next episode to air, when the source knows. */
   readonly nextAiring: SourceAiringSlot | null;
+  /** Crunchyroll watch pages of single episodes, as far as the source lists them. */
+  readonly crunchyrollEpisodes?: readonly { readonly episode: number; readonly url: string }[];
 }
 
 /** One scheduled episode of one title (the title is named in the ID namespace of its source). */
@@ -153,6 +166,13 @@ export interface TitleFilters {
   readonly includeAdult?: boolean;
 }
 
+/** What a source says about one episode. Either field may be missing. */
+export interface SourceEpisode {
+  readonly episode: number;
+  readonly name: string | null;
+  readonly synopsis: string | null;
+}
+
 export interface SourceAdapter {
   readonly name: SourceName;
   /** What this source can answer; the gateway only asks for what is listed. */
@@ -170,6 +190,8 @@ export interface SourceAdapter {
     to: Date,
   ): Promise<readonly SourceAiringEpisode[]>;
   getGenres(): Promise<readonly string[]>;
+  /** The name and synopsis of one episode; `null` when the source has none. Only some sources do. */
+  getEpisode?(externalId: string, episode: number): Promise<SourceEpisode | null>;
 }
 
 export type SourceErrorKind =

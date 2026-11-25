@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { expect, type Page } from '@playwright/test';
+import { expect, request, type Page } from '@playwright/test';
 
 export const unique = (label: string): string =>
   `${label}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.test`;
@@ -50,6 +50,19 @@ export async function setAiringEpisode(episode: number): Promise<void> {
   expect(response.ok).toBe(true);
 }
 
+/** The one title the mock AniList reports as airing. */
+export const SHOW = 'Kusuriya no Hitorigoto 3rd Season';
+
+/** Open the airing show from Discover and add it as Watching. */
+export async function watchTheShow(page: Page): Promise<void> {
+  await page.goto('/discover?status=releasing');
+  await page.getByRole('link', { name: SHOW, exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: SHOW })).toBeVisible();
+  await page.getByLabel('Status').selectOption('watching');
+  await page.getByRole('button', { name: 'Add to library' }).click();
+  await expect(page.getByRole('heading', { name: 'On your shelf' })).toBeVisible();
+}
+
 const JOBS_CLI = fileURLToPath(new URL('../../api/dist/jobs/cli.js', import.meta.url));
 
 /**
@@ -71,4 +84,58 @@ export function runJob(name: 'airing-sync' | 'inbox-fanout'): string {
       LOG_LEVEL: 'warn',
     },
   });
+}
+
+/** The episode count reads "3 / 25": the 3 is a button that opens the episode picker. */
+export async function expectCount(page: Page, text: string): Promise<void> {
+  await expect(page.getByTestId('episode-count')).toHaveText(text);
+}
+
+/** Opens the episode picker from the count and returns it. */
+export async function openPicker(page: Page) {
+  await page.getByTestId('episode-count').getByRole('button').click();
+  const dialog = page.getByRole('dialog', { name: /up to episode/i });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+/**
+ * The web app keeps its access token in memory, so a test that talks to the API itself signs in
+ * once more (a separate session) and sends that token.
+ */
+export async function api(email: string) {
+  const context = await request.newContext({
+    baseURL: 'http://localhost:4173',
+    extraHTTPHeaders: { 'X-Client': 'web' },
+  });
+  const login = await context.post('/v1/auth/login', { data: { email, password: PASSWORD } });
+  expect(login.ok()).toBe(true);
+  const { accessToken } = (await login.json()) as { accessToken: string };
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  return {
+    get: (path: string) => context.get(path, { headers }),
+    post: (path: string, data: unknown) => context.post(path, { headers, data }),
+    put: (path: string, data: unknown) => context.put(path, { headers, data }),
+    close: () => context.dispose(),
+  };
+}
+
+/**
+ * Make a title's link visible in a list of titles. The seasons of one show are one tile, so a title
+ * may be behind it: then the tile is opened and the title is found on the show's page.
+ */
+export async function showResult(page: Page, name: string): Promise<void> {
+  const link = page.getByRole('link', { name, exact: true }).first();
+  const tile = page.getByRole('link', { name: /^Franchise / }).first();
+  await expect(link.or(tile)).toBeVisible();
+  if (!(await link.isVisible())) {
+    await tile.click();
+    await expect(link).toBeVisible();
+  }
+}
+
+/** Click a title's link in a list of titles (see {@link showResult}). */
+export async function openResult(page: Page, name: string): Promise<void> {
+  await showResult(page, name);
+  await page.getByRole('link', { name, exact: true }).first().click();
 }

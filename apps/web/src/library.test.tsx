@@ -1,9 +1,17 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { json, problem, renderApp, signedInHandler, violations, type Call } from './test/render';
+import {
+  countText,
+  json,
+  problem,
+  renderApp,
+  signedInHandler,
+  violations,
+  type Call,
+} from './test/render';
 
 /**
- * T18: Library, Home ("Continue watching" +1), the shelf panel on the title page and History.
+ * T18: Library, Home ("Continue watching" +1), and the shelf panel on the title page.
  * FR-LIB-001…007, FR-TRK-001…005, FR-REM-001…005; doc 08 key flows 1–4, §5 states, §6 accessibility.
  */
 
@@ -80,7 +88,7 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     expect(await screen.findByRole('heading', { name: 'Continue watching' })).toBeTruthy();
     const cards = await screen.findAllByRole('article');
     expect(cards).toHaveLength(2);
-    expect(within(cards[0]!).getByTestId('episode-count').textContent).toBe('3 / 12');
+    expect(countText(within(cards[0]!).getByTestId('episode-count'))).toBe('3 / 12');
     expect(within(cards[0]!).getByRole('button', { name: '+1 episode of Show 1' })).toBeTruthy();
   });
 
@@ -105,13 +113,13 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     });
     await app.user.click(await screen.findByRole('button', { name: '+1 episode of Show 1' }));
     // Optimistic: the number moved before the server answered.
-    expect(screen.getByTestId('episode-count').textContent).toBe('4 / 12');
+    expect(countText(screen.getByTestId('episode-count'))).toBe('4 / 12');
     release();
     await waitFor(() => {
       expect(app.to('/progress')).toHaveLength(1);
     });
     expect(app.to('/progress')[0]?.body).toEqual({ delta: 1 });
-    expect(screen.getByTestId('episode-count').textContent).toBe('4 / 12');
+    expect(countText(screen.getByTestId('episode-count'))).toBe('4 / 12');
   });
 
   it('puts the count back and says why when the server refuses', async () => {
@@ -127,7 +135,7 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     expect((await screen.findByRole('alert')).textContent).toMatch(
       /Something went wrong on our side/,
     );
-    expect(screen.getByTestId('episode-count').textContent).toBe('3 / 12');
+    expect(countText(screen.getByTestId('episode-count'))).toBe('3 / 12');
   });
 
   it('at the final episode asks "Mark completed?" inline, and completing hides +1', async () => {
@@ -153,12 +161,362 @@ describe('Home: continue watching (doc 08 key flow 1)', () => {
     });
   });
 
+  describe('the episode picker (catching up without pressing +1 a thousand times)', () => {
+    const serving = (shows: unknown[], onProgress?: (call: Call) => Response) =>
+      server((call) => {
+        if (call.path.endsWith('/library')) return list(shows);
+        if (call.path.endsWith('/progress') && onProgress !== undefined) return onProgress(call);
+        return undefined;
+      });
+    const trigger = () => within(screen.getByTestId('episode-count')).getByRole('button');
+    const open = async (app: ReturnType<typeof renderApp>) => {
+      await screen.findByTestId('episode-count');
+      await app.user.click(trigger());
+      return await screen.findByRole('dialog', { name: /up to episode/i });
+    };
+
+    it('the number is a button that says what it does, and opens the picker', async () => {
+      const app = renderApp({ route: '/', handler: serving([entry(1)]) });
+      await screen.findByTestId('episode-count');
+      expect(trigger().getAttribute('aria-haspopup')).toBe('dialog');
+      expect(trigger().getAttribute('aria-label')).toMatch(/^Episode 3 of 12: change/);
+      const dialog = await open(app);
+      expect(within(dialog).getAllByRole('button', { name: /^Episode \d+$/ })).toHaveLength(12);
+      expect(
+        within(dialog).getByRole('button', { name: 'Episode 3' }).getAttribute('aria-current'),
+      ).toBe('true');
+    });
+
+    it('picking an episode saves it in one request and closes', async () => {
+      const app = renderApp({
+        route: '/',
+        handler: serving([entry(1)], () =>
+          json(200, { data: detail(1, { progress: 9 }), suggestComplete: false }),
+        ),
+      });
+      const dialog = await open(app);
+      await app.user.click(within(dialog).getByRole('button', { name: 'Episode 9' }));
+      await waitFor(() => {
+        expect(app.to('/progress')).toHaveLength(1);
+      });
+      expect(app.to('/progress')[0]?.body).toEqual({ set: 9 });
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(countText(screen.getByTestId('episode-count'))).toBe('9 / 12');
+    });
+
+    it('typing a number and pressing Enter saves it; Escape closes without asking the server', async () => {
+      const app = renderApp({
+        route: '/',
+        handler: serving([entry(1)], () =>
+          json(200, { data: detail(1, { progress: 7 }), suggestComplete: false }),
+        ),
+      });
+      await open(app);
+      await app.user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(app.to('/progress')).toHaveLength(0);
+      expect(document.activeElement).toBe(trigger());
+
+      const dialog = await open(app);
+      const field = within(dialog).getByRole('textbox');
+      await app.user.clear(field);
+      await app.user.type(field, '7{Enter}');
+      await waitFor(() => {
+        expect(app.to('/progress')).toHaveLength(1);
+      });
+      expect(app.to('/progress')[0]?.body).toEqual({ set: 7 });
+    });
+
+    it('only digits go in the box', async () => {
+      const app = renderApp({ route: '/', handler: serving([entry(1)]) });
+      const field = within(await open(app)).getByRole<HTMLInputElement>('textbox');
+      await app.user.clear(field);
+      await app.user.type(field, 'D1x0');
+      expect(field.value).toBe('10');
+    });
+
+    it('explains a number past the total and does not save it', async () => {
+      const app = renderApp({ route: '/', handler: serving([entry(1)]) });
+      const dialog = await open(app);
+      const field = within(dialog).getByRole('textbox');
+      await app.user.clear(field);
+      await app.user.type(field, '13{Enter}');
+      expect((await within(dialog).findByRole('alert')).textContent).toBe(
+        'This show has 12 episodes.',
+      );
+      expect(app.to('/progress')).toHaveLength(0);
+      expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+
+    it('a running season locks the episodes that have not aired, and refuses to type past them', async () => {
+      const running = entry(1, { progress: 7, effectiveTotal: 12, episodesAired: 8 });
+      const app = renderApp({ route: '/', handler: serving([running]) });
+      await screen.findByTestId('episode-count');
+      expect(countText(screen.getByTestId('episode-count'))).toBe('7 / 8');
+      const dialog = await open(app);
+      expect(
+        within(dialog).getByRole<HTMLButtonElement>('button', { name: 'Episode 8' }).disabled,
+      ).toBe(false);
+      for (const episode of [9, 10, 11, 12]) {
+        expect(
+          within(dialog).getByRole<HTMLButtonElement>('button', {
+            name: `Episode ${episode}, not aired yet`,
+          }).disabled,
+        ).toBe(true);
+      }
+      const field = within(dialog).getByRole('textbox');
+      await app.user.clear(field);
+      await app.user.type(field, '10{Enter}');
+      expect((await within(dialog).findByRole('alert')).textContent).toBe(
+        'Only 8 episodes have aired so far.',
+      );
+      expect(app.to('/progress')).toHaveLength(0);
+    });
+
+    it('a running season stops +1 at what has aired', async () => {
+      const running = entry(1, { progress: 8, effectiveTotal: 12, episodesAired: 8 });
+      renderApp({ route: '/', handler: serving([running]) });
+      await screen.findByTestId('episode-count');
+      expect(screen.queryByRole('button', { name: '+1 episode of Show 1' })).toBeNull();
+      expect(screen.getByText('Caught up')).toBeTruthy();
+    });
+
+    it('a running show with no total counts up to what has aired, and no further', async () => {
+      const running = entry(1, { progress: 21, effectiveTotal: null, episodesAired: 1180 });
+      const app = renderApp({
+        route: '/',
+        handler: serving([running], () =>
+          json(200, {
+            data: detail(1, { progress: 1180, effectiveTotal: null, episodesAired: 1180 }),
+            suggestComplete: false,
+          }),
+        ),
+      });
+      await screen.findByTestId('episode-count');
+      expect(countText(screen.getByTestId('episode-count'))).toBe('21 / 1180');
+      const dialog = await open(app);
+      // Too long for a grid of episodes: a number box and a way to jump to the latest.
+      expect(within(dialog).queryByRole('list', { name: 'Episodes' })).toBeNull();
+      const field = within(dialog).getByRole('textbox');
+      await app.user.clear(field);
+      await app.user.type(field, '1181');
+      expect((await within(dialog).findByRole('alert')).textContent).toBe(
+        'Only 1180 episodes have aired so far.',
+      );
+      await app.user.click(within(dialog).getByRole('button', { name: 'Latest aired · 1180' }));
+      await waitFor(() => {
+        expect(app.to('/progress')).toHaveLength(1);
+      });
+      expect(app.to('/progress')[0]?.body).toEqual({ set: 1180 });
+      // Caught up: nothing to add with +1 until the next episode airs.
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: '+1 episode of Show 1' })).toBeNull();
+      });
+    });
+
+    it('puts the number back and says why when the server refuses', async () => {
+      const app = renderApp({
+        route: '/',
+        handler: serving([entry(1)], () => problem(500, 'INTERNAL_ERROR')),
+      });
+      const dialog = await open(app);
+      await app.user.click(within(dialog).getByRole('button', { name: 'Episode 8' }));
+      expect((await screen.findByRole('alert')).textContent).toMatch(
+        /Something went wrong on our side/,
+      );
+      expect(countText(screen.getByTestId('episode-count'))).toBe('3 / 12');
+    });
+
+    it('is plain text once the title is completed', async () => {
+      renderApp({
+        route: '/',
+        handler: serving([entry(1, { status: 'completed', progress: 12 })]),
+      });
+      await screen.findByTestId('episode-count');
+      expect(within(screen.getByTestId('episode-count')).queryByRole('button')).toBeNull();
+    });
+  });
+
+  describe('the big ticket: the episode you just watched, and the one you are about to', () => {
+    const episodes = (call: Call): Response | undefined => {
+      const match = /\/titles\/[^/]+\/episodes\/(\d+)$/.exec(call.path);
+      if (match === null) return undefined;
+      const number = Number(match[1]);
+      return json(200, {
+        data: {
+          episode: number,
+          name: `Name of ${number}`,
+          synopsis: `What happens in ${number}.`,
+        },
+      });
+    };
+    const serving = (note: string | null = null) =>
+      server((call) => {
+        if (call.path.endsWith('/library')) return list([entry(1), entry(2)]);
+        if (call.path.endsWith(`/library/${entry(1).id}`))
+          return json(200, { data: detail(1, { notes: note }) });
+        return episodes(call);
+      });
+
+    it('leads with a recap of the episode you watched, not your note', async () => {
+      renderApp({ route: '/', handler: serving('A note of mine') });
+      expect(await screen.findByText('What happens in 3.')).toBeTruthy();
+      expect(screen.getByText('Name of 3')).toBeTruthy();
+      expect(screen.queryByText('A note of mine')).toBeNull();
+    });
+
+    it('holds the next episode back until you ask for the teaser', async () => {
+      const app = renderApp({ route: '/', handler: serving() });
+      await app.user.click(await screen.findByRole('button', { name: /^Up next · Ep 4/ }));
+      expect(await screen.findByText('Name of 4')).toBeTruthy();
+      // The teaser is not even on the page until it is asked for.
+      expect(screen.queryByText('What happens in 4.')).toBeNull();
+      expect(document.body.textContent).not.toContain('What happens in 4.');
+      await app.user.click(screen.getByRole('button', { name: 'Show the teaser' }));
+      expect(await screen.findByText('What happens in 4.')).toBeTruthy();
+    });
+
+    it('keeps your note one tab away', async () => {
+      const app = renderApp({ route: '/', handler: serving('A note of mine') });
+      await app.user.click(await screen.findByRole('button', { name: 'My note' }));
+      expect(await screen.findByText('A note of mine')).toBeTruthy();
+    });
+
+    it('says so when no source has a synopsis, instead of leaving a gap', async () => {
+      renderApp({
+        route: '/',
+        handler: server((call) => {
+          if (call.path.endsWith('/library')) return list([entry(1)]);
+          if (/\/episodes\/\d+$/.test(call.path))
+            return json(200, { data: { episode: 3, name: null, synopsis: null } });
+          return undefined;
+        }),
+      });
+      expect(await screen.findByText('No synopsis for episode 3 yet.')).toBeTruthy();
+    });
+  });
+
   it('says what to do when nothing is in progress', async () => {
     renderApp({
       route: '/',
       handler: server((call) => (call.path.endsWith('/library') ? list([]) : undefined)),
     });
     expect(await screen.findByText(/Nothing in progress/)).toBeTruthy();
+  });
+});
+
+describe('the title language applies from the first paint', () => {
+  const named = (language: 'romaji' | 'english' | 'native') => {
+    const names = {
+      titleRomaji: 'Shingeki no Kyojin',
+      titleEnglish: 'Attack on Titan',
+      titleNative: '進撃の巨人',
+    };
+    const shown = {
+      romaji: names.titleRomaji,
+      english: names.titleEnglish,
+      native: names.titleNative,
+    };
+    return {
+      language,
+      shown: shown[language],
+      handler: signedInHandler({ titleLanguage: language }, (call) =>
+        call.path.endsWith('/library')
+          ? list([entry(1, { title: card(1, names) })])
+          : problem(404, 'NOT_FOUND'),
+      ),
+    };
+  };
+
+  it.each(['romaji', 'english', 'native'] as const)(
+    'names a show in %s on a page that loads with the account',
+    async (language) => {
+      const { shown, handler } = named(language);
+      renderApp({ route: '/', handler });
+      expect(await screen.findByRole('link', { name: shown })).toBeTruthy();
+    },
+  );
+});
+
+describe('Library: the seasons of one show are one tile', () => {
+  const info = {
+    id: '00000000-0000-4000-8000-0000000000f1',
+    size: 7,
+    seasons: 7,
+    titleRomaji: 'My Hero Academia',
+    titleEnglish: 'Boku no Hero Academia (English)',
+    titleNative: null,
+  };
+  const withSeasons = server((call) => {
+    if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+    if (call.path.endsWith('/library'))
+      return list([
+        entry(1, { title: card(1, { franchise: info }) }),
+        entry(2),
+        entry(3, { status: 'completed', title: card(3, { franchise: info }) }),
+      ]);
+    return undefined;
+  });
+  const tileName = 'Franchise My Hero Academia 7 seasons 2 in your library, 1 completed';
+
+  it('puts the seasons you have of one show in one tile that opens the show', async () => {
+    renderApp({ route: '/library', handler: withSeasons });
+    const tile = await screen.findByRole('link', { name: tileName });
+    expect(tile.getAttribute('href')).toBe(`/franchise/${info.id}`);
+    // The other show is an ordinary poster; the seasons are behind the tile.
+    expect(screen.getByRole('link', { name: 'Show 2' })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Show 1' })).toBeNull();
+  });
+
+  it('makes a single season of a show a tile too, saying how far you are, so the grid looks alike', async () => {
+    renderApp({
+      route: '/library',
+      handler: server((call) => {
+        if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+        if (call.path.endsWith('/library'))
+          return list([entry(1, { title: card(1, { franchise: info }) }), entry(2)]);
+        return undefined;
+      }),
+    });
+    expect(
+      await screen.findByRole('link', {
+        name: 'Franchise My Hero Academia 7 seasons Watching · 3 / 12',
+      }),
+    ).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Show 1' })).toBeNull();
+  });
+
+  it('keeps a single season as its own row in the compact list, with its +1', async () => {
+    renderApp({
+      route: '/library',
+      handler: signedInHandler({ libraryView: 'list' }, (call) => {
+        if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+        if (call.path.endsWith('/library'))
+          return list([entry(1, { title: card(1, { franchise: info }) })]);
+        return problem(404, 'NOT_FOUND');
+      }),
+    });
+    expect(await screen.findByRole('button', { name: '+1 episode of Show 1' })).toBeTruthy();
+  });
+
+  it('is a tile in the compact list too', async () => {
+    renderApp({
+      route: '/library',
+      handler: signedInHandler({ libraryView: 'list' }, (call) => {
+        if (call.path.endsWith('/library/counts')) return json(200, { data: COUNTS });
+        if (call.path.endsWith('/library'))
+          return list([
+            entry(1, { title: card(1, { franchise: info }) }),
+            entry(3, { title: card(3, { franchise: info }) }),
+          ]);
+        return problem(404, 'NOT_FOUND');
+      }),
+    });
+    expect(
+      await screen.findByRole('link', {
+        name: 'Franchise My Hero Academia 7 seasons 2 in your library',
+      }),
+    ).toBeTruthy();
   });
 });
 
@@ -198,12 +556,17 @@ describe('Library (FR-LIB-003…005)', () => {
     const app = renderApp({ route: '/library', handler: library });
     await screen.findByRole('list', { name: 'Library' });
     await app.user.selectOptions(screen.getByLabelText('Sort by'), 'rating');
-    await app.user.type(screen.getByLabelText('Search your library'), 'show{enter}');
+    const before = app.to('/library').length;
+    // No Search button: typing is the search, once it pauses.
+    expect(screen.queryByRole('button', { name: 'Search' })).toBeNull();
+    await app.user.type(screen.getByLabelText('Search your library'), 'show');
     await waitFor(() => {
       const last = query(app.to('/library').at(-1)!);
       expect(last.get('sort')).toBe('rating');
       expect(last.get('q')).toBe('show');
     });
+    // One request for the word, not one per key.
+    expect(app.to('/library').length - before).toBeLessThanOrEqual(2);
   });
 
   it('remembers the layout on the account and switches to the compact list', async () => {
@@ -464,7 +827,7 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
     expect(within(viewings).getByText(/Run 1: .*finished 2026-11-05, rated 8 \/ 10/)).toBeTruthy();
   });
 
-  it('removing asks first, keeps the history, and returns to "Add to your library"', async () => {
+  it('removing asks first, keeps the viewings, and returns to "Add to your library"', async () => {
     const app = renderApp({
       route: `/title/${TITLE}`,
       handler: shelf({}, (call) =>
@@ -472,7 +835,7 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
       ),
     });
     await app.user.click(await screen.findByRole('button', { name: 'Remove from library' }));
-    expect(screen.getByRole('alert').textContent).toMatch(/Your history is kept/);
+    expect(screen.getByRole('alert').textContent).toMatch(/Your viewings are kept/);
     await app.user.click(screen.getByRole('button', { name: 'Yes, remove it' }));
     expect(await screen.findByRole('heading', { name: 'Add to your library' })).toBeTruthy();
   });
@@ -492,68 +855,6 @@ describe('The shelf panel on a title page (doc 08 key flows 2–4)', () => {
   it('is free of automatically detectable accessibility problems', async () => {
     const app = renderApp({ route: `/title/${TITLE}`, handler: shelf() });
     await screen.findByRole('heading', { name: 'On your shelf' });
-    expect(await violations(app.container)).toEqual([]);
-  });
-});
-
-describe('History (FR-REM-003)', () => {
-  const event = (
-    n: number,
-    type: string,
-    payload: Record<string, unknown>,
-    occurredAt: string,
-  ) => ({
-    id: `22222222-2222-4222-8222-${String(n).padStart(12, '0')}`,
-    type,
-    occurredAt,
-    payload,
-    entryId: ENTRY,
-    title: card(1),
-  });
-  const history = server((call) =>
-    call.path.endsWith('/history')
-      ? json(200, {
-          data: [
-            event(3, 'rated', { from: null, to: 9 }, '2026-11-18T12:00:00.000Z'),
-            event(2, 'progress_changed', { from: 2, to: 3, run: 1 }, '2026-11-18T11:00:00.000Z'),
-            event(1, 'entry_added', { status: 'watching' }, '2026-11-17T10:00:00.000Z'),
-          ],
-          nextCursor: null,
-        })
-      : undefined,
-  );
-
-  it('lists events as sentences, grouped by day, newest first', async () => {
-    renderApp({ route: '/history', handler: history });
-    expect(await screen.findByText('Rated 9 out of 10')).toBeTruthy();
-    expect(screen.getByText('Watched episode 3')).toBeTruthy();
-    expect(screen.getByText('Added to your library as Watching')).toBeTruthy();
-    expect(screen.getAllByRole('region')).toHaveLength(2); // two days
-    expect(screen.getAllByRole('link', { name: 'Show 1' })).toHaveLength(3);
-  });
-
-  it('filters by kind of event through the API', async () => {
-    const app = renderApp({ route: '/history', handler: history });
-    await screen.findByText('Rated 9 out of 10');
-    await app.user.selectOptions(screen.getByLabelText('Show'), 'rated');
-    await waitFor(() => {
-      expect(query(app.to('/history').at(-1)!).get('type')).toBe('rated');
-    });
-  });
-
-  it('says what to do when there is nothing yet', async () => {
-    renderApp({
-      route: '/history',
-      handler: server((call) =>
-        call.path.endsWith('/history') ? json(200, { data: [], nextCursor: null }) : undefined,
-      ),
-    });
-    expect(await screen.findByText(/Nothing here yet/)).toBeTruthy();
-  });
-
-  it('is free of automatically detectable accessibility problems', async () => {
-    const app = renderApp({ route: '/history', handler: history });
-    await screen.findByText('Rated 9 out of 10');
     expect(await violations(app.container)).toEqual([]);
   });
 });

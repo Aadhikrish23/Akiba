@@ -1,4 +1,4 @@
-import type { TitleCard, TitleDetail } from '@akiba/shared';
+import { EXPLICIT_GENRES, type TitleCard, type TitleDetail } from '@akiba/shared';
 import { Prisma, type DbClient, type DbTransaction } from '../../db/index.js';
 import { titleColumns } from '../../mapping/titleData.js';
 import type { SourceName, SourceTitle, SourceTitleDetail } from '../../sources/types.js';
@@ -12,12 +12,28 @@ export const cardSelect = (userId: string) =>
     titleEnglish: true,
     titleNative: true,
     coverUrl: true,
+    coverColor: true,
+    crunchyrollUrl: true,
+    streamingLinks: true,
     format: true,
     status: true,
     episodesTotal: true,
     season: true,
     seasonYear: true,
     averageScore: true,
+    // The franchise: its size and the title it is named after (the earliest to start).
+    franchise: {
+      select: {
+        id: true,
+        seasonCount: true,
+        _count: { select: { titles: true } },
+        titles: {
+          orderBy: [{ startDate: 'asc' }, { popularity: 'asc' }],
+          take: 6,
+          select: { titleRomaji: true, titleEnglish: true, titleNative: true, coverUrl: true },
+        },
+      },
+    },
     libraryEntries: {
       where: { userId, removedAt: null },
       select: { id: true, status: true },
@@ -27,6 +43,35 @@ export const cardSelect = (userId: string) =>
 
 type CardRow = Prisma.TitleGetPayload<{ select: ReturnType<typeof cardSelect> }>;
 
+/** The stored [{site, url}] as the API's list, ignoring anything that is not a link. */
+function serviceLinks(value: unknown): { site: string; url: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item: unknown) => {
+    if (typeof item !== 'object' || item === null) return [];
+    const { site, url } = item as { site?: unknown; url?: unknown };
+    return typeof site === 'string' && typeof url === 'string' && url.startsWith('https://')
+      ? [{ site, url }]
+      : [];
+  });
+}
+
+/** A franchise of one title is no franchise: only two or more are shown as a group. */
+function franchiseOf(row: CardRow['franchise']): TitleCard['franchise'] {
+  if (row === null || row._count.titles < 2) return null;
+  const root = row.titles[0];
+  return {
+    id: row.id,
+    size: row._count.titles,
+    seasons: row.seasonCount,
+    titleRomaji: root?.titleRomaji ?? null,
+    titleEnglish: root?.titleEnglish ?? null,
+    titleNative: root?.titleNative ?? null,
+    covers: row.titles
+      .flatMap((title) => (title.coverUrl === null ? [] : [title.coverUrl]))
+      .slice(0, 3),
+  };
+}
+
 export function toCard(row: CardRow): TitleCard {
   return {
     id: row.id,
@@ -35,12 +80,16 @@ export function toCard(row: CardRow): TitleCard {
     titleEnglish: row.titleEnglish,
     titleNative: row.titleNative,
     coverUrl: row.coverUrl,
+    coverColor: row.coverColor,
+    crunchyrollUrl: row.crunchyrollUrl,
+    streamingLinks: serviceLinks(row.streamingLinks),
     format: row.format,
     status: row.status,
     episodesTotal: row.episodesTotal,
     season: row.season,
     seasonYear: row.seasonYear,
     averageScore: row.averageScore,
+    franchise: franchiseOf(row.franchise),
     libraryStatus: row.libraryEntries[0]?.status ?? null,
     libraryEntryId: row.libraryEntries[0]?.id ?? null,
   };
@@ -65,6 +114,17 @@ export async function loadCards(
   });
 }
 
+/** The stored {"130": "https://..."} as the API's map, ignoring anything that is not a link. */
+function episodeLinks(value: unknown): Record<string, string> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] =>
+        typeof entry[1] === 'string' && entry[1].startsWith('https://'),
+    ),
+  );
+}
+
 const dateOnly = (value: Date | null): string | null =>
   value === null ? null : value.toISOString().slice(0, 10);
 
@@ -80,6 +140,8 @@ export async function loadDetail(
   stale: boolean;
   fetchedAt: Date | null;
   detailFetchedAt: Date | null;
+  /** False for a title stored before episode links were kept: its detail is fetched once more to get them. */
+  linksFetched: boolean;
   status: string;
 } | null> {
   const row = await db.title.findFirst({
@@ -87,6 +149,7 @@ export async function loadDetail(
     select: {
       ...cardSelect(userId),
       synopsis: true,
+      crunchyrollEpisodes: true,
       bannerUrl: true,
       durationMin: true,
       startDate: true,
@@ -115,6 +178,7 @@ export async function loadDetail(
     stale: row.stale,
     fetchedAt: row.fetchedAt,
     detailFetchedAt: row.detailFetchedAt,
+    linksFetched: row.crunchyrollEpisodes !== null,
     status: row.status,
     detail: {
       ...toCard(row),
@@ -134,6 +198,7 @@ export async function loadDetail(
           ? null
           : { episode: next.episodeNumber, airsAt: next.airsAt.toISOString() },
       franchiseId: row.franchiseId,
+      crunchyrollEpisodes: episodeLinks(row.crunchyrollEpisodes),
     },
   };
 }
@@ -154,6 +219,7 @@ const FILLABLE = [
   'titleNative',
   'synopsis',
   'coverUrl',
+  'coverColor',
   'bannerUrl',
   'format',
   'episodesTotal',
@@ -217,6 +283,16 @@ export async function applyDetail(
   now: Date,
 ): Promise<void> {
   await applyCard(tx, titleId, detail, now);
+  if (detail.crunchyrollEpisodes !== undefined && detail.source === 'anilist') {
+    await tx.title.update({
+      where: { id: titleId },
+      data: {
+        crunchyrollEpisodes: Object.fromEntries(
+          detail.crunchyrollEpisodes.map((item) => [String(item.episode), item.url]),
+        ),
+      },
+    });
+  }
 
   const known = await tx.studio.findMany({ select: { id: true, name: true, externalIds: true } });
   const links: { titleId: string; studioId: string; isMain: boolean }[] = [];
@@ -282,6 +358,19 @@ export async function replaceRelations(
   if (rows.length > 0) await tx.titleRelation.createMany({ data: rows, skipDuplicates: true });
 }
 
+/** Add relations without touching the ones already stored (a list page knows only some of a title's). */
+export async function addRelations(
+  tx: DbTransaction,
+  relations: readonly {
+    fromTitleId: string;
+    toTitleId: string;
+    relationType: Prisma.TitleRelationCreateManyInput['relationType'];
+  }[],
+): Promise<void> {
+  const rows = relations.filter((relation) => relation.toTitleId !== relation.fromTitleId);
+  if (rows.length > 0) await tx.titleRelation.createMany({ data: rows, skipDuplicates: true });
+}
+
 // ── Local (cached) search and browse: the answer when no source can be asked ───────────────
 
 export interface LocalFilters {
@@ -306,6 +395,9 @@ export async function localSearchIds(
   const rows = await db.$queryRaw<{ id: string }[]>(Prisma.sql`
     SELECT id::text FROM title
     WHERE search @@ websearch_to_tsquery('simple', ${query})
+      AND NOT EXISTS (
+        SELECT 1 FROM title_genre tg JOIN genre g ON g.id = tg.genre_id
+          WHERE tg.title_id = title.id AND lower(g.name) = ANY(${EXPLICIT_GENRES.map((name) => name.toLowerCase())}::text[]))
       ${filters.includeAdult === true ? Prisma.empty : Prisma.sql`AND NOT is_adult`}
       ${filters.kind === undefined ? Prisma.empty : Prisma.sql`AND kind = ${filters.kind}::title_kind`}
     ORDER BY ts_rank(search, websearch_to_tsquery('simple', ${query})) DESC,
@@ -321,6 +413,10 @@ export async function localBrowseIds(
   limit: number,
 ): Promise<string[]> {
   const where: Prisma.TitleWhereInput = {
+    // Explicit titles are never listed, whatever the reader's adult setting.
+    NOT: {
+      genres: { some: { genre: { name: { in: [...EXPLICIT_GENRES], mode: 'insensitive' } } } },
+    },
     ...(filters.includeAdult === true ? {} : { isAdult: false }),
     ...(filters.kind === undefined ? {} : { kind: filters.kind as never }),
     ...(filters.status === undefined ? {} : { status: filters.status as never }),

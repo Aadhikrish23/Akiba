@@ -60,12 +60,37 @@ export const titleCardSchema = z.object({
   titleEnglish: z.string().nullable(),
   titleNative: z.string().nullable(),
   coverUrl: z.string().nullable(),
+  /** `#rrggbb` of the cover art's dominant colour; null when the source has none. */
+  coverColor: z.string().nullable().default(null),
+  /** The show's Crunchyroll series page, when AniList lists one. */
+  crunchyrollUrl: z.string().nullable().default(null),
+  /** Every streaming service AniList lists for the show, Crunchyroll first. */
+  streamingLinks: z.array(z.object({ site: z.string(), url: z.string() })).default([]),
   format: z.string().nullable(),
   status: titleStatusSchema,
   episodesTotal: z.number().int().nullable(),
   season: seasonSchema.nullable(),
   seasonYear: z.number().int().nullable(),
   averageScore: z.number().int().nullable(),
+  /**
+   * The franchise this title belongs to (its seasons, movies and spin-offs), when it has more than
+   * itself: how many titles, and the names of the one it is named after (the earliest to start),
+   * so a list can show "My Hero Academia" once instead of every season.
+   */
+  franchise: z
+    .object({
+      id: z.uuid(),
+      size: z.number().int().min(2),
+      /** TV titles on the main line (the "seasons"); null while not counted. */
+      seasons: z.number().int().min(0).nullable().default(null),
+      titleRomaji: z.string().nullable(),
+      titleEnglish: z.string().nullable(),
+      titleNative: z.string().nullable(),
+      /** Up to three covers of the franchise's first titles, for the stack on its tile. */
+      covers: z.array(z.string()).default([]),
+    })
+    .nullable()
+    .default(null),
   /** The caller's own library status for this title; null when it is not on their shelf. */
   libraryStatus: entryStatusSchema.nullable(),
   /** The caller's entry for this title, so any screen can act on it (progress, status). */
@@ -93,8 +118,20 @@ export const titleDetailSchema = titleCardSchema.extend({
   nextAiring: z.object({ episode: z.number().int(), airsAt: z.iso.datetime() }).nullable(),
   /** The franchise this title belongs to; null when it has no related titles (or too many). */
   franchiseId: z.uuid().nullable(),
+  /** Episode number to its Crunchyroll watch page, as far as AniList lists them (often partial). */
+  crunchyrollEpisodes: z.record(z.string(), z.string()).default({}),
 });
 export type TitleDetail = z.infer<typeof titleDetailSchema>;
+
+/** The name and synopsis of one episode, as far as a source has them (both may be null). */
+export const episodeInfoSchema = z.object({
+  episode: z.number().int().min(1),
+  name: z.string().nullable(),
+  synopsis: z.string().nullable(),
+});
+export type EpisodeInfo = z.infer<typeof episodeInfoSchema>;
+export const episodeInfoResponseSchema = z.object({ data: episodeInfoSchema });
+export type EpisodeInfoResponse = z.infer<typeof episodeInfoResponseSchema>;
 
 export const titleListResponseSchema = z.object({
   data: z.array(titleCardSchema),

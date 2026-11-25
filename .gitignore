@@ -30,3 +30,4 @@ apps/web/playwright-report
 
 # Expo
 .expo/
+dist-demo/

@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { setAniList, signedIn } from './helpers';
+import { openResult, setAniList, showResult, signedIn } from './helpers';
 
 /**
  * T13/T14 journeys: discovery in real Chrome against the built web app, the built API, a real
@@ -24,14 +24,14 @@ test('journey: search for a title, open it, follow a related title (FR-DISC-001,
   await page.getByRole('link', { name: 'Discover' }).click();
   await expect(page.getByRole('heading', { name: 'Discover' })).toBeVisible();
 
-  await page.getByLabel('Search by name').fill('attack on titan');
-  await page.getByRole('button', { name: 'Search' }).click();
+  // No button press and no Enter: the search runs once typing pauses.
+  await page.getByLabel('Search by name').pressSequentially('attack on titan');
   await expect(page.getByRole('heading', { name: 'Results for “attack on titan”' })).toBeVisible();
-  await expect(grid(page, 'Search results')).toHaveCount(3);
+  await expect(grid(page, 'Search results').first()).toBeVisible();
   await expect(page).toHaveURL(/q=attack\+on\+titan/);
 
   // The whole card is one link, through the name.
-  await page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true }).click();
+  await openResult(page, 'Shingeki no Kyojin');
   await expect(page).toHaveURL(/\/title\/[0-9a-f-]{36}$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Shingeki no Kyojin' })).toBeVisible();
   await expect(page.getByText('Attack on Titan', { exact: true })).toBeVisible();
@@ -98,14 +98,14 @@ test('journey: an AniList outage is labelled and never loses what is stored (FR-
   await signedIn(page, 'outage');
   // Warm the catalog while the source works.
   await page.goto('/discover?q=shingeki');
-  await expect(grid(page, 'Search results')).toHaveCount(3);
+  await expect(grid(page, 'Search results').first()).toBeVisible();
 
   await setAniList('down');
   // A search nobody has made yet cannot come from the reuse cache: it falls back to what is stored.
   await page.goto('/discover?q=kyojin');
   // The gateway retries with backoff and paces its requests before giving up on a source.
   await expect(page.getByText(/Showing saved results/)).toBeVisible({ timeout: 25_000 });
-  await expect(page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true })).toBeVisible();
+  await showResult(page, 'Shingeki no Kyojin');
 
   // And a search with nothing stored says the catalog is unavailable, with a way to retry.
   await page.goto('/discover?q=nothing-stored-matches-this');
@@ -192,7 +192,7 @@ for (const scheme of ['light', 'dark'] as const) {
     await check('/discover');
 
     await page.goto('/discover?q=attack');
-    await expect(grid(page, 'Search results')).toHaveCount(3);
+    await expect(grid(page, 'Search results').first()).toBeVisible();
     await check('/discover (search)');
 
     await page.goto('/discover/season/2024/fall');
@@ -200,8 +200,70 @@ for (const scheme of ['light', 'dark'] as const) {
     await check('/discover/season');
 
     await page.goto('/discover?q=attack');
-    await page.getByRole('link', { name: 'Shingeki no Kyojin', exact: true }).click();
+    await openResult(page, 'Shingeki no Kyojin');
     await expect(page.getByRole('heading', { level: 3, name: 'After this' })).toBeVisible();
     await check('/title/:id');
   });
 }
+
+test('seasons of one show are one tile; its page lists them, adds them and lists the services', async ({
+  page,
+}) => {
+  await signedIn(page, 'tile');
+  await page.goto('/discover');
+  await page.getByLabel('Search by name').pressSequentially('hero academia');
+
+  // Four titles of one franchise: three seasons and a movie. One tile, not four cards.
+  const summary = 'Franchise My Hero Academia 3 seasons · 1 movie, special or spin-off';
+  const tile = page.getByRole('link', { name: summary });
+  await expect(tile).toBeVisible();
+  await expect(page.getByRole('link', { name: 'My Hero Academia 2', exact: true })).toHaveCount(0);
+
+  // The tile opens the show's page: numbered seasons, and the movie after them.
+  await tile.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'My Hero Academia' })).toBeVisible();
+  const seasons = page.getByRole('region', { name: /^Seasons/ }).getByRole('article');
+  await expect(seasons).toHaveCount(3);
+  await expect(page.getByText('Season 3', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: /^Movies, specials and spin-offs/ }).getByRole('link', {
+      name: 'My Hero Academia: The Movie',
+    }),
+  ).toBeVisible();
+
+  // Add all three seasons in one go.
+  await page.getByRole('button', { name: '+ Add all 3 seasons' }).click();
+  await expect(page.getByRole('status')).toContainText('3 of 3 seasons in your library');
+
+  // Open a season: its episodes, each opening on Crunchyroll in a new tab.
+  await page.getByRole('button', { name: 'Episodes of My Hero Academia', exact: true }).click();
+  const episodes = page.getByRole('list', { name: 'Episodes of My Hero Academia' });
+  await expect(episodes.getByRole('listitem')).toHaveCount(13);
+  // The mock lists no episode links, so no episode has a Watch button (never a show page in its place),
+  // while the season row names the services that stream the show.
+  await expect(episodes.getByRole('link')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: /^Netflix/ }).first()).toHaveAttribute(
+    'href',
+    /netflix.com/,
+  );
+
+  // Mark where I am: everything up to episode 3 counts as watched.
+  await episodes.getByRole('button', { name: 'Mark up to episode 3 as watched' }).click();
+  await expect(
+    episodes.getByRole('button', { name: 'Watched up to episode 3: undo' }),
+  ).toBeVisible();
+  await page.reload();
+  await page.getByRole('button', { name: 'Episodes of My Hero Academia', exact: true }).click();
+  await expect(
+    page
+      .getByRole('list', { name: 'Episodes of My Hero Academia' })
+      .getByRole('button', { name: 'Watched up to episode 3: undo' }),
+  ).toBeVisible();
+
+  // The library shows the same show as one tile, which opens the same page.
+  await page.goto('/library');
+  const owned = page.getByRole('link', { name: `${summary} 3 in your library` });
+  await expect(owned).toBeVisible();
+  await owned.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'My Hero Academia' })).toBeVisible();
+});

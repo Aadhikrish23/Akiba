@@ -12,11 +12,12 @@ import {
   VerifyEmailPage,
 } from './pages/auth';
 import { DiscoverPage } from './pages/Discover';
-import { CharacterPage, FranchisePage, StudioPage } from './pages/Explore';
-import { HistoryPage } from './pages/History';
+import { CharacterPage, StudioPage } from './pages/Explore';
+import { FranchisePage } from './pages/Franchise';
 import { HomePage } from './pages/Home';
 import { InboxPage } from './pages/Inbox';
 import { LibraryPage } from './pages/Library';
+import { SchedulePage } from './pages/Schedule';
 import { CurrentSeasonRedirect, SeasonChartPage } from './pages/SeasonChart';
 import { AccountDeletedPage, RestorePage, SharedPage } from './pages/Public';
 import { SettingsPage } from './pages/Settings';
@@ -26,7 +27,7 @@ function NotFoundPage() {
   usePageTitle('Page not found');
   return (
     <main id="main" className="mx-auto max-w-md" style={{ padding: '64px var(--gutter)' }}>
-      <h1 className="font-serif text-2xl font-semibold">Page not found</h1>
+      <h1 className="h-title">Page not found</h1>
       <p className="text-mute mt-2">There is nothing at this address.</p>
       <p className="mt-6">
         <Link to="/" className="underline underline-offset-4">
@@ -51,10 +52,10 @@ export function AppRoutes() {
       <Route path="/shared/:token" element={<SharedPage />} />
       <Route element={<AppShell />}>
         <Route index element={<HomePage />} />
+        <Route path="schedule" element={<SchedulePage />} />
         <Route path="discover" element={<DiscoverPage />} />
         <Route path="library" element={<LibraryPage />} />
         <Route path="inbox" element={<InboxPage />} />
-        <Route path="history" element={<HistoryPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="discover/season" element={<CurrentSeasonRedirect />} />
         <Route path="discover/season/:year/:season" element={<SeasonChartPage />} />

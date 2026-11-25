@@ -38,6 +38,11 @@ const contentSecurityPolicy: Plugin = {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), contentSecurityPolicy],
+  build: {
+    // Fonts stay files: the CSP allows font-src 'self' only, and an inlined data: font would break it.
+    assetsInlineLimit: (file) =>
+      file.endsWith('.woff2') || file.endsWith('.woff') ? false : undefined,
+  },
   server: {
     port: 5173,
     proxy: { '/v1': API_TARGET },

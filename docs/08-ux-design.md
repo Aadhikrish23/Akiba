@@ -1,29 +1,33 @@
-# UX Design — "Shelf" direction
+# UX Design — "Ticket Stub Night" direction
 
-**Version:** 1.0 · **Date:** 2026-11-15 · Approved by the product owner. Reference mockup: [`mockups/shelf.html`](mockups/shelf.html).
+**Version:** 2.0 · **Date:** 2026-11-22 · Approved by the product owner. This replaces the 1.0 "Shelf" direction (cream paper, serif, vermilion). Reference mockups: [`mockups/desktop-redesign/`](mockups/desktop-redesign/index.html) (desktop and phone; open `home.html`). The old Shelf mockup stays in [`mockups/shelf.html`](mockups/shelf.html) for history.
 
 ## 1. Concept
-Akiba should feel like a personal shelf: cover art is the hero and chrome stays quiet. A compact list view (borrowed from the "Ledger" direction) supports fast tracking.
+Akiba is a cinema lobby at night, and every episode you watch is a punched ticket stub. A show you follow is a ticket printed in a colour taken from its cover; **+1** stamps it (観了), and the episode numeral gets heavier the further in you are. The calendar borrows the Japanese TV listing: times run past midnight (25:30 is 1:30 am) and a week is a timetable of your own shows. Cover art stays the hero; the interface around it is dark, ticket-coloured and has one mint accent that always means "press me".
 
-**Never:** generic AI look — purple/blue gradients, glassmorphism, uniform rounded cards with drop shadows, emoji or stock icons as design, neon "anime" clichés, centered hero with three feature boxes.
+**Never:** generic anime-site look (banner carousels, neon, sparkle), generic SaaS dashboard (metric tiles, card grids of the same size), cold and clinical. No gradient text, no coloured side stripes, no emoji as icons.
 
 ## 2. Design tokens (source of truth: `packages/ui-tokens`)
 | Token | Light | Dark |
 |---|---|---|
-| `paper` (background) | `oklch(96.5% .012 85)` | `oklch(19% .012 60)` |
-| `raised` | `oklch(99% .006 85)` | `oklch(23.5% .014 60)` |
-| `ink` (text) | `oklch(22% .015 60)` | `oklch(93% .012 85)` |
-| `mute` (secondary text) | `oklch(48% .02 70)` | `oklch(70% .02 80)` |
-| `rule` (hairlines) | `oklch(88% .015 80)` | `oklch(31% .015 60)` |
-| `accent` (vermilion) | `oklch(55% .19 33)` | `oklch(68% .17 38)` |
-| `on-accent` | `oklch(98% .01 85)` | `oklch(18% .02 40)` |
+| `paper` (background) | `oklch(96.5% .012 85)` | `oklch(16% .035 265)` |
+| `raised` | `oklch(99% .006 85)` | `oklch(20.5% .04 265)` |
+| `raised-2` (selected, track) | `oklch(93% .012 85)` | `oklch(26% .045 265)` |
+| `ink` (text) | `oklch(20% .04 265)` | `oklch(95% .012 90)` |
+| `mute` (secondary text) | `oklch(44% .035 265)` | `oklch(74% .035 265)` |
+| `rule` (hairlines) | `oklch(86% .015 85)` | `oklch(32% .045 265)` |
+| `accent` (mint: "press me", focus) | `oklch(40% .1 165)` | `oklch(90% .15 165)` |
+| `on-accent` | `oklch(97% .02 165)` | `oklch(20% .05 200)` |
+| `danger` (errors, destructive) | `oklch(46% .18 28)` | `oklch(74% .15 25)` |
+| `stub-ink` (ink on ticket stock) | `oklch(19% .04 265)` | `oklch(19% .04 265)` |
 
 Mobile/Electron receive the same values converted to sRGB hex by a build step.
-- **Type:** titles/headings in a high-contrast serif (system serif stack in prototype; final webfont TBD, e.g. a licensed or open-source serif); UI in a neutral grotesque/system sans; **tabular numerals** for counts and episode numbers. Japanese text set with a proper CJK fallback.
-- **Scale:** 11 / 13 / 15 / 18 / 24 / 32 px (rem-based).
+- **Ticket stock:** a ticket is printed on a colour taken from the title's cover (until the catalog supplies it, one of twelve warm stock colours chosen from the title id). `stub-ink` text on every stock colour is at least 4.5:1 (tested in `@akiba/ui-tokens`).
+- **Type:** titles, day names and big numerals in **Big Shoulders Display** (condensed, variable weight); UI and Japanese text in **Zen Kaku Gothic New**; the ticket note in **Yomogi** (handwriting, one short note, never UI). Self-hosted, no font CDN. **Tabular numerals** for counts and episode numbers.
+- **Scale:** 11 / 13 / 15 / 18 / 24 / 32 px (rem-based) for text; display sizes 40 / 56 / 84 px for ticket numerals and page titles, clamped down on narrow screens.
 - **Spacing:** 4-px base; gutters `clamp(16px, 4vw, 40px)`.
-- **Radius:** 2 px (almost square). **Elevation:** none; separation by hairline rules.
-- **Motion:** minimal; ≤150 ms; respect `prefers-reduced-motion`.
+- **Radius:** 6 px controls, 10 px tickets and posters, 14 px for the largest surfaces. **Elevation:** only a ticket lifts (a soft, offset drop shadow); everything else is separated by hairline rules.
+- **Motion:** transitions ≤150 ms, plus one authored moment: the 観了 stamp that lands on +1 (about a second and a half, with the numeral thickening). All of it is off under `prefers-reduced-motion`.
 - **Theme:** follows system via `color-scheme` and `light-dark()`; a manual override lives only in Settings.
 
 ## 3. Components
@@ -39,14 +43,18 @@ Mobile/Electron receive the same values converted to sRGB hex by a build step.
 | **Inbox item** | Cover thumb, "Episode N of Title aired", relative time, unread dot in accent |
 
 ## 4. Screens
-**Web / Desktop (sidebar nav ≥ 880 px; top nav below):** Home · Discover (search, browse, season chart) · Title detail · Franchise · Studio · Character · Library (grid/list, status tabs) · History · Inbox · Settings (profile, theme, title language, export, share link, delete account) · Auth screens · Shared list (public).
-**Mobile (tab bar):** Home · Discover · Library · Inbox · Me. Title detail, franchise, studio, character, history and settings are pushed screens.
+**Web / Desktop (left rail ≥ 880 px; slim top bar and bottom tab bar below):** Home · Schedule (tonight as tickets; the week as a timetable in broadcast time, 25:30 = 1:30 am, or the month as a calendar with the chosen day beside it; step through any number of weeks or months or jump to a month and year; the view is remembered; a day agenda or dots-and-day-list on a phone; `GET /library/schedule`) · Discover (search, browse, season chart) · Title detail · Franchise · Studio · Character · Library (grid/list, status tabs; the seasons of one show under one banner) · Inbox · Settings (profile, theme, title language, export, share link, delete account) · Auth screens · Shared list (public).
+**Mobile (tab bar):** Home · Discover · Library · Inbox · Me. Title detail, franchise, studio, character and settings are pushed screens.
 
 ### Key flows
 1. **Log an episode:** Home/Library/Title → `+1` → optimistic update → at final episode, inline prompt "Mark completed?".
+   **Catch up:** the episode count is a button (a dotted underline and a pencil say so) that opens the **episode picker**: every episode of the season as a button, the ones not yet aired locked and hatched, the one you are on outlined, and a number box (Enter saves, Esc closes) for a show too long for a grid, with "Latest aired". The limit is what has aired, never past the total either, so a 20-episode season with 8 aired stops at 8 and +1 turns into "Caught up"; the count after the slash is the aired count while it is below the total. The reason is said in place and nothing is saved.
+   **The big ticket** (Home) shows, instead of your last note: **Previously · Ep N** (the synopsis of the episode you watched), **Up next · Ep N+1** (its name; its synopsis only after "Show the teaser", and not in the page until then) and **My note**. A missing synopsis is said, not left as a gap; synopses come from Jikan on first ask.
 2. **Add to library:** Title page → status picker (one tap, defaults to Planned/Watching).
-3. **Rewatch:** Completed entry → "Rewatch" → new Run; history keeps both.
+3. **Rewatch:** Completed entry → "Rewatch" → new Run; the title page lists both viewings.
+3b. **One tile per show:** in Discover (search and browse) and the Library, every title that belongs to a franchise is its tile, even when it is the only one of them on the page (Discover; the Library grid does the same, its compact list keeps a lone season as a row with its +1): a stack of three covers (the franchise's own, repeated when fewer are known; the word "Franchise" is for screen readers only), the first title's name in the reader's title language, "8 seasons · 16 movies, specials and spin-offs" and, in the Library, how many you have and finished, with a segment per season. It opens the **franchise page**: all seasons (numbered), then the movies, specials and spin-offs. Add the whole show (as Planned or Watching) or single seasons; with seasons in the library, a Continue ticket (+1), overall progress and each season's status. Open a season for its episodes: each has a Watch link only when a link to that episode exists (Crunchyroll, where AniList lists them; no other service publishes episode links), never a show page or a search, so most episodes have no button. The season row names the services that stream the show ("Watch on …", limited to those picked in Settings → Where I watch). Each owned season has a status dropdown. Unaired episodes of a running season say "Not aired yet" and cannot be logged and, for tracked seasons, "Up to here" to set where you are. The seasonal chart keeps listing single titles.
 4. **Override episode total:** Title/entry → "Episode count looks wrong?" → edit → badge "Edited" with reset.
+4b. **Language and adult content:** the title language in Settings names every title on every screen (a title with no English name falls back to its romaji; AniList's English synonym is used when its English field is empty). "Show adult-rated titles" adds Ecchi, Harem, Reverse Harem, Nudity, Gore and Erotica to the genre list; Hentai is never offered or listed.
 5. **Share:** Settings → Share → choose scope → copy link; revoke anytime.
 
 ## 5. States

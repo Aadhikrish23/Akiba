@@ -72,10 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return off;
   }, [client]);
 
-  // The title-language setting changes how every title is named.
-  useEffect(() => {
-    if (profile !== null) setTitleLanguage(profile.titleLanguage);
-  }, [profile]);
+  // The title-language setting changes how every title is named. It is set while rendering, before
+  // any screen below reads a name, so a page that loads with the account (or right after the
+  // settings arrive) never paints one frame in the wrong language.
+  if (profile !== null) setTitleLanguage(profile.titleLanguage);
 
   // Login answers with identity only; the settings come from one more read.
   const signedIn = state.status === 'signed-in';

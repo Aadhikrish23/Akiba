@@ -78,8 +78,24 @@ export function createTitlesRouter(options: {
     },
   );
 
+  const episodeParams = {
+    params: z.object({
+      titleId: z.string().max(64),
+      episode: z.coerce.number().int().min(1).max(10_000),
+    }),
+  };
+  router.get(
+    '/titles/:titleId/episodes/:episode',
+    ...guarded,
+    validate(episodeParams),
+    async (_req, res) => {
+      const { params } = getValidated(res, episodeParams);
+      res.json(await service.episode(getAuth(res).userId, params.titleId, params.episode));
+    },
+  );
+
   router.get('/genres', ...guarded, async (_req, res) => {
-    const body: GenresResponse = { data: await service.genres() };
+    const body: GenresResponse = { data: await service.genres(getAuth(res).userId) };
     res.json(body);
   });
 

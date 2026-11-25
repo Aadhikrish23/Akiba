@@ -1,0 +1,89 @@
+/* Components shared by Discover, Title, Library and Inbox. Loaded after ticket-night.css. */
+
+.btn {
+  appearance: none; border: 0; cursor: pointer; font: 700 14px var(--sans); height: 42px; padding: 0 20px; border-radius: 999px;
+  background: var(--punch); color: var(--on-punch); display: inline-flex; gap: 8px; align-items: center; justify-content: center;
+  transition: transform .2s cubic-bezier(.16,1,.3,1), background .2s;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(.97); }
+.btn.ghost { background: transparent; color: var(--text); border: 1.5px solid var(--rule); }
+.btn.ghost:hover { border-color: var(--text); }
+.btn.ink { background: var(--ink); color: var(--punch); }
+.btn.quiet { background: transparent; color: var(--ink); border: 1.5px solid oklch(19% .04 265 / .5); }
+.btn.quiet:hover { background: oklch(19% .04 265 / .12); }
+.btn[disabled] { opacity: .5; cursor: default; transform: none; }
+.btn .ico { width: 18px; height: 18px; }
+
+.seg { display: inline-flex; background: var(--night-2); border: 1px solid var(--rule); border-radius: 999px; padding: 3px; gap: 2px; }
+.seg button { appearance: none; border: 0; background: transparent; color: var(--mute); font: 500 14px var(--sans); padding: 8px 16px; border-radius: 999px; cursor: pointer; }
+.seg button:hover { color: var(--text); }
+.seg button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--text); color: var(--ink); font-weight: 700; }
+.seg .n { opacity: .65; margin-left: 6px; font-weight: 500; font-size: 13px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chipb { appearance: none; border: 1.5px solid var(--rule); background: transparent; color: var(--text); font: 500 13.5px var(--sans); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.chipb:hover { border-color: var(--text); }
+.chipb[aria-pressed="true"] { background: var(--text); color: var(--ink); border-color: var(--text); font-weight: 700; }
+
+.toolbar { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 0 0 22px; }
+.toolbar .spacer { margin-left: auto; }
+.empty { border: 1.5px dashed var(--rule); border-radius: 12px; padding: 40px 24px; text-align: center; color: var(--mute); }
+.empty b { display: block; color: var(--text); font: 800 26px var(--display); text-transform: uppercase; margin-bottom: 6px; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 50;
+  background: var(--text); color: var(--ink); border-radius: 999px; padding: 10px 12px 10px 22px; display: flex; align-items: center; gap: 16px;
+  font-weight: 500; box-shadow: 0 18px 40px -12px oklch(0% 0 0 / .6); transition: opacity .25s, transform .35s cubic-bezier(.16,1,.3,1);
+}
+.toast.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+.toast button { appearance: none; border: 0; background: var(--ink); color: var(--punch); font: 700 13px var(--sans); border-radius: 999px; padding: 7px 16px; cursor: pointer; }
+
+/* poster ticket: a cover with a perforated stub underneath */
+.dgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 30px 22px; list-style: none; margin: 0; padding: 0; }
+.pc { --c: #e4a128; position: relative; display: grid; align-content: start; filter: drop-shadow(0 14px 16px oklch(0% 0 0 / .3)); }
+.pc .pcc { display: block; border-radius: 10px 10px 0 0; overflow: hidden; aspect-ratio: 2 / 3; background: var(--c); }
+.pc .pcc img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .45s cubic-bezier(.16,1,.3,1); }
+.pc:hover .pcc img { transform: scale(1.05); }
+.pc .pcb {
+  position: relative; border-radius: 0 0 10px 10px; padding: 16px 13px 13px; display: grid; gap: 6px; align-content: start;
+  background:
+    radial-gradient(circle 8px at 0 0, var(--night) 97%, transparent 100%) no-repeat,
+    radial-gradient(circle 8px at 100% 0, var(--night) 97%, transparent 100%) no-repeat,
+    var(--night-2);
+}
+.pc .pcb::before { content: ""; position: absolute; left: 12px; right: 12px; top: 0; border-top: 2px dashed var(--rule); }
+.pc h3 { font: 800 19px/1 var(--display); text-transform: uppercase; margin: 0; letter-spacing: .01em; }
+.pc h3 a { text-decoration: none; }
+.pc h3 a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.pc .sub { font-size: 12.5px; color: var(--mute); line-height: 1.35; }
+.pc .rw { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 4px; }
+.pc .when { font: 700 12px var(--sans); background: var(--c); color: var(--ink); padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
+.pc .when.plain { background: transparent; color: var(--mute); padding-left: 0; font-weight: 500; }
+
+.addb {
+  appearance: none; border: 1.5px solid var(--punch); color: var(--punch); background: transparent; border-radius: 999px;
+  font: 700 13px var(--sans); padding: 6px 12px 6px 10px; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; white-space: nowrap;
+}
+.addb .ico { width: 15px; height: 15px; }
+.addb:hover { background: var(--punch); color: var(--on-punch); }
+.addb[aria-pressed="true"] { border-color: var(--rule); color: var(--text); }
+.addb[aria-pressed="true"]:hover { background: transparent; border-color: var(--text); }
+
+/* ===================== MOBILE ===================== */
+@media (max-width: 820px) {
+  .btn { height: 46px; }
+  .toolbar { gap: 12px; }
+  .toolbar .spacer { display: none; }
+  .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .seg button { white-space: nowrap; min-height: 40px; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px; scrollbar-width: none; }
+  .chipb { flex: none; min-height: 40px; }
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom)); width: calc(100% - 32px); justify-content: space-between; }
+
+  .dgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px 14px; }
+  .pc h3 { font-size: 17px; }
+  .pc .pcb { padding: 14px 10px 11px; }
+  .pc .rw { flex-wrap: wrap; }
+  .addb { min-height: 40px; }
+}

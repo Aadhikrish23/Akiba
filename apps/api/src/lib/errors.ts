@@ -253,6 +253,17 @@ export const progressExceedsTotal = (total: number): HttpError =>
     extensions: { total },
   });
 
+/** With no known total, progress cannot pass what has aired: episode N+1 is not out yet. */
+export const progressExceedsAired = (aired: number): HttpError =>
+  new HttpError({
+    status: 422,
+    code: 'PROGRESS_EXCEEDS_AIRED',
+    slug: 'progress-exceeds-aired',
+    title: 'Progress is ahead of the broadcast',
+    detail: `Only ${aired} episode${aired === 1 ? ' has' : 's have'} aired so far.`,
+    extensions: { aired },
+  });
+
 export const progressBelowZero = (): HttpError =>
   validationFailed([{ path: 'delta', message: 'would take progress below 0' }]);
 

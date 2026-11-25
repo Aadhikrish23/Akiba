@@ -141,3 +141,7 @@ export async function violations(container: HTMLElement): Promise<string[]> {
   });
   return results.violations.map((violation) => `${violation.id}: ${violation.help}`);
 }
+
+/** The episode count as it reads: the editable number, then the text after it ("3 / 12"). */
+export const countText = (element: HTMLElement): string =>
+  `${element.querySelector('input')?.value ?? ''}${element.textContent ?? ''}`;

@@ -1,3 +1,4 @@
+import { isAdultTagGenre } from '@akiba/shared';
 import { z } from 'zod';
 import {
   CircuitBreaker,
@@ -8,7 +9,14 @@ import {
   type Clock,
   type Sleep,
 } from '../resilience.js';
-import { characterDescription, cleanString, httpUrl, intOrNull, plainText } from '../text.js';
+import {
+  characterDescription,
+  cleanString,
+  hexColour,
+  httpUrl,
+  intOrNull,
+  plainText,
+} from '../text.js';
 import {
   SourceError,
   type CharacterRole,
@@ -47,8 +55,13 @@ const mediaSchema = z.looseObject({
     .nullish(),
   synonyms: z.array(z.string()).nullish(),
   description: optionalString,
-  coverImage: z.object({ extraLarge: optionalString, large: optionalString }).nullish(),
+  coverImage: z
+    .object({ extraLarge: optionalString, large: optionalString, color: optionalString })
+    .nullish(),
   bannerImage: optionalString,
+  externalLinks: z
+    .array(z.object({ site: optionalString, url: optionalString, type: optionalString }))
+    .nullish(),
   format: optionalString,
   status: optionalString,
   episodes: optionalInt,
@@ -61,9 +74,28 @@ const mediaSchema = z.looseObject({
   popularity: optionalInt,
   isAdult: z.boolean().nullish(),
   genres: z.array(z.string()).nullish(),
+  tags: z.array(z.object({ name: z.string(), rank: z.number().nullish() })).nullish(),
   updatedAt: optionalInt,
 });
 type Media = z.infer<typeof mediaSchema>;
+
+const relationsSchema = z
+  .object({
+    edges: z.array(
+      z.object({
+        relationType: z.string().nullish(),
+        node: z.object({
+          id: z.number().int(),
+          idMal: optionalInt,
+          type: optionalString,
+          format: optionalString,
+          title: z.object({ romaji: optionalString, english: optionalString }).nullish(),
+          coverImage: z.object({ large: optionalString }).nullish(),
+        }),
+      }),
+    ),
+  })
+  .nullish();
 
 const detailSchema = mediaSchema.extend({
   studios: z
@@ -80,23 +112,11 @@ const detailSchema = mediaSchema.extend({
       ),
     })
     .nullish(),
-  relations: z
-    .object({
-      edges: z.array(
-        z.object({
-          relationType: z.string().nullish(),
-          node: z.object({
-            id: z.number().int(),
-            idMal: optionalInt,
-            type: optionalString,
-            format: optionalString,
-            title: z.object({ romaji: optionalString }).nullish(),
-          }),
-        }),
-      ),
-    })
-    .nullish(),
+  relations: relationsSchema,
   nextAiringEpisode: z.object({ episode: z.number().int(), airingAt: z.number().int() }).nullish(),
+  streamingEpisodes: z
+    .array(z.object({ title: optionalString, url: optionalString, site: optionalString }))
+    .nullish(),
   characters: z
     .object({
       edges: z.array(
@@ -186,6 +206,100 @@ function toDate(value: z.infer<typeof dateSchema>): SourceDate | null {
   return { year, month: month ?? null, day: day ?? null };
 }
 
+const ENGLISH_WORDS = new Set([
+  'the',
+  'of',
+  'and',
+  'a',
+  'an',
+  'in',
+  'is',
+  'my',
+  'for',
+  'with',
+  'on',
+  'at',
+  'from',
+  'his',
+  'her',
+  'who',
+  'that',
+  'this',
+  'you',
+  'your',
+  'me',
+  'we',
+  'it',
+  'season',
+  'part',
+  'cour',
+  'final',
+  'chapter',
+  'story',
+  'life',
+  'world',
+  'another',
+  'again',
+  'beyond',
+  'diaries',
+  'academia',
+]);
+const JAPANESE_PARTICLES = new Set([
+  'no',
+  'wa',
+  'ga',
+  'wo',
+  'ni',
+  'na',
+  'ka',
+  'mo',
+  'yo',
+  'ne',
+  'to',
+]);
+const key = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+/**
+ * AniList leaves `english` empty for many newer entries but often lists the English name among the
+ * synonyms ("The Apothecary Diaries Season 3 Part 2"). A synonym is taken for it only when it is
+ * plain Latin text, is not the romaji, has an English word in it and no Japanese particle on its
+ * own ("Hotaru no Yomeiri Mini Anime" is romaji too, and stays out). When nothing fits, the title
+ * simply has no English name and readers see the romaji.
+ */
+export function englishFromSynonyms(
+  romaji: string | null,
+  synonyms: readonly string[],
+): string | null {
+  for (const synonym of synonyms) {
+    const text = synonym.trim();
+    if (text.length < 3 || !/^[\x20-\x7E\u2018\u2019\u2026]+$/.test(text)) continue;
+    if (romaji !== null && key(romaji) === key(text)) continue;
+    const words = key(text).split(' ');
+    if (!words.some((word) => ENGLISH_WORDS.has(word))) continue;
+    if (words.some((word) => JAPANESE_PARTICLES.has(word)) && !words.includes('the')) continue;
+    return text;
+  }
+  return null;
+}
+
+/**
+ * A title's genres: AniList's own, plus the adult tags it carries (Harem, Gore…) once they are
+ * prominent enough to describe it (rank 50 or more), so they can be browsed like genres.
+ */
+function genresOf(media: Pick<Media, 'genres' | 'tags'>): string[] {
+  const genres = [...(media.genres ?? [])];
+  for (const tag of media.tags ?? []) {
+    if ((tag.rank ?? 0) >= 50 && isAdultTagGenre(tag.name) && !genres.includes(tag.name)) {
+      genres.push(tag.name);
+    }
+  }
+  return genres;
+}
+
 /** AniList "romaji", "english", "native" are Akiba's three display languages. */
 export function normalizeMedia(media: Media): SourceTitle {
   const externalIds: SourceTitle['externalIds'] = {
@@ -200,12 +314,17 @@ export function normalizeMedia(media: Media): SourceTitle {
     // verbatim `format` stays null so nothing pretends to be known.
     kind: KIND_BY_FORMAT[media.format ?? ''] ?? 'tv',
     titleRomaji: cleanString(media.title?.romaji),
-    titleEnglish: cleanString(media.title?.english),
+    titleEnglish:
+      cleanString(media.title?.english) ??
+      englishFromSynonyms(cleanString(media.title?.romaji), media.synonyms ?? []),
     titleNative: cleanString(media.title?.native),
     synonyms: (media.synonyms ?? []).map((value) => value.trim()).filter((value) => value !== ''),
     synopsis: plainText(media.description),
     coverUrl: httpUrl(media.coverImage?.extraLarge) ?? httpUrl(media.coverImage?.large),
+    coverColor: hexColour(media.coverImage?.color),
     bannerUrl: httpUrl(media.bannerImage),
+    crunchyrollUrl: crunchyrollSeries(media),
+    streamingLinks: streamingLinks(media),
     format: cleanString(media.format),
     status: STATUS_BY_SOURCE[media.status ?? ''] ?? 'not_yet_released',
     episodesTotal: intOrNull(media.episodes),
@@ -217,12 +336,66 @@ export function normalizeMedia(media: Media): SourceTitle {
     averageScore: intOrNull(media.averageScore),
     popularity: intOrNull(media.popularity),
     isAdult: media.isAdult === true,
-    genres: media.genres ?? [],
+    genres: genresOf(media),
     sourceUpdatedAt:
       media.updatedAt === null || media.updatedAt === undefined
         ? null
         : new Date(media.updatedAt * 1000),
   };
+}
+
+/** AniList lists http:// links; the series page of Crunchyroll, https. */
+const secure = (url: string | null | undefined): string | null => {
+  const checked = httpUrl(url);
+  return checked === null ? null : checked.replace(/^http:/i, 'https:');
+};
+
+/** The services that stream the show (not its official site or social pages), Crunchyroll first. */
+function streamingLinks(media: Media): { site: string; url: string }[] {
+  const seen = new Set<string>();
+  const links: { site: string; url: string }[] = [];
+  for (const item of media.externalLinks ?? []) {
+    const site = item.site?.trim();
+    const url = secure(item.url);
+    if (item.type !== 'STREAMING' || !site || url === null) continue;
+    // One link per service (Crunchyroll lists its dubbed version separately).
+    if (seen.has(site)) continue;
+    seen.add(site);
+    links.push({ site, url });
+  }
+  links.sort((a, b) => Number(b.site === 'Crunchyroll') - Number(a.site === 'Crunchyroll'));
+  return links.slice(0, 8);
+}
+
+function crunchyrollSeries(media: Media): string | null {
+  const link = (media.externalLinks ?? []).find(
+    (item) => item.site === 'Crunchyroll' && item.type === 'STREAMING',
+  );
+  return secure(link?.url);
+}
+
+/**
+ * "Episode 130 - Scent of Danger!" on Crunchyroll's watch page for that episode. AniList often lists a
+ * whole show's episodes under each of its seasons, numbered across seasons (139 to 159 on a 13-episode
+ * season 1): those cannot be this season's episodes, so a number past the season's own count is dropped.
+ */
+function crunchyrollEpisodes(
+  media: z.infer<typeof detailSchema>,
+): { episode: number; url: string }[] {
+  const found = new Map<number, string>();
+  for (const item of media.streamingEpisodes ?? []) {
+    if (item.site !== 'Crunchyroll') continue;
+    const episode = /^\s*Episode\s+(\d+)/i.exec(item.title ?? '')?.[1];
+    const url = secure(item.url);
+    if (episode === undefined || url === null) continue;
+    const number = Number(episode);
+    const total = media.episodes;
+    if (total !== null && total !== undefined && number > total) continue;
+    if (!found.has(number)) found.set(number, url);
+  }
+  return [...found.entries()]
+    .map(([episode, url]) => ({ episode, url }))
+    .sort((a, b) => a.episode - b.episode);
 }
 
 function normalizeDetail(media: z.infer<typeof detailSchema>): SourceTitleDetail {
@@ -236,6 +409,7 @@ function normalizeDetail(media: z.infer<typeof detailSchema>): SourceTitleDetail
     ...normalizeMedia(media),
     studios,
     relations: normalizeRelations(media),
+    crunchyrollEpisodes: crunchyrollEpisodes(media),
     characters: normalizeCharacters(media),
     nextAiring:
       media.nextAiringEpisode === null || media.nextAiringEpisode === undefined
@@ -285,7 +459,9 @@ function normalizeCharacters(media: z.infer<typeof detailSchema>): SourceCharact
   return characters;
 }
 
-function normalizeRelations(media: z.infer<typeof detailSchema>): SourceRelation[] {
+function normalizeRelations(media: {
+  relations?: z.infer<typeof relationsSchema>;
+}): SourceRelation[] {
   const relations: SourceRelation[] = [];
   for (const edge of media.relations?.edges ?? []) {
     // Manga and novels are not titles in Akiba; an "adaptation" of one is not a relation here.
@@ -304,6 +480,8 @@ function normalizeRelations(media: z.infer<typeof detailSchema>): SourceRelation
             ? null
             : (KIND_BY_FORMAT[edge.node.format] ?? null),
         title: cleanString(edge.node.title?.romaji),
+        titleEnglish: cleanString(edge.node.title?.english),
+        coverUrl: httpUrl(edge.node.coverImage?.large),
       },
     });
   }
@@ -417,7 +595,11 @@ export function createAniListAdapter(options: AniListAdapterOptions = {}): Sourc
       page: page.page,
       perPage: Math.min(50, Math.max(1, page.perPage)),
       search: query,
-      genre: filters.genre,
+      // Harem, Gore and the like are tags on AniList, not genres: they are asked for as tags.
+      genre:
+        filters.genre !== undefined && isAdultTagGenre(filters.genre) ? undefined : filters.genre,
+      tag:
+        filters.genre !== undefined && isAdultTagGenre(filters.genre) ? filters.genre : undefined,
       season: filters.season?.toUpperCase(),
       seasonYear: filters.seasonYear,
       format: filters.kind === undefined ? undefined : FORMAT_BY_KIND[filters.kind],
@@ -429,7 +611,10 @@ export function createAniListAdapter(options: AniListAdapterOptions = {}): Sourc
   }
 
   const pageSchema = z.object({
-    Page: z.object({ pageInfo: pageInfoSchema, media: z.array(mediaSchema) }),
+    Page: z.object({
+      pageInfo: pageInfoSchema,
+      media: z.array(mediaSchema.extend({ relations: relationsSchema })),
+    }),
   });
 
   async function pageOf(
@@ -439,7 +624,10 @@ export function createAniListAdapter(options: AniListAdapterOptions = {}): Sourc
     const data = await client.run(key, () => graphql(MEDIA_PAGE_QUERY, variables));
     const { Page } = parse(pageSchema, data, 'page');
     return {
-      items: Page.media.map(normalizeMedia),
+      items: Page.media.map((media) => ({
+        ...normalizeMedia(media),
+        relations: normalizeRelations(media),
+      })),
       page: Page.pageInfo.currentPage ?? (variables['page'] as number),
       hasNextPage: Page.pageInfo.hasNextPage === true,
     };

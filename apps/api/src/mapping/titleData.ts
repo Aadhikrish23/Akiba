@@ -27,6 +27,7 @@ export function titleColumns(title: SourceTitle, now: Date): Prisma.TitleUncheck
     synonyms: [...title.synonyms],
     synopsis: title.synopsis,
     coverUrl: title.coverUrl,
+    coverColor: title.coverColor,
     bannerUrl: title.bannerUrl,
     format: title.format,
     status: title.status,
@@ -41,6 +42,9 @@ export function titleColumns(title: SourceTitle, now: Date): Prisma.TitleUncheck
     popularity: title.popularity,
     isAdult: title.isAdult,
     sourceUpdatedAt: title.sourceUpdatedAt,
+    // Only when the source says (the fallback source does not): never blank a link we have.
+    ...(title.crunchyrollUrl === undefined ? {} : { crunchyrollUrl: title.crunchyrollUrl }),
+    ...(title.streamingLinks === undefined ? {} : { streamingLinks: [...title.streamingLinks] }),
     fetchedAt: now,
     stale: false,
   };

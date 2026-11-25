@@ -226,6 +226,106 @@ describe('Discover: browse (FR-DISC-002, FR-DISC-006)', () => {
   });
 });
 
+describe('Discover: the seasons of one show are one tile', () => {
+  const FRANCHISE = '00000000-0000-4000-8000-0000000000f1';
+  const info = {
+    id: FRANCHISE,
+    size: 4,
+    seasons: 3,
+    titleRomaji: 'My Hero Academia',
+    titleEnglish: 'Boku no Hero Academia (English)',
+    titleNative: null,
+  };
+  const seasons = [10, 11, 12].map((n) => card(n, { franchise: info, seasonYear: 2016 + n - 10 }));
+  const catalog = server((call) => {
+    if (call.path.endsWith('/genres')) return json(200, { data: [] });
+    if (call.path.includes('/titles/search')) return list([...seasons, card(20)]);
+    return undefined;
+  });
+  const tileName = 'Franchise My Hero Academia 3 seasons · 1 movie, special or spin-off';
+
+  it('shows the seasons as one tile named after the first, not one card each', async () => {
+    renderApp({ route: '/discover?q=hero', handler: catalog });
+    const tile = await screen.findByRole('link', { name: tileName });
+    expect(tile.getAttribute('href')).toBe(`/franchise/${FRANCHISE}`);
+    // The seasons are behind it, not beside it: only the other show is a card of its own.
+    expect(screen.queryByRole('link', { name: 'Show 10' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Show 20' })).toBeTruthy();
+  });
+
+  it('is a plain link: nothing expands, and no season is fetched until the page is opened', async () => {
+    const app = renderApp({ route: '/discover?q=hero', handler: catalog });
+    await screen.findByRole('link', { name: tileName });
+    expect(app.to('/franchises/').length).toBe(0);
+    expect(screen.queryByRole('button', { name: /My Hero Academia/ })).toBeNull();
+  });
+
+  it('says how many of it you have in your library', async () => {
+    renderApp({
+      route: '/discover?q=hero',
+      handler: server((call) => {
+        if (call.path.endsWith('/genres')) return json(200, { data: [] });
+        if (call.path.includes('/titles/search')) {
+          return list([
+            card(10, {
+              franchise: info,
+              libraryStatus: 'completed',
+              libraryEntryId: '00000000-aaaa-4000-8000-0000000000e1',
+            }),
+            card(11, { franchise: info }),
+          ]);
+        }
+        return undefined;
+      }),
+    });
+    expect(await screen.findByRole('link', { name: `${tileName} 1 in your library` })).toBeTruthy();
+  });
+
+  it('shows a title whose franchise has only itself on the page as the franchise tile all the same', async () => {
+    renderApp({
+      route: '/discover?q=hero',
+      handler: server((call) => {
+        if (call.path.endsWith('/genres')) return json(200, { data: [] });
+        if (call.path.includes('/titles/search')) {
+          return list([card(10, { franchise: info }), card(20)]);
+        }
+        return undefined;
+      }),
+    });
+    expect(await screen.findByRole('link', { name: /^Franchise My Hero Academia / })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Show 10' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Show 20' })).toBeTruthy();
+  });
+
+  it("stacks the franchise's own covers on the tile, however many of its titles are on the page", async () => {
+    const covered = { ...info, covers: ['https://img.example/a.jpg', 'https://img.example/b.jpg'] };
+    const { container } = renderApp({
+      route: '/discover?q=hero',
+      handler: server((call) => {
+        if (call.path.endsWith('/genres')) return json(200, { data: [] });
+        if (call.path.includes('/titles/search')) return list([card(10, { franchise: covered })]);
+        return undefined;
+      }),
+    });
+    await screen.findByRole('link', { name: /^Franchise My Hero Academia / });
+    const covers = [...container.querySelectorAll('.ftile__art img')].map((img) =>
+      img.getAttribute('src'),
+    );
+    // Always a stack of three: the two covers known are repeated to fill it.
+    expect(covers).toEqual([
+      'https://img.example/a.jpg',
+      'https://img.example/b.jpg',
+      'https://img.example/a.jpg',
+    ]);
+  });
+
+  it('has no axe violations', async () => {
+    const app = renderApp({ route: '/discover?q=hero', handler: catalog });
+    await screen.findByRole('link', { name: tileName });
+    expect(await violations(app.container)).toEqual([]);
+  });
+});
+
 describe('Discover: search (FR-DISC-001)', () => {
   const catalog = server((call) => {
     if (call.path.endsWith('/genres')) return json(200, { data: ['Action'] });
@@ -243,6 +343,35 @@ describe('Discover: search (FR-DISC-001)', () => {
     ).toBeTruthy();
     expect(query(app.to('/titles/search')[0]!).get('q')).toBe('attack on titan');
     expect(await screen.findByRole('list', { name: 'Search results' })).toBeTruthy();
+  });
+
+  it('searches as you type: once typing pauses, with no Enter, and not for every letter', async () => {
+    const app = renderApp({ route: '/discover', handler: catalog });
+    await screen.findByRole('list', { name: 'Titles' });
+    await app.user.type(screen.getByLabelText('Search by name'), 'naruto');
+    expect(await screen.findByRole('heading', { name: 'Results for “naruto”' })).toBeTruthy();
+    expect(await screen.findByRole('list', { name: 'Search results' })).toBeTruthy();
+    expect(app.to('/titles/search').map((call) => query(call).get('q'))).toEqual(['naruto']);
+  });
+
+  it('does not take away a space you just typed, so a second word can follow', async () => {
+    const app = renderApp({ route: '/discover', handler: catalog });
+    await screen.findByRole('list', { name: 'Titles' });
+    const box = screen.getByLabelText<HTMLInputElement>('Search by name');
+    await app.user.type(box, 'my hero ');
+    await screen.findByRole('heading', { name: 'Results for “my hero”' });
+    expect(box.value).toBe('my hero ');
+    await app.user.type(box, 'academia');
+    await screen.findByRole('heading', { name: 'Results for “my hero academia”' });
+    expect(box.value).toBe('my hero academia');
+  });
+
+  it('emptying the box returns to browsing', async () => {
+    const app = renderApp({ route: '/discover?q=attack', handler: catalog });
+    await screen.findByRole('list', { name: 'Search results' });
+    await app.user.clear(screen.getByLabelText('Search by name'));
+    expect(await screen.findByRole('heading', { name: 'Browse' })).toBeTruthy();
+    expect(await screen.findByRole('list', { name: 'Titles' })).toBeTruthy();
   });
 
   it('turns off the filters search cannot use, and says why', async () => {

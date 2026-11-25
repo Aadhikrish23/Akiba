@@ -200,9 +200,9 @@ export function InboxPage() {
   };
 
   return (
-    <div className="grid max-w-3xl gap-6">
+    <div className="grid max-w-4xl gap-6">
       <header className="grid gap-3">
-        <h1 className="font-serif text-2xl leading-tight font-semibold tracking-tight">Inbox</h1>
+        <h1 className="h-title">Inbox</h1>
         <p className="text-mute">
           New episodes of the titles you are watching appear here. Nothing is sent to your phone or
           your email.
@@ -238,7 +238,7 @@ export function InboxPage() {
       {state.phase === 'loading' && (
         <div aria-busy="true" role="status" aria-label="Loading your inbox" className="grid gap-4">
           {[0, 1, 2].map((index) => (
-            <div key={index} className="bg-rule/50 h-16 rounded-sm" aria-hidden="true" />
+            <div key={index} className="bg-raised h-20 rounded-md" aria-hidden="true" />
           ))}
         </div>
       )}
@@ -283,14 +283,16 @@ export function InboxPage() {
             {items.length} {items.length === 1 ? 'notification' : 'notifications'} shown,{' '}
             {unreadHere} unread
           </p>
-          <ul aria-label="Notifications" className="grid list-none gap-0 p-0">
+          <ul aria-label="Notifications" className="grid list-none gap-3 p-0">
             {items.map((item) => {
               const name = displayTitle(item.title);
               const isNew = item.readAt === null;
               return (
-                <li key={item.id} className="border-rule border-t py-4 last:border-b">
-                  <article className="grid grid-cols-[48px_1fr] gap-4">
-                    <div className="bg-raised border-rule aspect-[2/3] overflow-hidden rounded-sm border">
+                <li key={item.id}>
+                  <article
+                    className={`bg-raised grid grid-cols-[48px_1fr] gap-4 rounded-md border p-3 ${isNew ? 'border-ink' : 'border-rule'}`}
+                  >
+                    <div className="bg-raised-2 aspect-[2/3] overflow-hidden rounded-sm">
                       {item.title.coverUrl !== null && (
                         <img
                           src={item.title.coverUrl}
@@ -302,7 +304,7 @@ export function InboxPage() {
                       )}
                     </div>
                     <div className="grid content-start gap-1.5">
-                      <h2 className="font-serif text-lg leading-snug font-semibold">
+                      <h2 className="h-sub">
                         <Link
                           to={`/title/${item.title.id}`}
                           className="underline-offset-4 hover:underline"
@@ -315,7 +317,7 @@ export function InboxPage() {
                       </h2>
                       <p>
                         {isNew && (
-                          <span className="border-ink mr-2 rounded-sm border px-1.5 py-0.5 text-xs font-medium">
+                          <span className="bg-accent text-on-accent mr-2 rounded-full px-2.5 py-0.5 text-xs font-bold">
                             New
                           </span>
                         )}

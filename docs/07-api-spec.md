@@ -31,16 +31,17 @@
 ## 3. Discover (authenticated)
 | Method & path | Purpose |
 |---|---|
-| `GET /titles/search?q=&format=&limit=&cursor=` | Text search |
+| `GET /titles/search?q=&format=&limit=&cursor=` | Text search. Every card (here and everywhere) carries `crunchyrollUrl` (the show's Crunchyroll page or null) and `franchise`: `null`, or `{ id, size, seasons, titleRomaji, titleEnglish, titleNative }` for a title in a franchise of two or more (`size` titles, `seasons` of them on the main line, the names being the earliest title's). A list page from AniList also brings how its titles relate; the links whose far end is already stored are saved and franchises follow, so the seasons of one show are grouped from the first search |
 | `GET /titles/browse?genre=&season=&year=&format=&status=&sort=popularity|score|start_date&limit=&cursor=` | Filtered browse. `tag` and `order` are not offered: the sources only sort descending and tags are post-MVP |
 | `GET /seasons/current` · `GET /seasons/:year/:season` | Seasonal chart (accepts `genre`, `format`, `sort`, `limit`, `cursor`; the answer adds `season` and `seasonYear`) |
 | `GET /titles/:titleId` | Title detail incl. user's `libraryStatus`; `meta` says whether it is stale; 404 for an unknown or adult title; 503 `SOURCES_UNAVAILABLE` if it was never fetched and no source answers |
 | `GET /titles/:titleId/relations` | Related titles grouped by relation type |
-| `GET /franchises/:franchiseId` | `{data:{id,name,titles[],relations[],totals},meta}`: every visible title, oldest first (unknown dates last), each a card with `startDate` and the caller's `libraryStatus`/`libraryEntryId`; `relations` are the `{fromTitleId,toTitleId,relationType}` edges between those titles; `totals` = `{titles,inLibrary,completed}` for the caller. A title detail carries its `franchiseId` (null when it has none) |
+| `GET /franchises/:franchiseId` | `{data:{id,name,titles[],relations[],totals},meta}`: every visible title, oldest first (unknown dates last), each a card with `startDate` and the caller's `libraryStatus`/`libraryEntryId`; `relations` are the `{fromTitleId,toTitleId,relationType}` edges between those titles; each title also carries `entry` (`{progress,total}` or null) for the caller; `totals` = `{titles,inLibrary,completed}` for the caller. A title detail carries its `franchiseId` (null when it has none) |
 | `GET /titles/:titleId/characters` | `{data:[{id,name,nativeName,imageUrl,role,voiceActors:[{id,name,nativeName,imageUrl,language}]}],meta}`, main characters first. Refreshes the title's detail when it is old; a title whose cast is empty is looked at again at most hourly |
 | `GET /studios/:studioId` · `GET /studios/:studioId/titles?limit=&cursor=` | `{data:{id,name,isAnimationStudio,titleCount}}`, and the studio's works as an ordinary title list, most popular first (unknown popularity last). Only works Akiba has seen are listed: a studio fills in as titles are opened |
 | `GET /characters/:characterId` | `{data:{id,name,nativeName,imageUrl,description,voiceActors[],appearances:[{role,title:card}]}}`, main roles first, at most 50 |
-| `GET /genres` | Genre list (adult-only labels are left out) |
+| `GET /genres` | Genre list for the caller. `Hentai` is never in it. The adult genres (`Ecchi`, `Harem`, `Reverse Harem`, `Nudity`, `Gore`, `Erotica`) are in it only for a user with `showAdult` on, and then always. Harem, Reverse Harem, Nudity and Gore are AniList tags: a title keeps them beside its genres once the tag's rank is 50 or more, and `browse?genre=Harem` asks AniList with `tag`. Titles carrying the `Hentai` genre are never listed, in any setting |
+| `GET /titles/:titleId/episodes/:episode` | `{ data: { episode, name, synopsis } }` for one episode, both texts nullable. Fetched from Jikan (MyAnimeList) the first time and kept in `episode_info`; a source with nothing for it, or none reachable, answers empty (not an error), and an empty answer is asked again after a day. 404 for an unknown or hidden title; 422 for an episode number outside 1–10000 |
 
 Franchise, studio and character pages read Akiba's own copy (`meta: {stale:false, source:"cache"}`), hide adult-rated titles unless the user opted in, and answer 404 for an unknown or malformed ID or when nothing visible is left (an adult-only franchise, studio or character is not discoverable by ID).
 
@@ -54,12 +55,13 @@ All discover endpoints return `meta: { stale, source }` (`anilist` | `jikan` | `
 | `GET /library/:entryId` | Entry with runs |
 | `PATCH /library/:entryId` | `{status?, rating?, review?, isFavorite?, alertsEnabled?, notes?}` |
 | `DELETE /library/:entryId` | Remove (tombstone: the entry and its events are kept) → 204 |
-| `POST /library/:entryId/progress` | `{ delta: 1 }` (or `-1`) or `{ set: 12 }` → `{ data: entry, suggestComplete }`. 422 `PROGRESS_EXCEEDS_TOTAL` (with `total`) past a known total; 409 `ENTRY_COMPLETED` on a completed entry; the first episode moves Planned to Watching |
+| `POST /library/:entryId/progress` | `{ delta: 1 }` (or `-1`) or `{ set: 12 }` → `{ data: entry, suggestComplete }`. 422 `PROGRESS_EXCEEDS_TOTAL` (with `total`) past a known total; 422 `PROGRESS_EXCEEDS_AIRED` (with `aired`) past what has aired, whether or not the total is known, when the show's airing times are known (entries carry `episodesAired`; a 20-episode season with 8 aired stops at 8); 409 `ENTRY_COMPLETED` on a completed entry; the first episode moves Planned to Watching |
 | `PUT /library/:entryId/episodes-total` | `{ total: 24 }` override · `DELETE` clears it. 422 `TOTAL_BELOW_PROGRESS` if it would drop below the episodes watched (refused, never clamped) |
 | `POST /library/:entryId/runs` | Start a rewatch (entry must be Completed, else 409 `NOT_COMPLETED`) → 201 with run N+1 open; earlier runs unchanged |
 | `GET /history?type=&titleId=&from=&to=&limit=&cursor=` | Event timeline, newest first (`type` may list several, comma separated; `from` inclusive, `to` exclusive; keyset cursor). Events have no write routes: they are append-only |
 | `GET /stats` | Aggregates (later) |
 | `GET /library/favorites` | Favorite entries |
+| `GET /library/schedule?from=&to=` | Episodes of your Watching and Planned titles airing in `[from, to)` (ISO UTC, at most 43 days: a month grid): `{ entryId, title, entryStatus, episode, airsAt, projected, watched }`. `projected` marks a weekly slot carried forward from the latest announced episode, up to the last episode (at most three years ahead); the source has not announced it. Past weeks show only episodes the source recorded. 422 on a bad window |
 
 ## 5. Inbox
 | Method & path | Purpose |

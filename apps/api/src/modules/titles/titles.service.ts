@@ -3,6 +3,7 @@ import {
   type BrowseQuery,
   type CatalogMeta,
   type RelationsResponse,
+  type EpisodeInfoResponse,
   type TitleCharactersResponse,
   type SearchQuery,
   type Season,
@@ -14,7 +15,7 @@ import {
 import type { DbClient } from '../../db/index.js';
 import { notFound, sourcesUnavailable } from '../../lib/errors.js';
 import { loadTitleCharacters, replaceCharacters } from '../explore/characters.js';
-import { recomputeFranchises } from '../explore/franchise.js';
+import { FRANCHISE_RELATIONS, recomputeFranchises } from '../explore/franchise.js';
 import type { Logger } from '../../lib/logger.js';
 import { UnresolvableTitleError, type TitleResolver } from '../../mapping/index.js';
 import { SourcesUnavailableError, type SourceGateway, type Sourced } from '../../sources/index.js';
@@ -25,8 +26,10 @@ import type {
   SourcePage,
   SourceTitle,
   TitleFilters,
+  TitleKind,
 } from '../../sources/types.js';
 import {
+  addRelations,
   applyCard,
   applyDetail,
   cardSelect,
@@ -40,9 +43,11 @@ import {
   type LocalFilters,
 } from './catalog.js';
 import { decodeCursor, encodeCursor, type Cursor } from './cursor.js';
-import { seasonOf } from '@akiba/shared';
+import { ADULT_GENRES, isAdultGenre, isExplicitGenre, seasonOf } from '@akiba/shared';
 
 const HOUR = 60 * 60 * 1000;
+/** Related titles stored as placeholders when one list page is read. */
+const MAX_PLACEHOLDERS = 60;
 /** A card seen in a list is refreshed when our copy is older than this. */
 export const CARD_TTL_MS = 6 * HOUR;
 /** Detail (studios, relations, airing) of a title that is still airing or announced. */
@@ -68,13 +73,15 @@ export interface TitlesService {
   detail(userId: string, titleId: string): Promise<TitleDetailResponse>;
   relations(userId: string, titleId: string): Promise<RelationsResponse>;
   characters(userId: string, titleId: string): Promise<TitleCharactersResponse>;
+  /** The name and synopsis of one episode, fetched from Jikan the first time and kept. */
+  episode(userId: string, titleId: string, episode: number): Promise<EpisodeInfoResponse>;
   /**
    * The metadata-refresh job: re-read the detail of titles that are on someone's shelf and whose
    * copy has outlived its time to live, oldest first, at most `limit`. Stops at the first moment
    * no source can answer.
    */
   refreshStale(limit: number): Promise<RefreshSummary>;
-  genres(): Promise<string[]>;
+  genres(userId: string): Promise<string[]>;
 }
 
 export interface RefreshSummary {
@@ -162,7 +169,10 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
 
   /** Resolve what a source returned to Akiba IDs (FR-DISC-008), refreshing stale cards. */
   async function ingest(items: readonly SourceTitle[], adult: boolean): Promise<string[]> {
-    const visible = adult ? items : items.filter((item) => !item.isAdult);
+    // Explicit (Hentai) titles are never listed; other adult-rated ones only for readers who turned them on.
+    const visible = items.filter(
+      (item) => !item.genres.some(isExplicitGenre) && (adult || !item.isAdult),
+    );
     const resolved = await mapLimit(visible, RESOLVE_CONCURRENCY, async (item) => {
       try {
         const result = await resolver.resolve({ externalIds: item.externalIds, title: item });
@@ -192,8 +202,140 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
         (entry) => db.$transaction((tx) => applyCard(tx, entry.titleId, entry.item, now())),
       );
     }
+    // A title made from a list page keeps its genres at once, so browsing by genre finds it.
+    await mapLimit(
+      usable.filter((entry) => entry.created),
+      RESOLVE_CONCURRENCY,
+      (entry) => db.$transaction((tx) => replaceGenres(tx, entry.titleId, entry.item.genres)),
+    );
+    await linkSeasons(usable);
     // The same title can come back twice (two entries of a source mapped to one); show it once.
     return [...new Set(usable.map((entry) => entry.titleId))];
+  }
+
+  /**
+   * A list page from AniList says how its titles relate (season 2 follows season 1). Store those
+   * links and let the franchises follow, so "My Hero Academia" is one group at once instead of only
+   * after each season has been opened. A related title we do not have yet is stored as a
+   * placeholder (a name and a kind, fetched in full the first time it is opened), as the detail
+   * refresh already does, so a show seen alone on a page is still known to be part of a franchise.
+   * At most `MAX_PLACEHOLDERS` per page. A failure here never fails the search.
+   */
+  async function linkSeasons(
+    entries: readonly { titleId: string; item: SourceTitle }[],
+  ): Promise<void> {
+    try {
+      const withLinks = entries.filter((entry) => (entry.item.relations?.length ?? 0) > 0);
+      const wanted = new Set<string>();
+      for (const entry of withLinks) {
+        for (const relation of entry.item.relations ?? []) {
+          const id = relation.target.externalIds.anilist;
+          if (id !== undefined) wanted.add(id);
+        }
+      }
+      if (wanted.size === 0) return;
+      const find = () =>
+        db.titleExternalId.findMany({
+          where: { source: 'anilist', externalId: { in: [...wanted] } },
+          select: { titleId: true, externalId: true },
+        });
+      let known = await find();
+      const have = new Set(known.map((row) => row.externalId));
+      const missing = new Map<
+        string,
+        {
+          title: string;
+          kind: TitleKind | null;
+          titleEnglish: string | null;
+          coverUrl: string | null;
+        }
+      >();
+      // What a relation edge says about a placeholder already stored (its cover, its English name).
+      const said = new Map<string, { titleEnglish: string | null; coverUrl: string | null }>();
+      for (const entry of withLinks) {
+        for (const relation of entry.item.relations ?? []) {
+          const id = relation.target.externalIds.anilist;
+          if (id !== undefined && have.has(id)) {
+            said.set(id, {
+              titleEnglish: relation.target.titleEnglish ?? null,
+              coverUrl: relation.target.coverUrl ?? null,
+            });
+          }
+          if (
+            id === undefined ||
+            have.has(id) ||
+            relation.target.title === null ||
+            !FRANCHISE_RELATIONS.includes(relation.relationType)
+          ) {
+            continue;
+          }
+          missing.set(id, {
+            title: relation.target.title,
+            kind: relation.target.kind,
+            titleEnglish: relation.target.titleEnglish ?? null,
+            coverUrl: relation.target.coverUrl ?? null,
+          });
+        }
+      }
+      if (missing.size > 0) {
+        await mapLimit(
+          [...missing].slice(0, MAX_PLACEHOLDERS),
+          RESOLVE_CONCURRENCY,
+          async ([id, target]) => {
+            try {
+              await resolver.resolve({
+                externalIds: { anilist: id },
+                stub: {
+                  title: target.title,
+                  kind: target.kind,
+                  titleEnglish: target.titleEnglish,
+                  coverUrl: target.coverUrl,
+                },
+              });
+            } catch (error) {
+              if (!(error instanceof UnresolvableTitleError)) throw error;
+            }
+          },
+        );
+        known = await find();
+      }
+      // A placeholder stored earlier gets its cover and English name now, if it has none yet.
+      await mapLimit(
+        known.filter((row) => said.has(row.externalId)),
+        RESOLVE_CONCURRENCY,
+        async (row) => {
+          const extra = said.get(row.externalId)!;
+          if (extra.coverUrl !== null) {
+            await db.title.updateMany({
+              where: { id: row.titleId, fetchedAt: null, coverUrl: null },
+              data: { coverUrl: extra.coverUrl },
+            });
+          }
+          if (extra.titleEnglish !== null) {
+            await db.title.updateMany({
+              where: { id: row.titleId, fetchedAt: null, titleEnglish: null },
+              data: { titleEnglish: extra.titleEnglish },
+            });
+          }
+        },
+      );
+      const titleOf = new Map(known.map((row) => [row.externalId, row.titleId]));
+      const rows = withLinks.flatMap((entry) =>
+        (entry.item.relations ?? []).flatMap((relation) => {
+          const to = titleOf.get(relation.target.externalIds.anilist ?? '');
+          return to === undefined
+            ? []
+            : [{ fromTitleId: entry.titleId, toTitleId: to, relationType: relation.relationType }];
+        }),
+      );
+      if (rows.length === 0) return;
+      await db.$transaction(async (tx) => {
+        await addRelations(tx, rows);
+        await recomputeFranchises(tx, [...new Set(rows.map((row) => row.fromTitleId))]);
+      });
+    } catch (error) {
+      logger.warn({ err: error }, 'could not link the seasons of a list page');
+    }
   }
 
   function cacheGet(key: string): CachedPage | undefined {
@@ -441,7 +583,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
       loaded.detailFetchedAt === null
         ? Infinity
         : now().getTime() - loaded.detailFetchedAt.getTime();
-    if (age > detailTtl(loaded.status)) {
+    if (age > detailTtl(loaded.status) || !loaded.linksFetched) {
       try {
         const source = await refreshDetail(titleId);
         loaded = (await loadDetail(db, titleId, userId, now(), adult)) ?? loaded;
@@ -521,6 +663,57 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     return { data: cast, meta };
   }
 
+  /**
+   * What is known about one episode. A source that has nothing for it is not an error: the answer
+   * is simply empty, and is asked again only after a day (a new show's synopses arrive later).
+   */
+  async function episode(
+    userId: string,
+    titleId: string,
+    number: number,
+  ): Promise<EpisodeInfoResponse> {
+    if (!UUID.test(titleId)) throw notFound();
+    const adult = await adultFor(userId);
+    const title = await db.title.findFirst({
+      where: { id: titleId, ...(adult ? {} : { isAdult: false }) },
+      select: { id: true, externalIds: { select: { source: true, externalId: true } } },
+    });
+    if (title === null) throw notFound();
+
+    const key = { titleId_episodeNumber: { titleId, episodeNumber: number } };
+    const cached = await db.episodeInfo.findUnique({ where: key });
+    const say = (row: { name: string | null; synopsis: string | null } | null) => ({
+      data: { episode: number, name: row?.name ?? null, synopsis: row?.synopsis ?? null },
+    });
+    const DAY = 24 * HOUR;
+    if (
+      cached !== null &&
+      (cached.name !== null ||
+        cached.synopsis !== null ||
+        now().getTime() - cached.fetchedAt.getTime() < DAY)
+    ) {
+      return say(cached);
+    }
+    const ids: ExternalIds = {};
+    for (const row of title.externalIds) {
+      if (row.source === 'anilist' || row.source === 'mal') ids[row.source] = row.externalId;
+    }
+    if (ids.mal === undefined) return say(cached);
+    try {
+      const found = (await gateway.getEpisode(ids, number)).data;
+      const row = { name: found?.name ?? null, synopsis: found?.synopsis ?? null };
+      await db.episodeInfo.upsert({
+        where: key,
+        create: { titleId, episodeNumber: number, ...row, fetchedAt: now() },
+        update: { ...row, fetchedAt: now() },
+      });
+      return say(row);
+    } catch (error) {
+      if (!(error instanceof SourcesUnavailableError)) throw error;
+      return say(cached); // nothing stored, nothing new: the next ask tries again
+    }
+  }
+
   async function refreshStale(limit: number): Promise<RefreshSummary> {
     const live = new Date(now().getTime() - LIVE_DETAIL_TTL_MS);
     const done = new Date(now().getTime() - DONE_DETAIL_TTL_MS);
@@ -556,17 +749,26 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
 
   // ── Genres ──────────────────────────────────────────────────────────────────────
 
-  /** Adult-only genre labels never appear in pickers (Q-10). */
-  const HIDDEN_GENRES = new Set(['hentai', 'erotica']);
-
-  async function genres(): Promise<string[]> {
-    const read = async (): Promise<string[]> =>
-      (await db.genre.findMany({ select: { name: true }, orderBy: { name: 'asc' } }))
+  /**
+   * The genres offered for browsing. Explicit ones (Hentai) never are; the adult ones (Ecchi, Harem,
+   * Gore…) only for a reader who turned adult titles on (Q-10), and then always, whether or not a
+   * title carrying them has been stored yet.
+   */
+  async function genres(userId: string): Promise<string[]> {
+    const adult = await adultFor(userId);
+    const read = async (): Promise<string[]> => {
+      const stored = (await db.genre.findMany({ select: { name: true }, orderBy: { name: 'asc' } }))
         .map((genre) => genre.name)
-        .filter((name) => !HIDDEN_GENRES.has(name.toLowerCase()));
+        .filter((name) => !isExplicitGenre(name) && (adult || !isAdultGenre(name)));
+      if (!adult) return stored;
+      const have = new Set(stored.map((name) => name.toLowerCase()));
+      return [...stored, ...ADULT_GENRES.filter((name) => !have.has(name.toLowerCase()))].sort(
+        (a, b) => a.localeCompare(b),
+      );
+    };
 
     const found = await read();
-    if (found.length > 0) return found;
+    if (found.length > (adult ? ADULT_GENRES.length : 0)) return found;
     // A fresh database has no genres until a source has been asked once.
     genreRefresh ??= (async () => {
       try {
@@ -598,6 +800,7 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
     characters,
     refreshStale,
     genres,
+    episode,
   };
 }
 

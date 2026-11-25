@@ -12,6 +12,7 @@ import { useAuth } from '../auth/AuthContext';
 import { Button, Field, Notice, Select } from '../components/ui';
 import { describeError } from '../lib/errors';
 import { usePageTitle } from '../lib/page';
+import { KNOWN_SERVICES, readServices, saveServices } from '../lib/services';
 import { applyTheme, readTheme, type ThemeChoice } from '../lib/theme';
 import { ENTRY_LABEL } from '../lib/titles';
 
@@ -44,13 +45,32 @@ function Feedback({ feedback }: { feedback: ReturnType<typeof useFeedback> }) {
   );
 }
 
-const timeZones = (): string[] => {
+/** "GMT+9" for a zone, so the list says what each name means. */
+function offsetOf(zone: string): string {
   try {
-    return Intl.supportedValuesOf('timeZone');
+    return (
+      new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'shortOffset' })
+        .formatToParts(new Date())
+        .find((part) => part.type === 'timeZoneName')?.value ?? ''
+    );
   } catch {
-    return [];
+    return '';
   }
-};
+}
+
+/** Every zone the browser knows, plus the one saved on the account (an old free-text value stays selectable). */
+function zoneOptions(saved: string): { value: string; label: string }[] {
+  let names: string[];
+  try {
+    names = Intl.supportedValuesOf('timeZone');
+  } catch {
+    names = [];
+  }
+  const all = new Set(['UTC', ...names, saved]);
+  return [...all]
+    .sort()
+    .map((value) => ({ value, label: `${value} (${offsetOf(value) || 'UTC'})` }));
+}
 
 /** Settings (FR-ACCT-001, FR-EXPT-001, FR-SHARE-001/002, FR-ACCT-002): profile, theme, export, share, delete. */
 export function SettingsPage() {
@@ -58,7 +78,7 @@ export function SettingsPage() {
   const { profile } = useAuth();
   return (
     <div className="grid max-w-3xl gap-12">
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="h-title">Settings</h1>
       {profile === null ? (
         <p role="status" aria-busy="true" className="text-mute">
           Loading your settings…
@@ -66,6 +86,7 @@ export function SettingsPage() {
       ) : (
         <>
           <ProfileSection />
+          <WatchSection />
           <ThemeSection />
           <ExportSection />
           <ShareSection />
@@ -87,7 +108,7 @@ function Section({
 }) {
   return (
     <section aria-labelledby={id} className="border-rule grid gap-4 border-t pt-6">
-      <h2 id={id} className="font-serif text-xl font-semibold">
+      <h2 id={id} className="h-section">
         {title}
       </h2>
       {children}
@@ -99,7 +120,6 @@ function ProfileSection() {
   const { profile, updateProfile } = useAuth();
   const feedback = useFeedback();
   const [name, setName] = useState(profile?.displayName ?? '');
-  const [zone, setZone] = useState(profile?.timeZone ?? 'UTC');
   // The two switches answer at once; the save happens behind them.
   const [alerts, setAlerts] = useState(profile?.alertsEnabled ?? true);
   const [adult, setAdult] = useState(profile?.showAdult ?? false);
@@ -152,33 +172,18 @@ function ProfileSection() {
             save({ titleLanguage: event.target.value as TitleLanguage });
           }}
         />
-        <form
-          onSubmit={(event: FormEvent) => {
-            event.preventDefault();
-            save({ timeZone: zone });
-          }}
-          className="flex items-end gap-2"
-        >
-          <div className="flex-1">
-            <Field
-              label="Time zone"
-              list="zones"
-              value={zone}
-              onChange={(event) => {
-                setZone(event.target.value);
-              }}
-              hint="Air times are shown in this zone."
-            />
-            <datalist id="zones">
-              {timeZones().map((value) => (
-                <option key={value} value={value} />
-              ))}
-            </datalist>
-          </div>
-          <Button type="submit" busy={busy}>
-            Save
-          </Button>
-        </form>
+        <div className="grid gap-1.5">
+          <Select
+            label="Time zone"
+            anyLabel=""
+            value={profile.timeZone}
+            options={zoneOptions(profile.timeZone)}
+            onChange={(event) => {
+              save({ timeZone: event.target.value });
+            }}
+          />
+          <p className="text-mute text-sm">Air times are shown in this zone.</p>
+        </div>
       </div>
       <label className="flex items-center gap-2">
         <input
@@ -208,6 +213,40 @@ function ProfileSection() {
           </span>
         </span>
       </label>
+    </Section>
+  );
+}
+
+/** The streaming services the reader has: a Watch button goes to the first of these that carries the show. */
+function WatchSection() {
+  const [mine, setMine] = useState<string[]>(readServices);
+  const toggle = (name: string, on: boolean) => {
+    const next = on ? [...mine, name] : mine.filter((item) => item !== name);
+    setMine(next);
+    saveServices(next);
+  };
+  return (
+    <Section id="watch-heading" title="Where I watch">
+      <fieldset className="grid gap-3">
+        <legend className="text-mute max-w-prose text-sm">
+          A Watch button goes to the services you pick here, the first one that carries the show.
+          Pick none and it offers every service that does. Kept on this device.
+        </legend>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          {KNOWN_SERVICES.map((name) => (
+            <label key={name} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={mine.includes(name)}
+                onChange={(event) => {
+                  toggle(name, event.target.checked);
+                }}
+              />
+              {name}
+            </label>
+          ))}
+        </div>
+      </fieldset>
     </Section>
   );
 }

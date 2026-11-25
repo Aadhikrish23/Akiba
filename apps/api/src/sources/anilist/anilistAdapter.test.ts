@@ -7,7 +7,7 @@ import {
   jsonResponse,
 } from '../../testing/sources.js';
 import { SourceError } from '../types.js';
-import { createAniListAdapter } from './anilistAdapter.js';
+import { createAniListAdapter, englishFromSynonyms } from './anilistAdapter.js';
 
 function adapterFor(net: FakeNet, extra: Parameters<typeof createAniListAdapter>[0] = {}) {
   const time = new ManualTime();
@@ -287,6 +287,14 @@ describe('AniList adapter: normalisation edge cases', () => {
     expect(title?.coverUrl).toBe('https://img.example.test/a.jpg');
   });
 
+  it('keeps the cover colour as lower-case #rrggbb and drops anything else', async () => {
+    expect((await normalised({ coverImage: { color: '#E4A128' } }))?.coverColor).toBe('#e4a128');
+    expect((await normalised({ coverImage: { color: 'red' } }))?.coverColor).toBeNull();
+    expect((await normalised({ coverImage: { color: '#fff' } }))?.coverColor).toBeNull();
+    expect((await normalised({ coverImage: { color: '#e4a128;x' } }))?.coverColor).toBeNull();
+    expect((await normalised({ coverImage: null }))?.coverColor).toBeNull();
+  });
+
   it('strips markup and entities from the synopsis', async () => {
     const title = await normalised({ description: 'One<br><br>Two &amp; <i>three</i> &lt;b&gt;' });
     expect(title?.synopsis).toBe('One\n\nTwo & three <b>');
@@ -348,5 +356,27 @@ describe('AniList adapter: failures (NFR-REL-001)', () => {
     const before = net.requests.length;
     await expect(adapter.getGenres()).rejects.toMatchObject({ kind: 'circuit_open' });
     expect(net.requests).toHaveLength(before);
+  });
+
+  describe('englishFromSynonyms', () => {
+    it('takes the English synonym when AniList has no English title', () => {
+      expect(
+        englishFromSynonyms('Kusuriya no Hitorigoto 3rd Season Part 2', [
+          '薬屋のひとりごと',
+          'The Apothecary Diaries Season 3 Part 2',
+          'The Apothecary Diaries Season 3 Cour 2',
+        ]),
+      ).toBe('The Apothecary Diaries Season 3 Part 2');
+    });
+
+    it('leaves a romaji synonym alone, and never repeats the romaji', () => {
+      expect(
+        englishFromSynonyms('Hotaru no Yomeiri: Choitashi', [
+          'Hotaru no Yomeiri Mini Anime',
+          'ホタルの嫁入り',
+          'Hotaru no Yomeiri: Choitashi',
+        ]),
+      ).toBeNull();
+    });
   });
 });

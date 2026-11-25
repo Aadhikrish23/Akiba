@@ -53,7 +53,7 @@ function SeasonChart({ year, season }: { year: number; season: Season }) {
           </Link>{' '}
           / Seasonal chart
         </p>
-        <h1 className="mt-1 font-serif text-2xl font-semibold tracking-tight">{label}</h1>
+        <h1 className="h-title mt-1">{label}</h1>
         <nav aria-label="Seasons" className="mt-3 flex gap-6 text-sm">
           <Link to={href(before)} className="underline underline-offset-4">
             ← {SEASON_LABEL[before.season]} {before.year}

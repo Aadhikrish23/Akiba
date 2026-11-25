@@ -4,6 +4,7 @@ import {
   TITLE_KINDS,
   type EntryStatus,
   type LibraryCounts,
+  type LibraryEntry,
   type LibrarySort,
   type TitleKind,
 } from '@akiba/shared';
@@ -11,8 +12,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { LibraryPoster, LibraryRow } from '../components/EntryParts';
+import { FranchiseTile } from '../components/FranchiseTile';
 import { GridSkeleton } from '../components/TitleResults';
 import { Button, Field, Notice, Select } from '../components/ui';
+import { groupByFranchise, type Grouped } from '../lib/franchise';
 import { useEntryList } from '../lib/library';
 import { usePageTitle } from '../lib/page';
 import { ENTRY_LABEL, KIND_LABEL } from '../lib/titles';
@@ -29,8 +32,36 @@ const TABS: readonly Tab[] = ['all', ...ENTRY_STATUSES, 'favorites'];
 const TAB_LABEL = (tab: Tab): string =>
   tab === 'all' ? 'All' : tab === 'favorites' ? 'Favorites' : ENTRY_LABEL[tab];
 
+/** The seasons of one show you have in your library as one tile: how many, how many finished, how far in each. */
+function EntryTile({ group }: { group: Extract<Grouped<LibraryEntry>, { kind: 'banner' }> }) {
+  const done = group.items.filter((entry) => entry.status === 'completed').length;
+  // One season of the show: say where you are in it, as a poster would.
+  const only = group.items.length === 1 ? group.items[0] : undefined;
+  return (
+    <FranchiseTile
+      franchise={group.franchise}
+      covers={group.items.map((entry) => entry.title)}
+      standing={
+        only === undefined
+          ? `${group.items.length} in your library${done > 0 ? `, ${done} completed` : ''}`
+          : `${ENTRY_LABEL[only.status]} · ${only.progress} / ${only.effectiveTotal ?? only.episodesAired ?? '?'}`
+      }
+      progress={group.items.map((entry) =>
+        entry.status === 'completed'
+          ? 1
+          : entry.effectiveTotal === null
+            ? 0
+            : Math.min(1, entry.progress / entry.effectiveTotal),
+      )}
+    />
+  );
+}
+
 const pick = <T extends string>(options: readonly T[], value: string | null): T | undefined =>
   (options as readonly string[]).includes(value ?? '') ? (value as T) : undefined;
+
+/** How long typing must pause before the library search runs. */
+const SEARCH_DELAY_MS = 300;
 
 /**
  * The library (FR-LIB-003…005): status tabs with counts, search, filters, sort, and a poster grid
@@ -50,8 +81,10 @@ export function LibraryPage() {
   const view = chosenView ?? profile?.libraryView ?? 'grid';
 
   const [draft, setDraft] = useState(q);
+  // A change to the address (back, a link) shows in the box. What you are typing is left alone: the
+  // search trims it, so a trailing space must not be taken away mid-word.
   useEffect(() => {
-    setDraft(q);
+    setDraft((current) => (current.trim() === q ? current : q));
   }, [q]);
   const [counts, setCounts] = useState<LibraryCounts | null>(null);
   useEffect(() => {
@@ -84,6 +117,31 @@ export function LibraryPage() {
     }
     setParams(next, { replace: true });
   };
+  // Search as you type: once typing pauses, the box is the search.
+  useEffect(() => {
+    const wanted = draft.trim();
+    if (wanted === q) return;
+    const timer = setTimeout(() => {
+      update({ q: wanted });
+    }, SEARCH_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+    };
+    // `update` is rebuilt on every render; the timer only needs to restart when the text changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, q]);
+  // Posters: every title of a franchise is its tile, even one season, so the grid looks the same
+  // for all of them. The compact list keeps a lone season as the entry it is, with its +1.
+  const tilesOf = (minItems: number) =>
+    state.phase === 'ready'
+      ? groupByFranchise(
+          state.items,
+          (entry) => entry.title.franchise,
+          (entry) => entry.id,
+          minItems,
+        )
+      : [];
+  const groups = tilesOf(view === 'list' ? 2 : 1);
   const count = (value: Tab): number | null =>
     counts === null
       ? null
@@ -93,11 +151,11 @@ export function LibraryPage() {
 
   return (
     <div className="grid gap-8">
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">Library</h1>
+      <h1 className="h-title">Library</h1>
 
       <nav
         aria-label="Library sections"
-        className="border-rule flex flex-wrap gap-x-6 gap-y-2 border-b"
+        className="border-rule bg-raised flex w-fit max-w-full gap-0.5 overflow-x-auto rounded-full border p-[3px]"
       >
         {TABS.map((value) => (
           <button
@@ -107,7 +165,7 @@ export function LibraryPage() {
             onClick={() => {
               update({ tab: value });
             }}
-            className={`border-b-2 py-2 text-base ${tab === value ? 'border-accent font-medium' : 'border-transparent'}`}
+            className={`min-h-10 shrink-0 cursor-pointer rounded-full px-4 py-2 text-sm whitespace-nowrap ${tab === value ? 'bg-ink text-paper font-bold' : 'text-mute hover:text-ink'}`}
           >
             {TAB_LABEL(value)}
             {count(value) !== null && (
@@ -137,7 +195,6 @@ export function LibraryPage() {
             }}
           />
         </div>
-        <Button type="submit">Search</Button>
         <Select
           label="Format"
           anyLabel="Any format"
@@ -216,21 +273,35 @@ export function LibraryPage() {
             </p>
             {view === 'list' ? (
               <ul aria-label="Library" className="list-none p-0">
-                {state.items.map((entry) => (
-                  <LibraryRow key={entry.id} entry={entry} />
-                ))}
+                {groups.map((group) =>
+                  group.kind === 'one' ? (
+                    <LibraryRow key={group.key} entry={group.item} />
+                  ) : (
+                    <li key={group.key} className="border-rule border-b py-3">
+                      <div className="max-w-60">
+                        <EntryTile group={group} />
+                      </div>
+                    </li>
+                  ),
+                )}
               </ul>
             ) : (
               <ul
                 aria-label="Library"
-                className="grid list-none gap-x-5 gap-y-8 p-0"
-                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}
+                className="grid list-none gap-x-4 gap-y-10 min-[560px]:gap-x-7 p-0"
+                style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 160px), 1fr))' }}
               >
-                {state.items.map((entry) => (
-                  <li key={entry.id}>
-                    <LibraryPoster entry={entry} />
-                  </li>
-                ))}
+                {groups.map((group) =>
+                  group.kind === 'one' ? (
+                    <li key={group.key}>
+                      <LibraryPoster entry={group.item} />
+                    </li>
+                  ) : (
+                    <li key={group.key}>
+                      <EntryTile group={group} />
+                    </li>
+                  ),
+                )}
               </ul>
             )}
             {state.moreError !== null && <Notice tone="error">{state.moreError}</Notice>}

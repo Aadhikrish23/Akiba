@@ -9,7 +9,8 @@ const MEDIA_CARD = `
   title { romaji english native }
   synonyms
   description(asHtml: false)
-  coverImage { extraLarge large }
+  coverImage { extraLarge large color }
+  externalLinks { site url type }
   bannerImage
   format
   status
@@ -23,6 +24,7 @@ const MEDIA_CARD = `
   popularity
   isAdult
   genres
+  tags { name rank }
   updatedAt
 `;
 
@@ -32,6 +34,7 @@ const MEDIA_ARGUMENTS = `
   type: ANIME
   search: $search
   genre: $genre
+  tag: $tag
   season: $season
   seasonYear: $seasonYear
   format: $format
@@ -41,7 +44,7 @@ const MEDIA_ARGUMENTS = `
 `;
 
 const PAGE_VARIABLES = `
-  $page: Int, $perPage: Int, $search: String, $genre: String, $season: MediaSeason,
+  $page: Int, $perPage: Int, $search: String, $genre: String, $tag: String, $season: MediaSeason,
   $seasonYear: Int, $format: MediaFormat, $status: MediaStatus, $isAdult: Boolean,
   $sort: [MediaSort]
 `;
@@ -51,7 +54,9 @@ export const MEDIA_PAGE_QUERY = `
 query MediaPage(${PAGE_VARIABLES}) {
   Page(page: $page, perPage: $perPage) {
     ${PAGE_INFO}
-    media(${MEDIA_ARGUMENTS}) {${MEDIA_CARD}}
+    media(${MEDIA_ARGUMENTS}) {${MEDIA_CARD}
+      relations { edges { relationType(version: 2) node { id idMal type format title { romaji english } coverImage { large } } } }
+    }
   }
 }`;
 
@@ -60,8 +65,9 @@ query MediaDetail($id: Int) {
   Media(id: $id, type: ANIME) {
     ${MEDIA_CARD}
     studios { edges { isMain node { id name isAnimationStudio } } }
-    relations { edges { relationType(version: 2) node { id idMal type format title { romaji } } } }
+    relations { edges { relationType(version: 2) node { id idMal type format title { romaji english } coverImage { large } } } }
     nextAiringEpisode { episode airingAt }
+    streamingEpisodes { title url site }
     characters(perPage: 25, sort: [ROLE, RELEVANCE]) {
       edges {
         role

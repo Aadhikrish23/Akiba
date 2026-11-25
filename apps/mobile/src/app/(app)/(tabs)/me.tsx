@@ -28,7 +28,6 @@ export default function MeScreen() {
       <Heading>{state.user.displayName ?? 'Your account'}</Heading>
       <Body>{state.user.email}</Body>
       {!state.user.emailVerified && <Muted>Your email address is not verified yet.</Muted>}
-      <TextLink href="/history">History</TextLink>
       <TextLink href="/settings">Settings</TextLink>
       {error !== null && <Notice tone="error">{error}</Notice>}
       <Button label="Log out" busy={busy} onPress={signOut} />

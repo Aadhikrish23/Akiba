@@ -181,6 +181,15 @@ importers:
       '@akiba/ui-tokens':
         specifier: workspace:*
         version: link:../../packages/ui-tokens
+      '@fontsource-variable/big-shoulders-display':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/yomogi':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/zen-kaku-gothic-new':
+        specifier: 5.3.1
+        version: 5.3.1
       react:
         specifier: ^19.3.1
         version: 19.3.1
@@ -1109,6 +1118,15 @@ packages:
   '@expo/xcpretty@4.4.7':
     resolution: {integrity: sha512-EbxYllZ7/ozONVZd425cm4XnolfW+AmSFT5aP7Jdno6oc3WrYQcHz2CO20z/2rwWwYgztmV2PXvYH+BQ8YFjqg==}
     hasBin: true
+
+  '@fontsource-variable/big-shoulders-display@5.3.0':
+    resolution: {integrity: sha512-7k1REXMZFEa7gSWOURbmCJW5Gv9D0EbEFQgosZidM8Ob/qpPlK96vqyIzCTnNZ/C0XFZWxeKU53D3QdeHctYCA==}
+
+  '@fontsource/yomogi@5.3.0':
+    resolution: {integrity: sha512-D35BWMd0BVhtYfpE7r1UfTNZHxaFVvLw4Rz2ym+yvEE7vlIfwtZEQFp4VFCvlcH+BwoAJD1mFH/r/XV7qDxeyg==}
+
+  '@fontsource/zen-kaku-gothic-new@5.3.1':
+    resolution: {integrity: sha512-L69mE6bkzeVK3UdTenxOmCIWvTwMxohJRNm1dAj+W+UiCULQ91b7M77ENVw+pjGmFL6zKPFYFeH3g8x2ugAJNw==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -7002,6 +7020,12 @@ snapshots:
       '@babel/code-frame': 7.29.7
       chalk: 4.1.2
       js-yaml: 4.3.2
+
+  '@fontsource-variable/big-shoulders-display@5.3.0': {}
+
+  '@fontsource/yomogi@5.3.0': {}
+
+  '@fontsource/zen-kaku-gothic-new@5.3.1': {}
 
   '@humanfs/core@0.19.2':
     dependencies:
