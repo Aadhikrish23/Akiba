@@ -281,7 +281,7 @@ describe('Discover: the seasons of one show are one tile', () => {
     expect(await screen.findByRole('link', { name: `${tileName} 1 in your library` })).toBeTruthy();
   });
 
-  it('keeps a title whose franchise has only itself on the page as an ordinary card', async () => {
+  it('shows a title whose franchise has only itself on the page as the franchise tile all the same', async () => {
     renderApp({
       route: '/discover?q=hero',
       handler: server((call) => {
@@ -292,8 +292,26 @@ describe('Discover: the seasons of one show are one tile', () => {
         return undefined;
       }),
     });
-    expect(await screen.findByRole('link', { name: 'Show 10' })).toBeTruthy();
-    expect(screen.queryByRole('link', { name: /^Franchise / })).toBeNull();
+    expect(await screen.findByRole('link', { name: /^Franchise My Hero Academia / })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Show 10' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Show 20' })).toBeTruthy();
+  });
+
+  it("stacks the franchise's own covers on the tile, however many of its titles are on the page", async () => {
+    const covered = { ...info, covers: ['https://img.example/a.jpg', 'https://img.example/b.jpg'] };
+    const { container } = renderApp({
+      route: '/discover?q=hero',
+      handler: server((call) => {
+        if (call.path.endsWith('/genres')) return json(200, { data: [] });
+        if (call.path.includes('/titles/search')) return list([card(10, { franchise: covered })]);
+        return undefined;
+      }),
+    });
+    await screen.findByRole('link', { name: /^Franchise My Hero Academia / });
+    const covers = [...container.querySelectorAll('.ftile__art img')].map((img) =>
+      img.getAttribute('src'),
+    );
+    expect(covers).toEqual(['https://img.example/a.jpg', 'https://img.example/b.jpg']);
   });
 
   it('has no axe violations', async () => {

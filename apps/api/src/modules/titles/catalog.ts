@@ -29,8 +29,8 @@ export const cardSelect = (userId: string) =>
         _count: { select: { titles: true } },
         titles: {
           orderBy: [{ startDate: 'asc' }, { popularity: 'asc' }],
-          take: 1,
-          select: { titleRomaji: true, titleEnglish: true, titleNative: true },
+          take: 6,
+          select: { titleRomaji: true, titleEnglish: true, titleNative: true, coverUrl: true },
         },
       },
     },
@@ -66,6 +66,9 @@ function franchiseOf(row: CardRow['franchise']): TitleCard['franchise'] {
     titleRomaji: root?.titleRomaji ?? null,
     titleEnglish: root?.titleEnglish ?? null,
     titleNative: root?.titleNative ?? null,
+    covers: row.titles
+      .flatMap((title) => (title.coverUrl === null ? [] : [title.coverUrl]))
+      .slice(0, 3),
   };
 }
 

@@ -115,8 +115,9 @@ describe('seasons under one franchise on a list page', () => {
     const seasons = cards.filter((card) => card.titleEnglish.startsWith('My Hero Academia'));
     expect(seasons).toHaveLength(4);
     const franchise = seasons[0]!.franchise;
-    // Four titles, of which three are seasons: the movie hangs off the side.
-    expect(franchise).toMatchObject({ size: 4, seasons: 3, titleEnglish: 'My Hero Academia' });
+    // Five titles, of which four are seasons: the movie hangs off the side, and season 4 is a
+    // placeholder for the sequel of season 3 that is not on the page.
+    expect(franchise).toMatchObject({ size: 5, seasons: 4, titleEnglish: 'My Hero Academia' });
     expect(new Set(seasons.map((card) => card.franchise?.id))).toEqual(new Set([franchise!.id]));
   });
 
@@ -125,10 +126,25 @@ describe('seasons under one franchise on a list page', () => {
     expect(loner?.franchise).toBeNull();
   });
 
-  it('does not invent titles for relations whose other end is not on the page', async () => {
-    await search();
-    const titles = await testDb.sql.query<{ n: string }>('SELECT count(*) AS n FROM title');
-    expect(Number(titles.rows[0]?.n)).toBe(5);
+  it('keeps a related season that is not on the page as a named placeholder, never fetched, and not listed', async () => {
+    const cards = await search();
+    expect(cards).toHaveLength(5);
+    const titles = await testDb.sql.query<{ title_romaji: string; fetched_at: Date | null }>(
+      'SELECT title_romaji, fetched_at FROM title ORDER BY title_romaji',
+    );
+    expect(titles.rows).toHaveLength(6);
+    expect(titles.rows.find((row) => row.title_romaji === 'Related 4')).toMatchObject({
+      fetched_at: null,
+    });
+  });
+
+  it('puts a show seen alone on a page in its franchise at once, through its placeholders', async () => {
+    t.anilist.responder = (request) =>
+      ((request.body?.['query'] as string | undefined) ?? '').includes('query MediaPage')
+        ? page([SEASONS[0]!])
+        : recordedAniList(request);
+    const [only] = await search();
+    expect(only?.franchise).toMatchObject({ size: 3, titleEnglish: 'My Hero Academia' });
   });
 
   it('serves the whole franchise, oldest first, for the banner to open', async () => {
@@ -142,8 +158,9 @@ describe('seasons under one franchise on a list page', () => {
       'My Hero Academia 2',
       'My Hero Academia 3',
       'My Hero Academia: The Movie',
+      null,
     ]);
-    expect(response.body.data.totals).toMatchObject({ titles: 4, inLibrary: 0 });
+    expect(response.body.data.totals).toMatchObject({ titles: 5, inLibrary: 0 });
   });
 
   it('keeps the links when the same page is searched again', async () => {
@@ -153,7 +170,7 @@ describe('seasons under one franchise on a list page', () => {
     const relations = await testDb.sql.query<{ n: string }>(
       'SELECT count(*) AS n FROM title_relation',
     );
-    // 1->2, 2->1, 2->3, 3->2, 1->5, 5->1: the link to the season that is not on the page is not stored.
-    expect(Number(relations.rows[0]?.n)).toBe(6);
+    // 1->2, 2->1, 2->3, 3->2, 1->5, 5->1, and 3->4 to the placeholder for season 4.
+    expect(Number(relations.rows[0]?.n)).toBe(7);
   });
 });

@@ -22,7 +22,13 @@ interface TileProps {
 export function FranchiseTile({ franchise, covers, standing, progress }: TileProps) {
   const name = displayTitle(franchise);
   const counts = franchiseSummary(franchise);
-  const shown = covers.slice(0, 3);
+  // The franchise's own covers (its first titles), so a tile looks the same whether one season or
+  // all of them are on the page; the page's own covers are the fallback.
+  const own = franchise.covers.map((coverUrl, index) => ({
+    id: `${franchise.id}-${index}`,
+    coverUrl,
+  }));
+  const shown = (own.length > 0 ? own : covers).slice(0, 3);
   return (
     <Link to={`/franchise/${franchise.id}`} className="ftile has-[:focus-visible]:outline-accent">
       <span className="ftile__tag">Franchise</span>{' '}

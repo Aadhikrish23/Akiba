@@ -77,6 +77,7 @@ export function TitleResults({
                   state.items,
                   (item) => item.franchise,
                   (item) => item.id,
+                  1,
                 )
               : state.items.map((item) => ({ kind: 'one' as const, key: item.id, item }))
             ).map((group) =>

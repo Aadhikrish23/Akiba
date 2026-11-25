@@ -86,6 +86,8 @@ export const titleCardSchema = z.object({
       titleRomaji: z.string().nullable(),
       titleEnglish: z.string().nullable(),
       titleNative: z.string().nullable(),
+      /** Up to three covers of the franchise's first titles, for the stack on its tile. */
+      covers: z.array(z.string()).default([]),
     })
     .nullable()
     .default(null),

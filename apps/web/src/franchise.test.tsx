@@ -385,6 +385,27 @@ describe('The franchise page: a show in your library', () => {
     expect(status.textContent).toMatch(/12 of 15 episodes watched/);
   });
 
+  it('changes the status of a season from its row, and saves it', async () => {
+    const app = renderApp({
+      route: `/franchise/${FRANCHISE}`,
+      handler: server(mine(), (call) =>
+        call.method === 'PATCH' ? json(200, { data: entryDetail(3, 'on_hold', 2) }) : undefined,
+      ),
+    });
+    const select = await screen.findByRole<HTMLSelectElement>('combobox', {
+      name: 'Status of Season 3',
+    });
+    expect(select.value).toBe('watching');
+    await app.user.selectOptions(select, 'on_hold');
+    await waitFor(() => {
+      expect(app.calls.filter((call) => call.method === 'PATCH')).toHaveLength(1);
+    });
+    expect(app.calls.find((call) => call.method === 'PATCH')?.body).toEqual({ status: 'on_hold' });
+    expect(await screen.findByText('On hold · 2 / 5')).toBeTruthy();
+    // A season that is not in the library has no status to change.
+    expect(screen.queryByRole('combobox', { name: 'Status of The Movie' })).toBeNull();
+  });
+
   it('+1 on the continue ticket logs the next episode', async () => {
     const app = renderApp({
       route: `/franchise/${FRANCHISE}`,

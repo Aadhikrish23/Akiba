@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router';
 import { useAuth } from '../auth/AuthContext';
 import { Button, Notice } from '../components/ui';
 import { describeError } from '../lib/errors';
-import { franchiseSummary } from '../lib/franchise';
+import { franchiseSummary, inSeasonOrder } from '../lib/franchise';
 import { WatchChoice } from '../components/WatchChoice';
 import { usePageTitle } from '../lib/page';
 import { useRemote } from '../lib/remote';
@@ -241,15 +241,16 @@ export function FranchisePage() {
   const split = useMemo(() => {
     if (franchise === null)
       return { seasons: [] as FranchiseTitle[], others: [] as FranchiseTitle[] };
-    const line = mainLineOf(
-      franchise.titles[0]?.id ?? '',
-      franchise.relations.map((relation) => ({
-        from: relation.fromTitleId,
-        to: relation.toTitleId,
-        type: relation.relationType,
-      })),
+    const edges = franchise.relations.map((relation) => ({
+      from: relation.fromTitleId,
+      to: relation.toTitleId,
+      type: relation.relationType,
+    }));
+    const line = mainLineOf(franchise.titles[0]?.id ?? '', edges);
+    const seasons = inSeasonOrder(
+      franchise.titles.filter((title) => line.has(title.id) && title.kind === 'tv'),
+      edges,
     );
-    const seasons = franchise.titles.filter((title) => line.has(title.id) && title.kind === 'tv');
     return { seasons, others: franchise.titles.filter((title) => !seasons.includes(title)) };
   }, [franchise]);
 
@@ -288,6 +289,7 @@ export function FranchisePage() {
     titleRomaji: root.titleRomaji,
     titleEnglish: root.titleEnglish,
     titleNative: root.titleNative,
+    covers: [],
   });
   const totalEpisodes = seasons.reduce((sum, title) => sum + (title.episodesTotal ?? 0), 0);
   const years = franchise.titles
@@ -351,6 +353,19 @@ export function FranchisePage() {
           },
         }));
       }
+    });
+  const setStatus = (title: FranchiseTitle, entry: Mine, status: EntryStatus) =>
+    run(async () => {
+      const updated = await client.library.update(entry.entryId, { status });
+      setMine((current) => ({
+        ...current,
+        [title.id]: {
+          entryId: entry.entryId,
+          status: updated.status,
+          progress: updated.progress,
+          total: updated.effectiveTotal,
+        },
+      }));
     });
   const setProgress = (title: FranchiseTitle, entry: Mine, value: number) =>
     run(async () => {
@@ -520,6 +535,10 @@ export function FranchisePage() {
               setOpen((value) => (value === title.id ? null : title.id));
             }}
             onAdd={(status) => void add(title, status)}
+            onStatus={(status) => {
+              const entry = mine[title.id];
+              if (entry !== undefined) void setStatus(title, entry, status);
+            }}
             onSet={(value) => {
               const entry = mine[title.id];
               if (entry !== undefined) void setProgress(title, entry, value);
@@ -551,6 +570,10 @@ export function FranchisePage() {
                 setOpen((value) => (value === title.id ? null : title.id));
               }}
               onAdd={(status) => void add(title, status)}
+              onStatus={(status) => {
+                const entry = mine[title.id];
+                if (entry !== undefined) void setStatus(title, entry, status);
+              }}
               onSet={(value) => {
                 const entry = mine[title.id];
                 if (entry !== undefined) void setProgress(title, entry, value);
@@ -575,6 +598,7 @@ function TitleBlock({
   addAs,
   onToggle,
   onAdd,
+  onStatus,
   onSet,
 }: {
   title: FranchiseTitle;
@@ -587,6 +611,7 @@ function TitleBlock({
   addAs: EntryStatus;
   onToggle: () => void;
   onAdd: (status: EntryStatus) => void;
+  onStatus: (status: EntryStatus) => void;
   onSet: (value: number) => void;
 }) {
   const state = stateWords(mine);
@@ -649,6 +674,23 @@ function TitleBlock({
           >
             {state.text}
           </span>
+          {mine !== undefined && (
+            <select
+              aria-label={`Status of ${name}`}
+              value={mine.status}
+              disabled={busy}
+              onChange={(event) => {
+                onStatus(event.target.value as EntryStatus);
+              }}
+              className="border-rule bg-raised text-ink h-10 rounded-full border-[1.5px] px-3 text-sm font-bold disabled:opacity-50"
+            >
+              {ENTRY_STATUSES.map((value) => (
+                <option key={value} value={value}>
+                  {ENTRY_LABEL[value]}
+                </option>
+              ))}
+            </select>
+          )}
           {mine === undefined && (
             <Button
               busy={busy}

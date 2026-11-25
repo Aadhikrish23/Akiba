@@ -15,7 +15,7 @@ import {
 import type { DbClient } from '../../db/index.js';
 import { notFound, sourcesUnavailable } from '../../lib/errors.js';
 import { loadTitleCharacters, replaceCharacters } from '../explore/characters.js';
-import { recomputeFranchises } from '../explore/franchise.js';
+import { FRANCHISE_RELATIONS, recomputeFranchises } from '../explore/franchise.js';
 import type { Logger } from '../../lib/logger.js';
 import { UnresolvableTitleError, type TitleResolver } from '../../mapping/index.js';
 import { SourcesUnavailableError, type SourceGateway, type Sourced } from '../../sources/index.js';
@@ -26,6 +26,7 @@ import type {
   SourcePage,
   SourceTitle,
   TitleFilters,
+  TitleKind,
 } from '../../sources/types.js';
 import {
   addRelations,
@@ -45,6 +46,8 @@ import { decodeCursor, encodeCursor, type Cursor } from './cursor.js';
 import { ADULT_GENRES, isAdultGenre, isExplicitGenre, seasonOf } from '@akiba/shared';
 
 const HOUR = 60 * 60 * 1000;
+/** Related titles stored as placeholders when one list page is read. */
+const MAX_PLACEHOLDERS = 60;
 /** A card seen in a list is refreshed when our copy is older than this. */
 export const CARD_TTL_MS = 6 * HOUR;
 /** Detail (studios, relations, airing) of a title that is still airing or announced. */
@@ -211,10 +214,12 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
   }
 
   /**
-   * A list page from AniList says how its titles relate (season 2 follows season 1). Store the links
-   * whose far end is already a title of ours (usually another season on the same page) and let the
-   * franchises follow, so a search shows "My Hero Academia" as one group at once instead of only
-   * after each season has been opened. A failure here never fails the search.
+   * A list page from AniList says how its titles relate (season 2 follows season 1). Store those
+   * links and let the franchises follow, so "My Hero Academia" is one group at once instead of only
+   * after each season has been opened. A related title we do not have yet is stored as a
+   * placeholder (a name and a kind, fetched in full the first time it is opened), as the detail
+   * refresh already does, so a show seen alone on a page is still known to be part of a franchise.
+   * At most `MAX_PLACEHOLDERS` per page. A failure here never fails the search.
    */
   async function linkSeasons(
     entries: readonly { titleId: string; item: SourceTitle }[],
@@ -229,10 +234,45 @@ export function createTitlesService(options: TitlesServiceOptions): TitlesServic
         }
       }
       if (wanted.size === 0) return;
-      const known = await db.titleExternalId.findMany({
-        where: { source: 'anilist', externalId: { in: [...wanted] } },
-        select: { titleId: true, externalId: true },
-      });
+      const find = () =>
+        db.titleExternalId.findMany({
+          where: { source: 'anilist', externalId: { in: [...wanted] } },
+          select: { titleId: true, externalId: true },
+        });
+      let known = await find();
+      const have = new Set(known.map((row) => row.externalId));
+      const missing = new Map<string, { title: string; kind: TitleKind | null }>();
+      for (const entry of withLinks) {
+        for (const relation of entry.item.relations ?? []) {
+          const id = relation.target.externalIds.anilist;
+          if (
+            id === undefined ||
+            have.has(id) ||
+            relation.target.title === null ||
+            !FRANCHISE_RELATIONS.includes(relation.relationType)
+          ) {
+            continue;
+          }
+          missing.set(id, { title: relation.target.title, kind: relation.target.kind });
+        }
+      }
+      if (missing.size > 0) {
+        await mapLimit(
+          [...missing].slice(0, MAX_PLACEHOLDERS),
+          RESOLVE_CONCURRENCY,
+          async ([id, target]) => {
+            try {
+              await resolver.resolve({
+                externalIds: { anilist: id },
+                stub: { title: target.title, kind: target.kind },
+              });
+            } catch (error) {
+              if (!(error instanceof UnresolvableTitleError)) throw error;
+            }
+          },
+        );
+        known = await find();
+      }
       const titleOf = new Map(known.map((row) => [row.externalId, row.titleId]));
       const rows = withLinks.flatMap((entry) =>
         (entry.item.relations ?? []).flatMap((relation) => {

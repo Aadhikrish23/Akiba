@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { franchiseSummary, groupByFranchise, type FranchiseInfo } from './franchise';
+import { franchiseSummary, groupByFranchise, inSeasonOrder, type FranchiseInfo } from './franchise';
 
 const franchise = (id: string): FranchiseInfo => ({
   id,
@@ -8,6 +8,7 @@ const franchise = (id: string): FranchiseInfo => ({
   titleRomaji: 'Boku no Hero Academia',
   titleEnglish: 'My Hero Academia',
   titleNative: null,
+  covers: [],
 });
 
 interface Item {
@@ -37,9 +38,20 @@ describe('groupByFranchise', () => {
     ]);
   });
 
-  it('leaves a lone member of a franchise as it is: one title is not a banner', () => {
+  it('leaves a lone member of a franchise as it is by default: a shelf keeps the entry you track', () => {
     const rows = group([item('s1', 'f'), item('x', null)]);
     expect(rows.map((row) => row.kind)).toEqual(['one', 'one']);
+  });
+
+  it('can make a lone member its tile, so Browse of one season agrees with a search of many', () => {
+    const rows = groupByFranchise(
+      [item('s1', 'f'), item('x', null)],
+      (entry) => entry.franchise,
+      (entry) => entry.id,
+      1,
+    );
+    expect(rows.map((row) => row.kind)).toEqual(['banner', 'one']);
+    expect(rows[0]?.key).toBe('franchise-f');
   });
 
   it('keeps separate franchises apart and the order of everything else', () => {
@@ -77,5 +89,34 @@ describe('franchiseSummary', () => {
   it('falls back to the number of titles when the seasons are not counted', () => {
     expect(franchiseSummary(info(null, 24))).toBe('24 titles');
     expect(franchiseSummary(info(0, 3))).toBe('3 titles');
+  });
+});
+
+describe('inSeasonOrder', () => {
+  const t = (id: string) => ({ id });
+  it('puts a sequel after its prequel even when the sequel has no date and comes last', () => {
+    // Given oldest first: season 1, a movie-less gap, then two placeholders in no useful order.
+    const out = inSeasonOrder(
+      [t('s1'), t('s3'), t('s2')],
+      [
+        { from: 's2', to: 's1', type: 'prequel' },
+        { from: 's1', to: 's2', type: 'sequel' },
+        { from: 's3', to: 's2', type: 'prequel' },
+        { from: 's2', to: 's3', type: 'sequel' },
+      ],
+    );
+    expect(out.map((title) => title.id)).toEqual(['s1', 's2', 's3']);
+  });
+
+  it('keeps the given order for titles that do not depend on each other, and survives a cycle', () => {
+    expect(inSeasonOrder([t('a'), t('b')], []).map((title) => title.id)).toEqual(['a', 'b']);
+    const cycle = inSeasonOrder(
+      [t('a'), t('b')],
+      [
+        { from: 'a', to: 'b', type: 'sequel' },
+        { from: 'b', to: 'a', type: 'sequel' },
+      ],
+    );
+    expect(cycle).toHaveLength(2);
   });
 });
